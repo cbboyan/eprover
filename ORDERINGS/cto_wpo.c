@@ -88,29 +88,17 @@ static void wpo_algebra_max_poly(OCB_p ocb, Term_p t, DerefType deref, long* pol
    }
 }
 
-CompareResult wpo_algebra_poly_compare(long* poly_s, long* poly_t, int dim)
+// s <= t   <=>   (s_i <= t_i)
+// s >= t   <=>   (s_i >= t_i)
+CompareResult wpo_algebra_sum_compare_weak(long* poly_s, long* poly_t, int dim)
 {
    int i;
-   int mis_s = 0;
-   int mis_t = 0;
    CompareResult sofar = to_unknown;
    CompareResult current = to_unknown;
 
-   // TODO: this might not work with Max when we allow w(f)=0
    sofar = COMPARE(poly_s[0], poly_t[0]);
    for (i=1; i<dim; i++)
    {
-      if ((poly_s[i] == -1) && (poly_t[i] !=  -1))
-      {
-         mis_s++;
-         continue;
-      }
-      if ((poly_t[i] == -1) && (poly_s[i] !=  -1))
-      {
-         mis_t++;
-         continue;
-      }
-
       current = COMPARE(poly_s[i], poly_t[i]);
       switch (current)
       {
@@ -133,9 +121,177 @@ CompareResult wpo_algebra_poly_compare(long* poly_s, long* poly_t, int dim)
       }
    }
 
-   if ((mis_s > 0) && (mis_t > 0))
+   return sofar;
+}
+
+// s < t   <=>   (s_0 < t_0) & (s_i <= t_i)
+// s > t   <=>   (s_0 > t_0) & (s_i >= t_i)
+CompareResult wpo_algebra_sum_compare_strict(long* poly_s, long* poly_t, int dim)
+{
+   int i;
+   CompareResult sofar = to_unknown;
+   CompareResult current = to_unknown;
+
+   sofar = COMPARE(poly_s[0], poly_t[0]);
+   if (sofar == to_equal)
    {
-      return to_uncomparable;
+      for (i=1; i<dim; i++)
+      {
+         current = COMPARE(poly_s[i], poly_t[i]);
+         if (current != to_equal)
+         {
+            return to_uncomparable;
+         }
+      }
+   }
+   // now sofar is "<" or ">"
+   for (i=1; i<dim; i++)
+   {
+      current = COMPARE(poly_s[i], poly_t[i]);
+      switch (current)
+      {
+         case to_lesser:
+            if (sofar == to_greater)
+            {
+               return to_uncomparable;
+            }
+            break;
+         case to_greater:
+            if (sofar == to_lesser)
+            {
+               return to_uncomparable;
+            }
+            break;
+         default: // implies to_equal
+            break;
+      }
+   }
+   return sofar;
+}
+
+
+// s < t   <=>   (max_s < max_t) & (s_i < t_i)
+// s > t   <=>   (max_s > max_t) & (s_i > t_i)
+CompareResult wpo_algebra_max_compare_strict(long* poly_s, long* poly_t, int dim)
+{
+   int i;
+   CompareResult sofar = to_unknown;
+   CompareResult current = to_unknown;
+   int max_s, max_t;
+   int mis_s, mis_t;
+
+   max_s = 0;
+   for (i=0; i<dim; i++) 
+   {
+      max_s = MAX(max_s, poly_s[i]);
+   }
+   max_t = 0;
+   for (i=0; i<dim; i++) 
+   { 
+      max_t = MAX(max_t, poly_t[i]);
+   }
+
+   mis_s = 0;
+   mis_t = 0;
+   sofar = COMPARE(max_s, max_t);
+   for (i=1; i<dim; i++)
+   {
+      if ((mis_s>0) && (mis_t>0))
+      {
+         return to_uncomparable;
+      }
+      if ((poly_s[i] == -1) && (poly_t[i] ==  -1)) 
+      {
+         continue;
+      }
+      if ((poly_s[i] == -1) && (poly_t[i] !=  -1)) 
+      { 
+         mis_s++; 
+         continue;
+      }
+      if ((poly_t[i] == -1) && (poly_s[i] !=  -1)) 
+      { 
+         mis_t++; 
+         continue;
+      }
+     
+      // now comparing two existing positions
+      current = COMPARE(poly_s[i], poly_t[i]);
+      if (current != sofar)
+      {
+         return to_uncomparable;
+      }
+   }
+
+   return sofar;
+}
+
+// s <= t   <=>   (max_s <= max_t) & (s_i <= t_i)
+// s >= t   <=>   (max_s >= max_t) & (s_i >= t_i)
+CompareResult wpo_algebra_max_compare_weak(long* poly_s, long* poly_t, int dim)
+{
+   int i;
+   CompareResult sofar = to_unknown;
+   CompareResult current = to_unknown;
+   int max_s, max_t;
+   int mis_s, mis_t;
+
+   max_s = 0;
+   for (i=0; i<dim; i++) 
+   {
+      max_s = MAX(max_s, poly_s[i]);
+   }
+   max_t = 0;
+   for (i=0; i<dim; i++) 
+   { 
+      max_t = MAX(max_t, poly_t[i]);
+   }
+
+   mis_s = 0;
+   mis_t = 0;
+   sofar = COMPARE(max_s, max_t);
+   for (i=1; i<dim; i++)
+   {
+      if ((mis_s>0) && (mis_t>0))
+      {
+         return to_uncomparable;
+      }
+      if ((poly_s[i] == -1) && (poly_t[i] ==  -1)) 
+      {
+         continue;
+      }
+      if ((poly_s[i] == -1) && (poly_t[i] !=  -1)) 
+      { 
+         mis_s++; 
+         continue;
+      }
+      if ((poly_t[i] == -1) && (poly_s[i] !=  -1)) 
+      { 
+         mis_t++; 
+         continue;
+      }
+     
+      // now comparing two existing positions
+      current = COMPARE(poly_s[i], poly_t[i]);
+      switch (current)
+      {
+         case to_lesser:
+            if (sofar == to_greater)
+            {
+               return to_uncomparable;
+            }
+            sofar = to_lesser;
+            break;
+         case to_greater:
+            if (sofar == to_lesser)
+            {
+               return to_uncomparable;
+            }
+            sofar = to_greater;
+            break;
+         default: // implies to_equal
+            break;
+      }
    }
 
    return sofar;
@@ -147,13 +303,13 @@ static CompareResult wpo_algebra_compare(
    Term_p t, 
    DerefType deref_s, 
    DerefType deref_t,
-   int dim)
+   int dim,
+   bool strict)
 {
    int i;
    long poly_s[MAX_INDEX];
    long poly_t[MAX_INDEX];
    CompareResult res;
-
    
    switch (ocb->algebra) 
    {
@@ -162,7 +318,14 @@ static CompareResult wpo_algebra_compare(
          for (i=0; i<dim; i++) { poly_t[i] = 0L; }
          wpo_algebra_sum_poly(ocb, s, deref_s, poly_s, dim);
          wpo_algebra_sum_poly(ocb, t, deref_t, poly_t, dim);
-         res = wpo_algebra_poly_compare(poly_s, poly_t, dim);
+         if (strict)
+         {
+            res = wpo_algebra_sum_compare_strict(poly_s, poly_t, dim);
+         }
+         else 
+         {
+            res = wpo_algebra_sum_compare_weak(poly_s, poly_t, dim);
+         }
 
          if (OutputLevel >= 2)
          {
@@ -180,7 +343,7 @@ static CompareResult wpo_algebra_compare(
             { 
                fprintf(GlobalOut, " + %ld*X%d", poly_t[i], i);
             }
-            fprintf(GlobalOut, "\n<WPO POLY> comparison :: %s ::\n", POCompareSymbol[res]);
+            fprintf(GlobalOut, "\n<WPO POLY> comparison :: %s%s ::\n", POCompareSymbol[res], strict ? "" : "=");
          }
          return res;
 
@@ -189,7 +352,14 @@ static CompareResult wpo_algebra_compare(
          for (i=0; i<dim; i++) { poly_t[i] = -1; }
          wpo_algebra_max_poly(ocb, s, deref_s, poly_s, dim);
          wpo_algebra_max_poly(ocb, t, deref_t, poly_t, dim);
-         res = wpo_algebra_poly_compare(poly_s, poly_t, dim);
+         if (strict)
+         {
+            res = wpo_algebra_max_compare_strict(poly_s, poly_t, dim);
+         }
+         else
+         {
+            res = wpo_algebra_max_compare_weak(poly_s, poly_t, dim);
+         }
          
          if (OutputLevel >= 2)
          {
@@ -209,7 +379,7 @@ static CompareResult wpo_algebra_compare(
                if (poly_t[i] == -1) { continue; }
                fprintf(GlobalOut, " , %ld+X%d", poly_t[i], i);
             }
-            fprintf(GlobalOut, " )\n<WPO POLY> comparison :: %s ::\n", POCompareSymbol[res]);
+            fprintf(GlobalOut, " )\n<WPO POLY> comparison :: %s%s ::\n", POCompareSymbol[res], strict ? "" : "=");
          }
          return res;
 
@@ -335,19 +505,26 @@ CompareResult WPOCompare(OCB_p ocb, Term_p s, Term_p t,
       return to_uncomparable;
    }
 
-   algebra_cmp = wpo_algebra_compare(ocb, s, t, deref_s, deref_t, dim);
+   // strict comparison first
+   algebra_cmp = wpo_algebra_compare(ocb, s, t, deref_s, deref_t, dim, true);
    switch (algebra_cmp) 
    {
       case to_lesser:
          return wpo_fresh_check(t,s) ? to_lesser : to_uncomparable;
       case to_greater:
          return wpo_fresh_check(s,t) ? to_greater : to_uncomparable;
-      case to_uncomparable:
-         return to_uncomparable;
-      default: // implies to_equal
+      case to_equal:
+         break;
+      default: // still can be comparable weakly
+         algebra_cmp = wpo_algebra_compare(ocb, s, t, deref_s, deref_t, dim, false);
          break;
    }
 
+   if (algebra_cmp == to_uncomparable)
+   {
+      return to_uncomparable; // not even weakly comparable
+   }
+   
    // only the same terms are =WPO
    if (TermStructEqualDeref(s, t, deref_s, deref_t))
    {
@@ -359,8 +536,11 @@ CompareResult WPOCompare(OCB_p ocb, Term_p s, Term_p t,
    //}
    
    // is there argument s_i such that s_i >=WPO t ?
-   if (s->arity > 0) 
+   if (s->arity > 0)
    {
+
+
+
       all_lesser = true;
       for (i=0; i<s->arity; i++)
       {
@@ -369,7 +549,15 @@ CompareResult WPOCompare(OCB_p ocb, Term_p s, Term_p t,
             case to_greater:
             case to_equal:
                //return to_greater;
-               return wpo_fresh_check(s,t) ? to_greater : to_uncomparable;
+               if ((algebra_cmp == to_greater) || (algebra_cmp == to_equal))
+               {
+                  return wpo_fresh_check(s,t) ? to_greater : to_uncomparable;
+               }
+               else
+               {
+                  all_lesser = false;
+                  break;
+               }
             case to_lesser:
                break; // just keep the value all_lesser = true
             default:
@@ -377,7 +565,7 @@ CompareResult WPOCompare(OCB_p ocb, Term_p s, Term_p t,
          }
       }
       // are all arguments s_i <WPO t ?
-      if ((t->arity > 0) && all_lesser)
+      if ((t->arity > 0) && all_lesser && ((algebra_cmp == to_lesser) || (algebra_cmp == to_equal)))
       {
          // if so, compare head symbols
          top_sym_cmp = OCBFunCompare(ocb, s->f_code, t->f_code);
@@ -412,14 +600,22 @@ CompareResult WPOCompare(OCB_p ocb, Term_p s, Term_p t,
             case to_lesser:
             case to_equal:
                //return to_lesser;
-               return wpo_fresh_check(t,s) ? to_lesser : to_uncomparable;
+               if ((algebra_cmp == to_lesser) || (algebra_cmp == to_equal))
+               {
+                  return wpo_fresh_check(t,s) ? to_lesser : to_uncomparable;
+               }
+               else
+               {
+                  all_greater = false;
+                  break;
+               }
             case to_greater:
                break;
             default:
                all_greater = false;
          }
       }
-      if ((s->arity > 0) && all_greater)
+      if ((s->arity > 0) && all_greater && ((algebra_cmp == to_greater) || (algebra_cmp == to_equal)))
       {
          if (top_sym_cmp == to_unknown) {
             top_sym_cmp = OCBFunCompare(ocb, s->f_code, t->f_code);

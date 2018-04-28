@@ -301,7 +301,7 @@ void OCBFree(OCB_p junk)
 
    if(junk->weights)
    {
-      assert(junk->type == KBO || junk->type==KBO6);
+      assert(junk->type == KBO || junk->type==KBO6 || junk->type==WPO);
       SizeFree(junk->weights, sizeof(long)*(junk->sig_size+1));
       junk->weights = NULL;
    }
@@ -311,6 +311,7 @@ void OCBFree(OCB_p junk)
       assert(junk->type == KBO ||
              junk->type == KBO6 ||
              junk->type == LPO ||
+             junk->type == WPO ||
              junk->type == LPOCopy ||
              junk->type == LPO4 ||
              junk->type == LPO4Copy ||
@@ -325,6 +326,7 @@ void OCBFree(OCB_p junk)
       assert(junk->type == KBO ||
              junk->type == KBO6 ||
              junk->type == LPO ||
+             junk->type == WPO ||
              junk->type == LPOCopy ||
              junk->type == LPO4 ||
              junk->type == LPO4Copy ||
