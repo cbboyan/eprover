@@ -16,7 +16,7 @@ include ../Makefile.vars
 
 # Project specific variables
 
-PROJECT = ex_commandline term2dag 
+PROJECT = ex_commandline term2dag tptp-sig
 LIB     = $(PROJECT)
 all: $(LIB)
 
@@ -44,6 +44,13 @@ EX_COMMANDLINE = ex_commandline.o ../lib/INOUT.a ../lib/BASICS.a
 
 ex_commandline: $(EX_COMMANDLINE)
 	$(LD) -o ex_commandline $(EX_COMMANDLINE) $(LIBS)
+
+TPTPSIG = tptp-sig.o ../lib/CONTROL.a ../lib/HEURISTICS.a \
+				../lib/CLAUSES.a ../lib/ORDERINGS.a \
+				../lib/TERMS.a ../lib/INOUT.a ../lib/BASICS.a
+
+tptp-sig: $(TPTPSIG)
+	$(LD) -o tptp-sig $(TPTPSIG) $(LIBS)
 
 include Makefile.dependencies
 
