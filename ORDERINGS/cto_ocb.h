@@ -65,7 +65,9 @@ typedef enum
 {
    NoAlgebra = 0,
    Sum,
-   Max
+   Max,
+   SumVar0,
+   SumVar1
 }WeightAlgebra;
 
 

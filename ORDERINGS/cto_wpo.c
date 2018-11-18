@@ -297,6 +297,37 @@ CompareResult wpo_algebra_max_compare_weak(long* poly_s, long* poly_t, int dim)
    return sofar;
 }
 
+//
+// fake algebras
+//
+
+static long wpo_algebra_sumvarx_weight(OCB_p ocb, Term_p t, DerefType deref, long var_weight)
+{
+   int i;
+   long coef = 1;
+   long w;
+
+   t = TermDeref(t, &deref);
+   if (TermIsVar(t))
+   {
+      return var_weight;
+   }
+   else
+   {
+      w = OCBFunWeight(ocb, t->f_code);
+      for (i=0; i<t->arity; i++)
+      {
+         coef = (long)*OCBAlgebraCoefPos(ocb, t->f_code, i);
+         w += coef * wpo_algebra_sumvarx_weight(ocb, t->args[i], deref, var_weight);
+      }
+      return w;
+   }
+}
+
+//
+// end of fakes
+//
+
 static CompareResult wpo_algebra_compare(
    OCB_p ocb, 
    Term_p s, 
@@ -310,6 +341,8 @@ static CompareResult wpo_algebra_compare(
    long poly_s[MAX_INDEX];
    long poly_t[MAX_INDEX];
    CompareResult res;
+
+   long w_s, w_t;
    
    switch (ocb->algebra) 
    {
@@ -380,6 +413,40 @@ static CompareResult wpo_algebra_compare(
                fprintf(GlobalOut, " , %ld+X%d", poly_t[i], i);
             }
             fprintf(GlobalOut, " )\n<WPO POLY> comparison :: %s%s ::\n", POCompareSymbol[res], strict ? "" : "=");
+         }
+         return res;
+
+      case SumVar0:
+         w_s = wpo_algebra_sumvarx_weight(ocb, s, deref_s, 0L);
+         w_t = wpo_algebra_sumvarx_weight(ocb, t, deref_t, 0L);
+         res = COMPARE(w_s, w_t);
+
+         if (OutputLevel >= 2)
+         {
+            fprintf(GlobalOut, "<WPO SumVar0> ");
+            TermPrint(GlobalOut, s, ocb->sig, deref_s);
+            fprintf(GlobalOut, " := %ld", w_s);
+            fprintf(GlobalOut, "\n<WPO SumVar0> ");
+            TermPrint(GlobalOut, t, ocb->sig, deref_t);
+            fprintf(GlobalOut, " := %ld", w_t);
+            fprintf(GlobalOut, "\n<WPO SumVar0> comparison :: %s%s ::\n", POCompareSymbol[res], strict ? "" : "=");
+         }
+         return res;
+
+      case SumVar1:
+         w_s = wpo_algebra_sumvarx_weight(ocb, s, deref_s, 1L);
+         w_t = wpo_algebra_sumvarx_weight(ocb, t, deref_t, 1L);
+         res = COMPARE(w_s, w_t);
+
+         if (OutputLevel >= 2)
+         {
+            fprintf(GlobalOut, "<WPO SumVar1> ");
+            TermPrint(GlobalOut, s, ocb->sig, deref_s);
+            fprintf(GlobalOut, " := %ld", w_s);
+            fprintf(GlobalOut, "\n<WPO SumVar1> ");
+            TermPrint(GlobalOut, t, ocb->sig, deref_t);
+            fprintf(GlobalOut, " := %ld", w_t);
+            fprintf(GlobalOut, "\n<WPO SumVar1> comparison :: %s%s ::\n", POCompareSymbol[res], strict ? "" : "=");
          }
          return res;
 

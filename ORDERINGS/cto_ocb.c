@@ -61,6 +61,8 @@ char* TOAlgebras[]=
    "NoAlgebra",
    "Sum",
    "Max",
+   "SumVar0",
+   "SumVar1",
    NULL
 };
 

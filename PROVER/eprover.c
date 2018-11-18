@@ -288,6 +288,9 @@ static void print_proof_stats(ProofState_p proofstate,
       fprintf(GlobalOut, "# Condensation successes               : %ld\n",
               CondensationSuccesses);
 
+      fprintf(GlobalOut, "# Rewriting chains broken              : %ld\n",
+               RewritingChainsBroken);
+
 #ifdef MEASURE_UNIFICATION
       fprintf(GlobalOut, "# Unification attempts                 : %ld\n",
               UnifAttempts);
