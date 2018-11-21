@@ -301,7 +301,94 @@ CompareResult wpo_algebra_max_compare_weak(long* poly_s, long* poly_t, int dim)
 // fake algebras
 //
 
-static long wpo_algebra_sumvarx_weight(OCB_p ocb, Term_p t, DerefType deref, long var_weight)
+typedef enum
+{
+   AMAll = 0,
+   AMFirst,
+   AMLast,
+   AMOdds,
+   AMEvens
+}ArgsMode;
+
+static bool is_skiped_arg(int i, int arity, ArgsMode mode)
+{
+   switch (mode)
+   {
+      case AMAll: 
+         return false;
+      case AMFirst:
+         return (i != 0);
+      case AMLast:
+         return (i != arity-1);
+      case AMOdds:
+         return ((i+1) % 2 != 0);
+      case AMEvens:
+         return ((i+1) % 2 == 0);
+   }
+   return true; // should not happen
+}
+
+static ArgsMode algebra_args_mode(WeightAlgebra algebra)
+{
+   switch (algebra)
+   {
+   case SumVar0:
+   case SumVar1:
+   case SumVarN:
+   case SumVarZ:
+   case MaxVar0:
+   case MaxVar1:
+   case MaxVarN:
+   case MaxVarZ:
+      return AMAll;
+   case SumVar0First:
+   case SumVar1First:
+   case SumVarNFirst:
+   case SumVarZFirst:
+   case MaxVar0First:
+   case MaxVar1First:
+   case MaxVarNFirst:
+   case MaxVarZFirst:
+      return AMFirst;
+   case SumVar0Last:
+   case SumVar1Last:
+   case SumVarNLast:
+   case SumVarZLast:
+   case MaxVar0Last:
+   case MaxVar1Last:
+   case MaxVarNLast:
+   case MaxVarZLast:
+      return AMLast;
+   case SumVar0Odds:
+   case SumVar1Odds:
+   case SumVarNOdds:
+   case SumVarZOdds:
+   case MaxVar0Odds:
+   case MaxVar1Odds:
+   case MaxVarNOdds:
+   case MaxVarZOdds:
+      return AMOdds;
+   case SumVar0Evens:
+   case SumVar1Evens:
+   case SumVarNEvens:
+   case SumVarZEvens:
+   case MaxVar0Evens:
+   case MaxVar1Evens:
+   case MaxVarNEvens:
+   case MaxVarZEvens:
+      return AMEvens;
+   default:
+      Error("Invalid fake WPO algebra!", USAGE_ERROR);
+   }
+   return AMAll; // silent warning
+}
+
+static long wpo_algebra_sumvarx_weight(
+   OCB_p ocb, 
+   Term_p t, 
+   DerefType deref, 
+   long var_weight,
+   ArgsMode mode)
 {
    int i;
    long coef = 1;
@@ -317,8 +404,108 @@ static long wpo_algebra_sumvarx_weight(OCB_p ocb, Term_p t, DerefType deref, lon
       w = OCBFunWeight(ocb, t->f_code);
       for (i=0; i<t->arity; i++)
       {
+         if (is_skiped_arg(i, t->arity, mode))
+         {
+            continue;
+         }
          coef = (long)*OCBAlgebraCoefPos(ocb, t->f_code, i);
-         w += coef * wpo_algebra_sumvarx_weight(ocb, t->args[i], deref, var_weight);
+         w += coef * wpo_algebra_sumvarx_weight(ocb, t->args[i], deref, var_weight, mode);
+      }
+      return w;
+   }
+}
+
+static long wpo_algebra_sumvarn_weight(
+   OCB_p ocb, 
+   Term_p t, 
+   DerefType deref, 
+   int sign,
+   ArgsMode mode)
+{
+   int i;
+   long coef = 1;
+   long w;
+
+   t = TermDeref(t, &deref);
+   if (TermIsVar(t))
+   {
+      return sign * (t->f_code/2);
+   }
+   else
+   {
+      w = OCBFunWeight(ocb, t->f_code);
+      for (i=0; i<t->arity; i++)
+      {
+         if (is_skiped_arg(i, t->arity, mode))
+         {
+            continue;
+         }
+         coef = (long)*OCBAlgebraCoefPos(ocb, t->f_code, i);
+         w += coef * wpo_algebra_sumvarn_weight(ocb, t->args[i], deref, sign, mode);
+      }
+      return w;
+   }
+}
+
+static long wpo_algebra_maxvarx_weight(
+   OCB_p ocb, 
+   Term_p t, 
+   DerefType deref, 
+   long var_weight,
+   ArgsMode mode)
+{
+   int i;
+   long coef = 1;
+   long w;
+
+   t = TermDeref(t, &deref);
+   if (TermIsVar(t))
+   {
+      return var_weight;
+   }
+   else
+   {
+      w = OCBFunWeight(ocb, t->f_code);
+      for (i=0; i<t->arity; i++)
+      {
+         if (is_skiped_arg(i, t->arity, mode))
+         {
+            continue;
+         }
+         coef = (long)*OCBAlgebraCoefPos(ocb, t->f_code, i);
+         w = MAX(w, coef+wpo_algebra_maxvarx_weight(ocb, t->args[i], deref, var_weight, mode));
+      }
+      return w;
+   }
+}
+
+static long wpo_algebra_maxvarn_weight(
+   OCB_p ocb, 
+   Term_p t, 
+   DerefType deref, 
+   int sign,
+   ArgsMode mode)
+{
+   int i;
+   long coef = 1;
+   long w;
+
+   t = TermDeref(t, &deref);
+   if (TermIsVar(t))
+   {
+      return sign * (t->f_code/2);
+   }
+   else
+   {
+      w = OCBFunWeight(ocb, t->f_code);
+      for (i=0; i<t->arity; i++)
+      {
+         if (is_skiped_arg(i, t->arity, mode))
+         {
+            continue;
+         }
+         coef = (long)*OCBAlgebraCoefPos(ocb, t->f_code, i);
+         w = MAX(w, coef+wpo_algebra_maxvarn_weight(ocb, t->args[i], deref, sign, mode));
       }
       return w;
    }
@@ -327,6 +514,30 @@ static long wpo_algebra_sumvarx_weight(OCB_p ocb, Term_p t, DerefType deref, lon
 //
 // end of fakes
 //
+
+static void debug_cmp(
+   OCB_p ocb, 
+   Term_p s, 
+   Term_p t, 
+   DerefType deref_s, 
+   DerefType deref_t,
+   long w_s,
+   long w_t,
+   CompareResult res,
+   char* version,
+   bool strict)
+{
+   if (OutputLevel >= 2)
+   {
+      fprintf(GlobalOut, "<WPO %s> ", version);
+      TermPrint(GlobalOut, s, ocb->sig, deref_s);
+      fprintf(GlobalOut, " := %ld", w_s);
+      fprintf(GlobalOut, "\n<WPO %s> ", version);
+      TermPrint(GlobalOut, t, ocb->sig, deref_t);
+      fprintf(GlobalOut, " := %ld", w_t);
+      fprintf(GlobalOut, "\n<WPO %s> comparison :: %s%s ::\n", version, POCompareSymbol[res], strict ? "" : "=");
+   }
+}
 
 static CompareResult wpo_algebra_compare(
    OCB_p ocb, 
@@ -341,6 +552,7 @@ static CompareResult wpo_algebra_compare(
    long poly_s[MAX_INDEX];
    long poly_t[MAX_INDEX];
    CompareResult res;
+   ArgsMode mode;
 
    long w_s, w_t;
    
@@ -417,37 +629,99 @@ static CompareResult wpo_algebra_compare(
          return res;
 
       case SumVar0:
-         w_s = wpo_algebra_sumvarx_weight(ocb, s, deref_s, 0L);
-         w_t = wpo_algebra_sumvarx_weight(ocb, t, deref_t, 0L);
+      case SumVar0First:
+      case SumVar0Last:
+      case SumVar0Odds:
+      case SumVar0Evens:
+         mode = algebra_args_mode(ocb->algebra);
+         w_s = wpo_algebra_sumvarx_weight(ocb, s, deref_s, 0L, mode);
+         w_t = wpo_algebra_sumvarx_weight(ocb, t, deref_t, 0L, mode);
          res = COMPARE(w_s, w_t);
-
-         if (OutputLevel >= 2)
-         {
-            fprintf(GlobalOut, "<WPO SumVar0> ");
-            TermPrint(GlobalOut, s, ocb->sig, deref_s);
-            fprintf(GlobalOut, " := %ld", w_s);
-            fprintf(GlobalOut, "\n<WPO SumVar0> ");
-            TermPrint(GlobalOut, t, ocb->sig, deref_t);
-            fprintf(GlobalOut, " := %ld", w_t);
-            fprintf(GlobalOut, "\n<WPO SumVar0> comparison :: %s%s ::\n", POCompareSymbol[res], strict ? "" : "=");
-         }
+         debug_cmp(ocb, s, t, deref_s, deref_t, w_s, w_t, res, "SumVar0", strict);
          return res;
 
       case SumVar1:
-         w_s = wpo_algebra_sumvarx_weight(ocb, s, deref_s, 1L);
-         w_t = wpo_algebra_sumvarx_weight(ocb, t, deref_t, 1L);
+      case SumVar1First:
+      case SumVar1Last:
+      case SumVar1Odds:
+      case SumVar1Evens:
+         mode = algebra_args_mode(ocb->algebra);
+         w_s = wpo_algebra_sumvarx_weight(ocb, s, deref_s, 1L, mode);
+         w_t = wpo_algebra_sumvarx_weight(ocb, t, deref_t, 1L, mode);
          res = COMPARE(w_s, w_t);
+         debug_cmp(ocb, s, t, deref_s, deref_t, w_s, w_t, res, "SumVar1", strict);
+         return res;
 
-         if (OutputLevel >= 2)
-         {
-            fprintf(GlobalOut, "<WPO SumVar1> ");
-            TermPrint(GlobalOut, s, ocb->sig, deref_s);
-            fprintf(GlobalOut, " := %ld", w_s);
-            fprintf(GlobalOut, "\n<WPO SumVar1> ");
-            TermPrint(GlobalOut, t, ocb->sig, deref_t);
-            fprintf(GlobalOut, " := %ld", w_t);
-            fprintf(GlobalOut, "\n<WPO SumVar1> comparison :: %s%s ::\n", POCompareSymbol[res], strict ? "" : "=");
-         }
+      case SumVarN:
+      case SumVarNFirst:
+      case SumVarNLast:
+      case SumVarNOdds:
+      case SumVarNEvens:
+         mode = algebra_args_mode(ocb->algebra);
+         w_s = wpo_algebra_sumvarn_weight(ocb, s, deref_s, -1, mode);
+         w_t = wpo_algebra_sumvarn_weight(ocb, t, deref_t, -1, mode);
+         res = COMPARE(w_s, w_t);
+         debug_cmp(ocb, s, t, deref_s, deref_t, w_s, w_t, res, "SumVarN", strict);
+         return res;
+
+      case SumVarZ:
+      case SumVarZFirst:
+      case SumVarZLast:
+      case SumVarZOdds:
+      case SumVarZEvens:
+         mode = algebra_args_mode(ocb->algebra);
+         w_s = wpo_algebra_sumvarn_weight(ocb, s, deref_s, 1, mode);
+         w_t = wpo_algebra_sumvarn_weight(ocb, t, deref_t, 1, mode);
+         res = COMPARE(w_s, w_t);
+         debug_cmp(ocb, s, t, deref_s, deref_t, w_s, w_t, res, "SumVarZ", strict);
+         return res;
+
+      case MaxVar0:
+      case MaxVar0First:
+      case MaxVar0Last:
+      case MaxVar0Odds:
+      case MaxVar0Evens:
+         mode = algebra_args_mode(ocb->algebra);
+         w_s = wpo_algebra_maxvarx_weight(ocb, s, deref_s, 0L, mode);
+         w_t = wpo_algebra_maxvarx_weight(ocb, t, deref_t, 0L, mode);
+         res = COMPARE(w_s, w_t);
+         debug_cmp(ocb, s, t, deref_s, deref_t, w_s, w_t, res, "MaxVar0", strict);
+         return res;
+
+      case MaxVar1:
+      case MaxVar1First:
+      case MaxVar1Last:
+      case MaxVar1Odds:
+      case MaxVar1Evens:
+         mode = algebra_args_mode(ocb->algebra);
+         w_s = wpo_algebra_maxvarx_weight(ocb, s, deref_s, 1L, mode);
+         w_t = wpo_algebra_maxvarx_weight(ocb, t, deref_t, 1L, mode);
+         res = COMPARE(w_s, w_t);
+         debug_cmp(ocb, s, t, deref_s, deref_t, w_s, w_t, res, "MaxVar1", strict);
+         return res;
+
+      case MaxVarN:
+      case MaxVarNFirst:
+      case MaxVarNLast:
+      case MaxVarNOdds:
+      case MaxVarNEvens:
+         mode = algebra_args_mode(ocb->algebra);
+         w_s = wpo_algebra_maxvarn_weight(ocb, s, deref_s, -1, mode);
+         w_t = wpo_algebra_maxvarn_weight(ocb, t, deref_t, -1, mode);
+         res = COMPARE(w_s, w_t);
+         debug_cmp(ocb, s, t, deref_s, deref_t, w_s, w_t, res, "MaxVarN", strict);
+         return res;
+
+      case MaxVarZ:
+      case MaxVarZFirst:
+      case MaxVarZLast:
+      case MaxVarZOdds:
+      case MaxVarZEvens:
+         mode = algebra_args_mode(ocb->algebra);
+         w_s = wpo_algebra_maxvarn_weight(ocb, s, deref_s, 1, mode);
+         w_t = wpo_algebra_maxvarn_weight(ocb, t, deref_t, 1, mode);
+         res = COMPARE(w_s, w_t);
+         debug_cmp(ocb, s, t, deref_s, deref_t, w_s, w_t, res, "MaxVarZ", strict);
          return res;
 
       default:
@@ -605,9 +879,6 @@ CompareResult WPOCompare(OCB_p ocb, Term_p s, Term_p t,
    // is there argument s_i such that s_i >=WPO t ?
    if (s->arity > 0)
    {
-
-
-
       all_lesser = true;
       for (i=0; i<s->arity; i++)
       {
