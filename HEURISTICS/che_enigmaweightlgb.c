@@ -36,8 +36,10 @@ Changes
 /*                         Internal Functions                          */
 /*---------------------------------------------------------------------*/
 
-static int32_t conj_indices[2048]; // TODO: dynamic alloc
-static float conj_data[2048]; // TODO: dynamic alloc
+#define MAX_FEATURES 20480
+
+static int32_t conj_indices[MAX_FEATURES]; // TODO: dynamic alloc
+static float conj_data[MAX_FEATURES]; // TODO: dynamic alloc
 
 static void extweight_init(EnigmaWeightLgbParam_p data)
 {
@@ -88,7 +90,7 @@ static void extweight_init(EnigmaWeightLgbParam_p data)
       }
       FeaturesAddVariables(&features, &varstat, data->enigmap, &len);
 
-      if (len >= 2048) { Error("ENIGMA: Too many conjecture features!", OTHER_ERROR); } 
+      if (len >= MAX_FEATURES) { Error("ENIGMA: Too many conjecture features!", OTHER_ERROR); } 
   
       //printf("CONJ FEATURES: ");
       int i = 0;
@@ -219,8 +221,8 @@ WFCB_p EnigmaWeightLgbInit(
 
 double EnigmaWeightLgbCompute(void* data, Clause_p clause)
 {
-   static int32_t lgb_indices[2048]; // TODO: dynamic alloc
-   static float lgb_data[2048]; // TODO: dynamic alloc
+   static int32_t lgb_indices[MAX_FEATURES]; // TODO: dynamic alloc
+   static float lgb_data[MAX_FEATURES]; // TODO: dynamic alloc
    EnigmaWeightLgbParam_p local;
    double res = 1.0;
    
@@ -232,7 +234,7 @@ double EnigmaWeightLgbCompute(void* data, Clause_p clause)
    NumTree_p features = FeaturesClauseCollect(clause, local->enigmap, &len);
    //printf("features count: %d\n", len);
       
-   if (len+local->conj_features_count+22 >= 2048) { Error("ENIGMA: Too many clause features!", OTHER_ERROR); }
+   if (len+local->conj_features_count+22 >= MAX_FEATURES) { Error("ENIGMA: Too many clause features!", OTHER_ERROR); }
 
    int i = 0;
    while (features) 
@@ -298,7 +300,7 @@ double EnigmaWeightLgbCompute(void* data, Clause_p clause)
          lgb_data[k] = ((double)proof->val1.i_val)/len->val1.i_val;
          //printf("%d:%.3f ", lgb_indices[k], lgb_data[k]);
          k++;
-         if (k >= 2048) { Error("ENIGMA: Too many proof watch features!", OTHER_ERROR); }
+         if (k >= MAX_FEATURES) { Error("ENIGMA: Too many proof watch features!", OTHER_ERROR); }
       }
       NumTreeTraverseExit(stack);
       total = k;
