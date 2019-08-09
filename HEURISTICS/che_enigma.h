@@ -97,6 +97,7 @@ void EnigmapMarkConjectureSymbols(Enigmap_p enigmap, Clause_p clause);
 EnigmaFeatures ParseEnigmaFeaturesSpec(char *spec);
 
 DStr_p FeaturesGetTermHorizontal(char* top, Term_p term, Enigmap_p enigmap);
+DStr_p FeaturesGetTermVertical(char* sym1, char* sym2, char* sym3);
 DStr_p FeaturesGetEqHorizontal(Term_p lterm, Term_p rterm, Enigmap_p enigmap);
 
 void FeaturesClauseVariablesExtend(Enigmap_p enigmap, NumTree_p* stat, Clause_p clause, int* distinct, int offset);

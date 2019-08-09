@@ -192,14 +192,16 @@ static void feature_symbol_increase(
    Enigmap_p enigmap, 
    int* len)
 {
-   static char str[128]; // TODO: make dynamic DStr_p
-
    if (inc == 0)
    {
       return;
    }
-   snprintf(str, 128, "%s%s", prefix, fname);
-   feature_increase(str, inc, counts, enigmap, len);
+
+   DStr_p str = DStrAlloc();
+   DStrAppendStr(str, prefix);
+   DStrAppendStr(str, fname);
+   feature_increase(DStrView(str), inc, counts, enigmap, len);
+   DStrFree(str);
 }
 
 static int features_term_collect(
@@ -210,18 +212,14 @@ static int features_term_collect(
    char* sym2)
 {
    char* sym3 = top_symbol_string(term, enigmap);
-   static char str[128];
    int len = 0;
 
    // verticals
    if (enigmap->version & EFVertical)
    {
-      if (snprintf(str, 128, "%s:%s:%s", sym1, sym2, sym3) >= 128) 
-      {
-         Error("ENIGMA: Your symbol names are too long (%s:%s:%s)!", OTHER_ERROR, 
-            sym1, sym2, sym3);
-      }
-      feature_increase(str, 1, counts, enigmap, &len);
+      DStr_p vstr = FeaturesGetTermVertical(sym1, sym2, sym3);
+      feature_increase(DStrView(vstr), 1, counts, enigmap, &len);
+      DStrFree(vstr);
    }
    
    if (TermIsVar(term)||(TermIsConst(term))) { return len; }
@@ -321,6 +319,17 @@ DStr_p FeaturesGetTermHorizontal(char* top, Term_p term, Enigmap_p enigmap)
       DStrAppendChar(str, '.');
       DStrAppendStr(str, top_symbol_string(term->args[i], enigmap));
    }
+   return str;
+}
+
+DStr_p FeaturesGetTermVertical(char* sym1, char* sym2, char* sym3)
+{
+   DStr_p str = DStrAlloc();
+   DStrAppendStr(str, sym1);
+   DStrAppendChar(str, ':');
+   DStrAppendStr(str, sym2);
+   DStrAppendChar(str, ':');
+   DStrAppendStr(str, sym3);
    return str;
 }
 
