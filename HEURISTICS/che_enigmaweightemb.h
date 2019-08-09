@@ -36,6 +36,8 @@ Changes
 
 //#define EMB_LEN 448
 #define EMB_LEN 64
+#define STATS_LEN 25
+#define STATS_COUNT_OFFSET 13
 
 typedef struct enigmaweightembparamcell
 {
@@ -48,7 +50,7 @@ typedef struct enigmaweightembparamcell
    double conj_emb[EMB_LEN];
    int conj_len;
    int conj_vars;
-   int conj_stats[13];
+   int conj_stats[STATS_LEN];
    SpecFeature_p prob_spec;
    /*
    char* features_filename;

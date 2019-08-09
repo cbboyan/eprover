@@ -147,11 +147,23 @@ static void emb_print(double* vec)
  * stats[5] : the count of occurences of function symbols with arity >= 5
  * stats[6] : the count of occurences of predicate symbols with arity == 0
  * stats[7] : the count of occurences of predicate symbols with arity == 1
- * stats[8] : the count of occurences of predicate symbols with arity == 2
+ * stats[8] : the count of occurences of predicate symbols with arity == 2 (without equality)
  * stats[9] : the count of occurences of predicate symbols with arity == 3
  * stats[10] : the count of occurences of predicate symbols with arity == 4
  * stats[11] : the count of occurences of predicate symbols with arity >= 5
  * stats[12] : the count of occurences of the equality predicate
+ * stats[13 == STATS_COUNT_OFFSET] : the count of function symbols with arity == 0
+ * stats[14] : the count of function symbols with arity == 1
+ * stats[15] : the count of function symbols with arity == 2
+ * stats[16] : the count of function symbols with arity == 3
+ * stats[17] : the count of function symbols with arity == 4
+ * stats[18] : the count of function symbols with arity >= 5
+ * stats[19] : the count of predicate symbols with arity == 0
+ * stats[20] : the count of predicate symbols with arity == 1
+ * stats[21] : the count of predicate symbols with arity == 2 (without equality)
+ * stats[22] : the count of predicate symbols with arity == 3
+ * stats[23] : the count of predicate symbols with arity == 4
+ * stats[24] : the count of predicate symbols with arity >= 5
  */
 static void emb_clause_add(double* vec, int* stats, Clause_p clause, EnigmaWeightEmbParam_p data, int* mem, int* vars)
 {
@@ -172,6 +184,7 @@ static void emb_clause_add(double* vec, int* stats, Clause_p clause, EnigmaWeigh
          int offset = SigIsPredicate(data->ocb->sig, cnode->key) ? 6 : 0;
          int arity = MIN(SigFindArity(data->ocb->sig, cnode->key), 5);
          stats[arity+offset] += cnode->val1.i_val;
+         stats[arity+offset+STATS_COUNT_OFFSET]++;
       }
 
       NumTree_p enode = NumTreeFind(&data->embeds, cnode->key);
@@ -320,7 +333,7 @@ EnigmaWeightEmbParam_p EnigmaWeightEmbParamAlloc(void)
 
    res->ocb = NULL;
    res->inited = false;
-   for (int i=0; i<13; i++)
+   for (int i=0; i<STATS_LEN; i++)
    {
       res->conj_stats[i] = 0;
    }
@@ -406,7 +419,7 @@ double EnigmaWeightEmbCompute(void* data, Clause_p clause)
 {
    static unsigned xgb_indices[2048]; // TODO
    static float xgb_data[2048]; // TODO
-   int stats[13] = { 0 };
+   int stats[STATS_LEN] = { 0 };
    EnigmaWeightEmbParam_p local;
    local = data;
    local->init_fun(data);
@@ -440,7 +453,7 @@ double EnigmaWeightEmbCompute(void* data, Clause_p clause)
    }
    xgb_append(clen, xgb_indices, xgb_data, &cur);
    xgb_append(cvars, xgb_indices, xgb_data, &cur);
-   for (i=0; i<13; i++)
+   for (i=0; i<STATS_LEN; i++)
    {
       xgb_append(stats[i], xgb_indices, xgb_data, &cur);
    }
@@ -451,7 +464,7 @@ double EnigmaWeightEmbCompute(void* data, Clause_p clause)
    }
    xgb_append(local->conj_len, xgb_indices, xgb_data, &cur);
    xgb_append(local->conj_vars, xgb_indices, xgb_data, &cur);
-   for (i=0; i<13; i++)
+   for (i=0; i<STATS_LEN; i++)
    {
       xgb_append(local->conj_stats[i], xgb_indices, xgb_data, &cur);
    }
@@ -479,7 +492,7 @@ double EnigmaWeightEmbCompute(void* data, Clause_p clause)
    xgb_append(local->prob_spec->clause_max_depth, xgb_indices, xgb_data, &cur);
    xgb_append(local->prob_spec->clause_avg_depth, xgb_indices, xgb_data, &cur);
 
-   int total = EMB_LEN+2+13+EMB_LEN+2+13+22;
+   int total = EMB_LEN+2+STATS_LEN+EMB_LEN+2+STATS_LEN+22;
 
    if (OutputLevel >= 2)
    {
@@ -516,7 +529,7 @@ double EnigmaWeightEmbCompute(void* data, Clause_p clause)
    
    //res = 1 + ((1.0 - pred[0]) * 10.0);
    double res;
-   if (pred[0] <= 0.5) { res = 10.0; } else { res = 1.0; }
+   if (pred[0] < 0.5) { res = 10.0; } else { res = 1.0; }
 
    XGDMatrixFree(xgb_matrix);
 
