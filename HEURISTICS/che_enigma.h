@@ -87,6 +87,12 @@ typedef struct enigmapcell
 #define ENIGMA_SKO "?"
 #define ENIGMA_EQ "="
 
+#define EMB_LEN 64
+#define STATS_LEN 25
+#define STATS_COUNT_OFFSET 13
+
+extern char* EmbFileName;
+
 Enigmap_p EnigmapAlloc(void);
 void EnigmapFree(Enigmap_p junk);
 

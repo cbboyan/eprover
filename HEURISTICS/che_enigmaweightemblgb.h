@@ -1,6 +1,6 @@
 /*-----------------------------------------------------------------------
 
-File  : che_enigmaweightemb.h
+File  : che_enigmaweightemblgb.h
 
 Author: could be anyone
 
@@ -20,33 +20,28 @@ Changes
 
 -----------------------------------------------------------------------*/
 
-#ifndef CHE_ENIGMAWEIGHTEMB
+#ifndef CHE_ENIGMAWEIGHTEMBLGB
 
-#define CHE_ENIGMAWEIGHTEMB
+#define CHE_ENIGMAWEIGHTEMBLGB
 
 #include <ccl_relevance.h>
 #include <che_refinedweight.h>
 #include <che_enigma.h>
-#include "xgboost.h"
+#include "lightgbm.h"
 
 
 /*---------------------------------------------------------------------*/
 /*                    Data type declarations                           */
 /*---------------------------------------------------------------------*/
 
-//#define EMB_LEN 448
-#define EMB_LEN 64
-#define STATS_LEN 25
-#define STATS_COUNT_OFFSET 13
-
-typedef struct enigmaweightembparamcell
+typedef struct enigmaweightemblgbparamcell
 {
    OCB_p        ocb;
    ProofState_p proofstate;
    char* model_filename;
    bool inited;
    NumTree_p embeds;
-   BoosterHandle xgboost_model;
+   BoosterHandle lgb_model;
    double conj_emb[EMB_LEN];
    int conj_len;
    int conj_vars;
@@ -65,36 +60,36 @@ typedef struct enigmaweightembparamcell
    int conj_features_count;
 
    */
-   void   (*init_fun)(struct enigmaweightembparamcell*);
-}EnigmaWeightEmbParamCell, *EnigmaWeightEmbParam_p;
+   void   (*init_fun)(struct enigmaweightemblgbparamcell*);
+}EnigmaWeightEmbLgbParamCell, *EnigmaWeightEmbLgbParam_p;
 
 /*---------------------------------------------------------------------*/
 /*                Exported Functions and Variables                     */
 /*---------------------------------------------------------------------*/
 
-#define EnigmaWeightEmbParamCellAlloc() (EnigmaWeightEmbParamCell*) \
-        SizeMalloc(sizeof(EnigmaWeightEmbParamCell))
-#define EnigmaWeightEmbParamCellFree(junk) \
-        SizeFree(junk, sizeof(EnigmaWeightEmbParamCell))
+#define EnigmaWeightEmbLgbParamCellAlloc() (EnigmaWeightEmbLgbParamCell*) \
+        SizeMalloc(sizeof(EnigmaWeightEmbLgbParamCell))
+#define EnigmaWeightEmbLgbParamCellFree(junk) \
+        SizeFree(junk, sizeof(EnigmaWeightEmbLgbParamCell))
 
-EnigmaWeightEmbParam_p EnigmaWeightEmbParamAlloc(void);
-void              EnigmaWeightEmbParamFree(EnigmaWeightEmbParam_p junk);
+EnigmaWeightEmbLgbParam_p EnigmaWeightEmbLgbParamAlloc(void);
+void              EnigmaWeightEmbLgbParamFree(EnigmaWeightEmbLgbParam_p junk);
 
 
-WFCB_p EnigmaWeightEmbParse(
+WFCB_p EnigmaWeightEmbLgbParse(
    Scanner_p in, 
    OCB_p ocb, 
    ProofState_p state);
 
-WFCB_p EnigmaWeightEmbInit(
+WFCB_p EnigmaWeightEmbLgbInit(
    ClausePrioFun prio_fun, 
    OCB_p ocb,
    ProofState_p proofstate,
    char* model_filename);
 
-double EnigmaWeightEmbCompute(void* data, Clause_p clause);
+double EnigmaWeightEmbLgbCompute(void* data, Clause_p clause);
 
-void EnigmaWeightEmbExit(void* data);
+void EnigmaWeightEmbLgbExit(void* data);
 
 #endif
 

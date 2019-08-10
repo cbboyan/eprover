@@ -1,6 +1,6 @@
 /*-----------------------------------------------------------------------
 
-File  : che_enigmaweightemb.c
+File  : che_enigmaweightemblgb.c
 
 Author: could be anyone
 
@@ -20,7 +20,7 @@ Changes
 
 -----------------------------------------------------------------------*/
 
-#include "che_enigmaweightemb.h"
+#include "che_enigmaweightemblgb.h"
 
 
 /*---------------------------------------------------------------------*/
@@ -35,10 +35,6 @@ Changes
 /*                         Internal Functions                          */
 /*---------------------------------------------------------------------*/
 
-/*
-static unsigned conj_indices[2048]; // TODO: dynamic alloc
-static float conj_data[2048]; // TODO: dynamic alloc
-*/
 
 static void symbols_count_increase(FunCode f_code, NumTree_p* counts)
 {
@@ -163,7 +159,7 @@ static void emb_print(double* vec)
  * stats[23] : the count of predicate symbols with arity == 4
  * stats[24] : the count of predicate symbols with arity >= 5
  */
-static void emb_clause_add(double* vec, int* stats, Clause_p clause, EnigmaWeightEmbParam_p data, int* mem, int* vars)
+static void emb_clause_add(double* vec, int* stats, Clause_p clause, EnigmaWeightEmbLgbParam_p data, int* mem, int* vars)
 {
    NumTree_p counts = NULL;
    NumTree_p cnode;
@@ -200,7 +196,7 @@ static void emb_clause_add(double* vec, int* stats, Clause_p clause, EnigmaWeigh
    NumTreeFree(counts);
 }
 
-static void extweight_init(EnigmaWeightEmbParam_p data)
+static void extweight_init(EnigmaWeightEmbLgbParam_p data)
 {
    static char str[256];
    double val;
@@ -305,19 +301,17 @@ static void extweight_init(EnigmaWeightEmbParam_p data)
    }
    
    // load model
-   XGBoosterCreate(NULL, 0, &data->xgboost_model);
-
-   if (XGBoosterLoadModel(data->xgboost_model, data->model_filename) != 0)
+   int iters;
+   if (LGBM_BoosterCreateFromModelfile(data->model_filename, &iters, &data->lgb_model) != 0)
    {
-      Error("ENIGMA: Failed loading XGBoost model '%s':\n%s", FILE_ERROR,
-         data->model_filename, XGBGetLastError());
+      Error("ENIGMA: Failed loading LightGBM model '%s':\n%s", FILE_ERROR,
+         data->model_filename, LGBM_GetLastError());
    }
-   //XGBoosterSetAttr(data->xgboost_model, "objective", "binary:logistic");
 
    data->inited = true;
  
 
-   fprintf(GlobalOut, "# ENIGMA: XGBoost Embeddings model '%s' loaded.\n", 
+   fprintf(GlobalOut, "# ENIGMA: LightGBM Embeddings model '%s' loaded.\n", 
       data->model_filename);
 }
 
@@ -325,9 +319,9 @@ static void extweight_init(EnigmaWeightEmbParam_p data)
 /*                         Exported Functions                          */
 /*---------------------------------------------------------------------*/
 
-EnigmaWeightEmbParam_p EnigmaWeightEmbParamAlloc(void)
+EnigmaWeightEmbLgbParam_p EnigmaWeightEmbLgbParamAlloc(void)
 {
-   EnigmaWeightEmbParam_p res = EnigmaWeightEmbParamCellAlloc();
+   EnigmaWeightEmbLgbParam_p res = EnigmaWeightEmbLgbParamCellAlloc();
 
    res->ocb = NULL;
    res->inited = false;
@@ -339,14 +333,14 @@ EnigmaWeightEmbParam_p EnigmaWeightEmbParamAlloc(void)
    return res;
 }
 
-void EnigmaWeightEmbParamFree(EnigmaWeightEmbParam_p junk)
+void EnigmaWeightEmbLgbParamFree(EnigmaWeightEmbLgbParam_p junk)
 {
-   EnigmaWeightEmbParamCellFree(junk);
+   EnigmaWeightEmbLgbParamCellFree(junk);
    SpecFeatureCellFree(junk->prob_spec);
    // TODO: free embeds, xgboost_model
 }
  
-WFCB_p EnigmaWeightEmbParse(
+WFCB_p EnigmaWeightEmbLgbParse(
    Scanner_p in,  
    OCB_p ocb, 
    ProofState_p state)
@@ -372,24 +366,24 @@ WFCB_p EnigmaWeightEmbParse(
    DStrAppendStr(f_model, "/");
    DStrAppendStr(f_model, d_prefix);
    DStrAppendStr(f_model, "/");
-   DStrAppendStr(f_model, "model.emb");
+   DStrAppendStr(f_model, "model.lgb");
    char* model_filename = SecureStrdup(DStrView(f_model));
    DStrFree(f_model);
 
-   return EnigmaWeightEmbInit(
+   return EnigmaWeightEmbLgbInit(
       prio_fun, 
       ocb,
       state,
       model_filename);
 }
 
-WFCB_p EnigmaWeightEmbInit(
+WFCB_p EnigmaWeightEmbLgbInit(
    ClausePrioFun prio_fun, 
    OCB_p ocb,
    ProofState_p proofstate,
    char* model_filename)
 {
-   EnigmaWeightEmbParam_p data = EnigmaWeightEmbParamAlloc();
+   EnigmaWeightEmbLgbParam_p data = EnigmaWeightEmbLgbParamAlloc();
 
    data->init_fun   = extweight_init;
    data->ocb        = ocb;
@@ -400,25 +394,25 @@ WFCB_p EnigmaWeightEmbInit(
    data->model_filename = model_filename;
    
    return WFCBAlloc(
-      EnigmaWeightEmbCompute, 
+      EnigmaWeightEmbLgbCompute, 
       prio_fun,
-      EnigmaWeightEmbExit, 
+      EnigmaWeightEmbLgbExit, 
       data);
 }
 
-static void xgb_append(float val, unsigned* indices, float* data, int* cur)
+static void lgb_append(float val, int32_t* indices, float* data, int* cur)
 {
    indices[*cur] = (*cur)+1;
    data[*cur] = val;
    (*cur)++;
 }
 
-double EnigmaWeightEmbCompute(void* data, Clause_p clause)
+double EnigmaWeightEmbLgbCompute(void* data, Clause_p clause)
 {
-   static unsigned xgb_indices[2048]; // TODO
-   static float xgb_data[2048]; // TODO
+   static int32_t lgb_indices[2048]; // TODO
+   static float lgb_data[2048]; // TODO
    int stats[STATS_LEN] = { 0 };
-   EnigmaWeightEmbParam_p local;
+   EnigmaWeightEmbLgbParam_p local;
    local = data;
    local->init_fun(data);
 
@@ -447,93 +441,85 @@ double EnigmaWeightEmbCompute(void* data, Clause_p clause)
    int cur = 0;
    for (i=0; i<EMB_LEN; i++)
    {
-      xgb_append(emb[i], xgb_indices, xgb_data, &cur);
+      lgb_append(emb[i], lgb_indices, lgb_data, &cur);
    }
-   xgb_append(clen, xgb_indices, xgb_data, &cur);
-   xgb_append(cvars, xgb_indices, xgb_data, &cur);
+   lgb_append(clen, lgb_indices, lgb_data, &cur);
+   lgb_append(cvars, lgb_indices, lgb_data, &cur);
    for (i=0; i<STATS_LEN; i++)
    {
-      xgb_append(stats[i], xgb_indices, xgb_data, &cur);
+      lgb_append(stats[i], lgb_indices, lgb_data, &cur);
    }
    // ... conjecture part
    for (i=0; i<EMB_LEN; i++)
    {
-      xgb_append(local->conj_emb[i], xgb_indices, xgb_data, &cur);
+      lgb_append(local->conj_emb[i], lgb_indices, lgb_data, &cur);
    }
-   xgb_append(local->conj_len, xgb_indices, xgb_data, &cur);
-   xgb_append(local->conj_vars, xgb_indices, xgb_data, &cur);
+   lgb_append(local->conj_len, lgb_indices, lgb_data, &cur);
+   lgb_append(local->conj_vars, lgb_indices, lgb_data, &cur);
    for (i=0; i<STATS_LEN; i++)
    {
-      xgb_append(local->conj_stats[i], xgb_indices, xgb_data, &cur);
+      lgb_append(local->conj_stats[i], lgb_indices, lgb_data, &cur);
    }
    // ... problem features
-   xgb_append(local->prob_spec->goals, xgb_indices, xgb_data, &cur);
-   xgb_append(local->prob_spec->axioms, xgb_indices, xgb_data, &cur);
-   xgb_append(local->prob_spec->clauses, xgb_indices, xgb_data, &cur);
-   xgb_append(local->prob_spec->literals, xgb_indices, xgb_data, &cur);
-   xgb_append(local->prob_spec->term_cells, xgb_indices, xgb_data, &cur);
-   xgb_append(local->prob_spec->unitgoals, xgb_indices, xgb_data, &cur);
-   xgb_append(local->prob_spec->unitaxioms, xgb_indices, xgb_data, &cur);
-   xgb_append(local->prob_spec->horngoals, xgb_indices, xgb_data, &cur);
-   xgb_append(local->prob_spec->hornaxioms, xgb_indices, xgb_data, &cur);
-   xgb_append(local->prob_spec->eq_clauses, xgb_indices, xgb_data, &cur);
-   xgb_append(local->prob_spec->peq_clauses, xgb_indices, xgb_data, &cur);
-   xgb_append(local->prob_spec->groundunitaxioms, xgb_indices, xgb_data, &cur);
-   xgb_append(local->prob_spec->groundgoals, xgb_indices, xgb_data, &cur);
-   xgb_append(local->prob_spec->groundpositiveaxioms, xgb_indices, xgb_data, &cur);
-   xgb_append(local->prob_spec->positiveaxioms, xgb_indices, xgb_data, &cur);
-   xgb_append(local->prob_spec->ng_unit_axioms_part, xgb_indices, xgb_data, &cur);
-   xgb_append(local->prob_spec->ground_positive_axioms_part, xgb_indices, xgb_data, &cur);
-   xgb_append(local->prob_spec->max_fun_arity, xgb_indices, xgb_data, &cur);
-   xgb_append(local->prob_spec->avg_fun_arity, xgb_indices, xgb_data, &cur);
-   xgb_append(local->prob_spec->sum_fun_arity, xgb_indices, xgb_data, &cur);
-   xgb_append(local->prob_spec->clause_max_depth, xgb_indices, xgb_data, &cur);
-   xgb_append(local->prob_spec->clause_avg_depth, xgb_indices, xgb_data, &cur);
+   lgb_append(local->prob_spec->goals, lgb_indices, lgb_data, &cur);
+   lgb_append(local->prob_spec->axioms, lgb_indices, lgb_data, &cur);
+   lgb_append(local->prob_spec->clauses, lgb_indices, lgb_data, &cur);
+   lgb_append(local->prob_spec->literals, lgb_indices, lgb_data, &cur);
+   lgb_append(local->prob_spec->term_cells, lgb_indices, lgb_data, &cur);
+   lgb_append(local->prob_spec->unitgoals, lgb_indices, lgb_data, &cur);
+   lgb_append(local->prob_spec->unitaxioms, lgb_indices, lgb_data, &cur);
+   lgb_append(local->prob_spec->horngoals, lgb_indices, lgb_data, &cur);
+   lgb_append(local->prob_spec->hornaxioms, lgb_indices, lgb_data, &cur);
+   lgb_append(local->prob_spec->eq_clauses, lgb_indices, lgb_data, &cur);
+   lgb_append(local->prob_spec->peq_clauses, lgb_indices, lgb_data, &cur);
+   lgb_append(local->prob_spec->groundunitaxioms, lgb_indices, lgb_data, &cur);
+   lgb_append(local->prob_spec->groundgoals, lgb_indices, lgb_data, &cur);
+   lgb_append(local->prob_spec->groundpositiveaxioms, lgb_indices, lgb_data, &cur);
+   lgb_append(local->prob_spec->positiveaxioms, lgb_indices, lgb_data, &cur);
+   lgb_append(local->prob_spec->ng_unit_axioms_part, lgb_indices, lgb_data, &cur);
+   lgb_append(local->prob_spec->ground_positive_axioms_part, lgb_indices, lgb_data, &cur);
+   lgb_append(local->prob_spec->max_fun_arity, lgb_indices, lgb_data, &cur);
+   lgb_append(local->prob_spec->avg_fun_arity, lgb_indices, lgb_data, &cur);
+   lgb_append(local->prob_spec->sum_fun_arity, lgb_indices, lgb_data, &cur);
+   lgb_append(local->prob_spec->clause_max_depth, lgb_indices, lgb_data, &cur);
+   lgb_append(local->prob_spec->clause_avg_depth, lgb_indices, lgb_data, &cur);
 
    int total = EMB_LEN+2+STATS_LEN+EMB_LEN+2+STATS_LEN+22;
 
    if (OutputLevel >= 2)
    {
-      fprintf(GlobalOut, "# xgb vector: ");
+      fprintf(GlobalOut, "# lgb vector: ");
       for (i=0; i<total; i++)
       {
-         fprintf(GlobalOut, "%d:%f ", xgb_indices[i], xgb_data[i]);
+         fprintf(GlobalOut, "%d:%f ", lgb_indices[i], lgb_data[i]);
       }
       fprintf(GlobalOut, "\n");
    }
 
-   size_t xgb_nelem = total; 
-   size_t xgb_num_col = 1 + total;
-   size_t xgb_nindptr = 2;
-   static bst_ulong xgb_indptr[2];
-   xgb_indptr[0] = 0L;
-   xgb_indptr[1] = xgb_nelem;
-   DMatrixHandle xgb_matrix = NULL;
-   if (XGDMatrixCreateFromCSREx(xgb_indptr, xgb_indices, xgb_data, 
-          xgb_nindptr, xgb_nelem, xgb_num_col, &xgb_matrix) != 0)
-   {
-      Error("ENIGMA: Failed creating XGBoost prediction matrix:\n%s", 
-         OTHER_ERROR, XGBGetLastError());
-   }
+   int64_t lgb_nelem = total; 
+   int64_t lgb_num_col = 1 + total;
+   int64_t lgb_nindptr = 2;
+   static int32_t lgb_indptr[2];
+   lgb_indptr[0] = 0L;
+   lgb_indptr[1] = lgb_nelem;
 
-   bst_ulong out_len = 0L;
-   const float* pred;
-   if (XGBoosterPredict(local->xgboost_model, xgb_matrix, 
-          0, 0, &out_len, &pred) != 0)
+   int64_t out_len = 0L;
+   double pred[2];
+   if (LGBM_BoosterPredictForCSRSingleRow(local->lgb_model, lgb_indptr, C_API_DTYPE_INT32,
+      lgb_indices, lgb_data, C_API_DTYPE_FLOAT32, lgb_nindptr, lgb_nelem,
+      lgb_num_col, C_API_PREDICT_NORMAL, 0, "", &out_len, pred) != 0)
    {
-      Error("ENIGMA: Failed computing XGBoost prediction:\n%s", 
-         OTHER_ERROR, XGBGetLastError());
+      Error("ENIGMA: Failed computing LightGBM prediction:\n%s", 
+         OTHER_ERROR, LGBM_GetLastError());
    }
    
    //res = 1 + ((1.0 - pred[0]) * 10.0);
    double res;
    if (pred[0] < 0.5) { res = 10.0; } else { res = 1.0; }
 
-   XGDMatrixFree(xgb_matrix);
-
    if (OutputLevel>=1) 
    {
-      fprintf(GlobalOut, "=%.2f (val=%.3f,t=%.3fms,clen=%d,vlen=%ld) : ", res, pred[0], (double)(GetUSecClock() - start)/ 1000.0, clen, xgb_nelem);
+      fprintf(GlobalOut, "=%.2f (val=%.3f,t=%.3fms,clen=%d,vlen=%ld) : ", res, pred[0], (double)(GetUSecClock() - start)/ 1000.0, clen, lgb_nelem);
       ClausePrint(GlobalOut, clause, true);
       fprintf(GlobalOut, "\n");
    }
@@ -541,11 +527,11 @@ double EnigmaWeightEmbCompute(void* data, Clause_p clause)
    return res;
 }
 
-void EnigmaWeightEmbExit(void* data)
+void EnigmaWeightEmbLgbExit(void* data)
 {
-   EnigmaWeightEmbParam_p junk = data;
+   EnigmaWeightEmbLgbParam_p junk = data;
    
-   EnigmaWeightEmbParamFree(junk);
+   EnigmaWeightEmbLgbParamFree(junk);
 }
 
 /*---------------------------------------------------------------------*/
