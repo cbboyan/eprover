@@ -16,7 +16,7 @@ include ../Makefile.vars
 
 # Project specific variables
 
-PROJECT = ex_commandline term2dag enigma-features enigmatic-features #enigma-problem-features #enigma-svd-traintrans
+PROJECT = ex_commandline term2dag enigma-features #enigmatic-features #enigma-problem-features #enigma-svd-traintrans
 LIB     = $(PROJECT)
 all: $(LIB)
 

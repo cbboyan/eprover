@@ -76,6 +76,7 @@ char* WeightFunParseFunNames[]=
    "EnigmaLgb",
    "EnigmaEmb",
    "EnigmaEmbLgb",
+   "EnigmaTf",
    NULL
 };
 
@@ -126,6 +127,7 @@ static WeightFunParseFun parse_fun_array[]=
    EnigmaWeightLgbParse,
    EnigmaWeightEmbParse,
    EnigmaWeightEmbLgbParse,
+   EnigmaWeightTfParse,
    (WeightFunParseFun)NULL
 };
 
