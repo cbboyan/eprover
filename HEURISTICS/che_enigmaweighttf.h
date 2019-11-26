@@ -37,16 +37,30 @@ typedef struct enigmaweighttfparamcell
 {
    OCB_p        ocb;
    ProofState_p proofstate;
+   TB_p         tmp_bank;
+   long         tmp_bank_vars;
 
    char* model_dirname;
    double len_mult;
+   bool inited;
 
    void   (*init_fun)(struct enigmaweighttfparamcell*);
 
    NumTree_p terms;
    NumTree_p syms;
-   int fresh_t;
-   int fresh_s;
+   long fresh_t;
+   long fresh_s;
+   long fresh_c;
+   long maxvar;
+
+   bool conj_mode;
+   NumTree_p conj_terms;
+   NumTree_p conj_syms;
+   long conj_fresh_t;
+   long conj_fresh_s;
+   long conj_fresh_c;
+   long conj_maxvar;
+   
    
 }EnigmaWeightTfParamCell, *EnigmaWeightTfParam_p;
 
