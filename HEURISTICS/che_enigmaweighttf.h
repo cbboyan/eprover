@@ -52,6 +52,8 @@ typedef struct enigmaweighttfparamcell
    long fresh_s;
    long fresh_c;
    long maxvar;
+   PStack_p tedges;
+   PStack_p cedges;
 
    bool conj_mode;
    NumTree_p conj_terms;
@@ -60,7 +62,8 @@ typedef struct enigmaweighttfparamcell
    long conj_fresh_s;
    long conj_fresh_c;
    long conj_maxvar;
-   
+   PStack_p conj_tedges;
+   PStack_p conj_cedges;
    
 }EnigmaWeightTfParamCell, *EnigmaWeightTfParam_p;
 
