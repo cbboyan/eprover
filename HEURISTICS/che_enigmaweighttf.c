@@ -35,7 +35,7 @@ Changes
 /*                         Internal Functions                          */
 /*---------------------------------------------------------------------*/
 
-static int number_symbol(FunCode sym, EnigmaWeightTfParam_p data)
+static long number_symbol(FunCode sym, EnigmaWeightTfParam_p data)
 {
    NumTree_p node;
 
@@ -69,13 +69,19 @@ static int number_symbol(FunCode sym, EnigmaWeightTfParam_p data)
    return node->val1.i_val;   
 }
 
-static int number_term(Term_p term, EnigmaWeightTfParam_p data)
+static long number_term(Term_p term, long b, EnigmaWeightTfParam_p data)
 {
    NumTree_p node;
 
-   //long offset = data->conj_mode ? data->conj_vars_offset : data->vars_offset ;
-   //long id = TermIsVar(term) ? term->f_code - offset : term->entry_no;
-   long id = term ? term->entry_no : -1;
+   if (!term)
+   {
+      return -1;
+   }
+   long id = term->entry_no;
+   if (b == -1)
+   {
+      id += data->neg_offset;
+   }
 
    node = NumTreeFind(&data->conj_terms, id);
    if (!node)
@@ -182,9 +188,9 @@ static void edge_term(long i, long j, long k, long l, long b,
    }
 }
 
-static long names_update_term(Term_p term, EnigmaWeightTfParam_p data, bool pos)
+static long names_update_term(Term_p term, EnigmaWeightTfParam_p data, long b)
 {
-   long tid = number_term(term, data);
+   long tid = number_term(term, b, data);
    if (TermIsVar(term))
    {
       return tid;
@@ -196,18 +202,21 @@ static long names_update_term(Term_p term, EnigmaWeightTfParam_p data, bool pos)
    for (int i=0; i<term->arity; i++)
    {
       tid0 = tid1;
-      tid1 = names_update_term(term->args[i], data, pos);
+      tid1 = names_update_term(term->args[i], data, 1);
       if ((tid0 != 0) && (tid1 != 0))
       {
-         edge_term(tid, tid0, tid1, sid, pos ? 1 : -1, data);
+         edge_term(tid, tid0, tid1, sid, b, data);
       }
    }
-   if ((tid0 == 0) || (tid == 0))
+   if (term->arity == 0)
    {
-      tid0 = (tid0 == 0) ? number_term(NULL, data) : tid0;
-      tid1 = (tid1 == 0) ? number_term(NULL, data) : tid1;
-      edge_term(tid, tid0, tid1, sid, pos ? 1 : -1, data);
+      edge_term(tid, -1, -1, sid, b, data);
    }
+   if (term->arity == 1)
+   {
+      edge_term(tid, tid1, -1, sid, b, data);
+   }
+
    return tid;
 }
 
@@ -221,14 +230,14 @@ static void names_update_clause(Clause_p clause, EnigmaWeightTfParam_p data)
       bool pos = EqnIsPositive(lit);
       if (lit->rterm->f_code == SIG_TRUE_CODE)
       {
-         tid = names_update_term(lit->lterm, data, pos);
+         tid = names_update_term(lit->lterm, data, pos ? 1 : -1);
       }
       else
       {
          Term_p term = TermTopAlloc(data->proofstate->signature->eqn_code, 2);
          term->args[0] = lit->lterm;
          term->args[1] = lit->rterm;
-         tid = names_update_term(term, data, pos);
+         tid = names_update_term(term, data, pos ? 1 : -1);
          // TermTopFree(term); TODO: free this once debug out is not needed!!!
       }
    }
@@ -294,16 +303,9 @@ static void debug_terms(EnigmaWeightTfParam_p data)
    stack = NumTreeTraverseInit(data->conj_terms);
    while ((node = NumTreeTraverseNext(stack)))
    {
-      fprintf(GlobalOut, "#TF#   t%ld: ", node->val1.i_val);
-      if (node->val2.p_val)
-      {
-         TermPrint(GlobalOut, node->val2.p_val, data->proofstate->signature, DEREF_ALWAYS);
-         fprintf(GlobalOut, "\n");
-      }
-      else 
-      {
-         fprintf(GlobalOut, "<EMPTY>\n");
-      }
+      fprintf(GlobalOut, "#TF#   t%ld: %s", node->val1.i_val, (node->key > data->needed) ? "~" : "");
+      TermPrint(GlobalOut, node->val2.p_val, data->proofstate->signature, DEREF_ALWAYS);
+      fprintf(GlobalOut, "\n");
    }
    NumTreeTraverseExit(stack);
    
@@ -311,16 +313,9 @@ static void debug_terms(EnigmaWeightTfParam_p data)
    stack = NumTreeTraverseInit(data->terms);
    while ((node = NumTreeTraverseNext(stack)))
    {
-      fprintf(GlobalOut, "#TF#   t%ld: ", node->val1.i_val);
-      if (node->val2.p_val)
-      {
-         TermPrint(GlobalOut, node->val2.p_val, data->proofstate->signature, DEREF_ALWAYS);
-         fprintf(GlobalOut, "\n");
-      }
-      else 
-      {
-         fprintf(GlobalOut, "<EMPTY>\n");
-      }
+      fprintf(GlobalOut, "#TF#   t%ld: %s", node->val1.i_val, (node->key > data->needed) ? "~" : "");
+      TermPrint(GlobalOut, node->val2.p_val, data->proofstate->signature, DEREF_ALWAYS);
+      fprintf(GlobalOut, "\n");
    }
    NumTreeTraverseExit(stack);
 }
@@ -409,6 +404,7 @@ static void extweight_init(EnigmaWeightTfParam_p data)
    }
 
    data->tmp_bank = TBAlloc(data->proofstate->signature);
+   data->neg_offset = 2*data->proofstate->signature->f_code;
 
    data->conj_mode = true;
    anchor = data->proofstate->axioms->anchor;
@@ -446,18 +442,18 @@ EnigmaWeightTfParam_p EnigmaWeightTfParamAlloc(void)
 
    res->terms = NULL;
    res->syms = NULL;
-   res->fresh_t = 1;
-   res->fresh_s = 1;
-   res->fresh_c = 1;
+   res->fresh_t = 0;
+   res->fresh_s = 0;
+   res->fresh_c = 0;
    res->tedges = PStackAlloc();
    res->cedges = PStackAlloc();
    
    res->conj_mode = false;
    res->conj_terms = NULL;
    res->conj_syms = NULL;
-   res->conj_fresh_t = 1;
-   res->conj_fresh_s = 1;
-   res->conj_fresh_c = 1;
+   res->conj_fresh_t = 0;
+   res->conj_fresh_s = 0;
+   res->conj_fresh_c = 0;
    res->conj_tedges = PStackAlloc();
    res->conj_cedges = PStackAlloc();
 

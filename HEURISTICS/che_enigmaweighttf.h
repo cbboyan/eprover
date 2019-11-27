@@ -46,6 +46,8 @@ typedef struct enigmaweighttfparamcell
 
    void   (*init_fun)(struct enigmaweighttfparamcell*);
 
+   long neg_offset;
+
    NumTree_p terms;
    NumTree_p syms;
    long fresh_t;
