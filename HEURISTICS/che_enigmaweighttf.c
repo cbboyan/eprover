@@ -77,10 +77,14 @@ static long number_term(Term_p term, long b, EnigmaWeightTfParam_p data)
    {
       return -1;
    }
-   long id = term->entry_no;
+   // encode:
+   // 1. variables (id<0)
+   // 2. positive terms (even)
+   // 3. negated terms (odd)
+   long id = 2*term->entry_no; 
    if (b == -1)
    {
-      id += data->neg_offset;
+      id += 1;
    }
 
    node = NumTreeFind(&data->conj_terms, id);
@@ -115,6 +119,7 @@ static long number_term(Term_p term, long b, EnigmaWeightTfParam_p data)
 
 static Term_p fresh_term(Term_p term, EnigmaWeightTfParam_p data, DerefType deref)
 {
+   // NOTE: never call number_term from here as it updates maxvar
    term = TermDeref(term, &deref);
 
    Term_p fresh;
@@ -193,6 +198,7 @@ static long names_update_term(Term_p term, EnigmaWeightTfParam_p data, long b)
    long tid = number_term(term, b, data);
    if (TermIsVar(term))
    {
+      data->maxvar = MAX(data->maxvar, -term->f_code);
       return tid;
    }
 
@@ -225,6 +231,7 @@ static void names_update_clause(Clause_p clause, EnigmaWeightTfParam_p data)
    Clause_p clause0 = clause_fresh_copy(clause, data); 
 
    long tid = -1;
+   long cid = (data->conj_mode) ? data->conj_fresh_c : data->fresh_c;
    for (Eqn_p lit = clause0->literals; lit; lit = lit->next)
    {
       bool pos = EqnIsPositive(lit);
@@ -240,24 +247,20 @@ static void names_update_clause(Clause_p clause, EnigmaWeightTfParam_p data)
          tid = names_update_term(term, data, pos ? 1 : -1);
          // TermTopFree(term); TODO: free this once debug out is not needed!!!
       }
+      edge_clause(cid, tid, data);
    }
    if (tid == -1)
    {
       return;
    }
-   data->maxvar = data->tmp_bank->vars->max_var;
-   long cid;
    if (data->conj_mode)
    {
-      cid = data->conj_fresh_c;
       data->conj_fresh_c++;
    }
    else
    {
-      cid = data->fresh_c;
       data->fresh_c++;
    }
-   edge_clause(cid, tid, data);
 
    //DEBUG:
    fprintf(GlobalOut, "#TF# Clause c%ld: ", cid);
@@ -303,7 +306,7 @@ static void debug_terms(EnigmaWeightTfParam_p data)
    stack = NumTreeTraverseInit(data->conj_terms);
    while ((node = NumTreeTraverseNext(stack)))
    {
-      fprintf(GlobalOut, "#TF#   t%ld: %s", node->val1.i_val, (node->key > data->needed) ? "~" : "");
+      fprintf(GlobalOut, "#TF#   t%ld: %s", node->val1.i_val, (node->key % 2 == 1) ? "~" : "");
       TermPrint(GlobalOut, node->val2.p_val, data->proofstate->signature, DEREF_ALWAYS);
       fprintf(GlobalOut, "\n");
    }
@@ -313,7 +316,7 @@ static void debug_terms(EnigmaWeightTfParam_p data)
    stack = NumTreeTraverseInit(data->terms);
    while ((node = NumTreeTraverseNext(stack)))
    {
-      fprintf(GlobalOut, "#TF#   t%ld: %s", node->val1.i_val, (node->key > data->needed) ? "~" : "");
+      fprintf(GlobalOut, "#TF#   t%ld: %s", node->val1.i_val, (node->key % 2 == 1) ? "~" : "");
       TermPrint(GlobalOut, node->val2.p_val, data->proofstate->signature, DEREF_ALWAYS);
       fprintf(GlobalOut, "\n");
    }
@@ -329,14 +332,14 @@ static void debug_edges(EnigmaWeightTfParam_p data)
    for (i=0; i<data->conj_cedges->current; i++)
    { 
       PDArray_p edge = PStackElementP(data->conj_cedges, i);
-      fprintf(GlobalOut, "#TF#    (c%ld, t%ld)\n", 
+      fprintf(GlobalOut, "#TF#   (c%ld, t%ld)\n", 
          PDArrayElementInt(edge, 0), PDArrayElementInt(edge, 1));
    }
    fprintf(GlobalOut, "#TF# (clauses)\n");
    for (i=0; i<data->cedges->current; i++)
    { 
       PDArray_p edge = PStackElementP(data->cedges, i);
-      fprintf(GlobalOut, "#TF#    (c%ld, t%ld)\n", 
+      fprintf(GlobalOut, "#TF#   (c%ld, t%ld)\n", 
          PDArrayElementInt(edge, 0), PDArrayElementInt(edge, 1));
    }
 
@@ -345,7 +348,7 @@ static void debug_edges(EnigmaWeightTfParam_p data)
    for (i=0; i<data->conj_tedges->current; i++)
    { 
       PDArray_p edge = PStackElementP(data->conj_tedges, i);
-      fprintf(GlobalOut, "#TF#    (t%ld, t%ld, t%ld, s%ld, %ld)\n", 
+      fprintf(GlobalOut, "#TF#   (t%ld, t%ld, t%ld, s%ld, %ld)\n", 
          PDArrayElementInt(edge, 0), PDArrayElementInt(edge, 1),
          PDArrayElementInt(edge, 2), PDArrayElementInt(edge, 3),
          PDArrayElementInt(edge, 4));
@@ -354,7 +357,7 @@ static void debug_edges(EnigmaWeightTfParam_p data)
    for (i=0; i<data->tedges->current; i++)
    { 
       PDArray_p edge = PStackElementP(data->tedges, i);
-      fprintf(GlobalOut, "#TF#    (t%ld, t%ld, t%ld, s%ld, %ld)\n", 
+      fprintf(GlobalOut, "#TF#   (t%ld, t%ld, t%ld, s%ld, %ld)\n", 
          PDArrayElementInt(edge, 0), PDArrayElementInt(edge, 1),
          PDArrayElementInt(edge, 2), PDArrayElementInt(edge, 3),
          PDArrayElementInt(edge, 4));
@@ -404,7 +407,6 @@ static void extweight_init(EnigmaWeightTfParam_p data)
    }
 
    data->tmp_bank = TBAlloc(data->proofstate->signature);
-   data->neg_offset = 2*data->proofstate->signature->f_code;
 
    data->conj_mode = true;
    anchor = data->proofstate->axioms->anchor;
@@ -544,7 +546,14 @@ double EnigmaWeightTfCompute(void* data, Clause_p clause)
    debug_symbols(local);
    debug_terms(local);
    debug_edges(local);
-   names_reset(local);
+
+   static int counter = 1;
+   if (counter == 2)
+   {
+      names_reset(data);
+      counter = 0;
+   }
+   counter++;
 
    return 1.0;
 }
