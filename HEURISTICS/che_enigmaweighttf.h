@@ -64,6 +64,10 @@ typedef struct enigmaweighttfparamcell
    long conj_maxvar;
    PStack_p conj_tedges;
    PStack_p conj_cedges;
+
+   PStack_p ini_nodes;
+   PStack_p ini_symbols;
+   PStack_p ini_clauses;
    
 }EnigmaWeightTfParamCell, *EnigmaWeightTfParam_p;
 

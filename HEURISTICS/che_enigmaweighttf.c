@@ -269,8 +269,9 @@ static void names_update_clause(Clause_p clause, EnigmaWeightTfParam_p data)
          Term_p term = TermTopAlloc(data->proofstate->signature->eqn_code, 2);
          term->args[0] = lit->lterm;
          term->args[1] = lit->rterm;
-         tid = names_update_term(term, data, pos ? 1 : -1);
-         // TermTopFree(term); TODO: free this once debug out is not needed!!!
+         Term_p term1 = TBInsert(data->tmp_bank, term, DEREF_ALWAYS);
+         tid = names_update_term(term1, data, pos ? 1 : -1);
+         TermTopFree(term); 
       }
       edge_clause(cid, tid, data);
    }
@@ -421,6 +422,57 @@ static void names_reset(EnigmaWeightTfParam_p data)
    data->maxvar = data->conj_maxvar;
 }
 
+static void tensor_fill_ini_nodes0(float* vals, NumTree_p terms, 
+   EnigmaWeightTfParam_p data)
+{
+   NumTree_p node;
+   PStack_p stack;
+
+   stack = NumTreeTraverseInit(terms);
+   while ((node = NumTreeTraverseNext(stack)))
+   {
+      if (node->key < 0) 
+      {
+         vals[node->val1.i_val] = 2; // variable
+      }
+      else 
+      {
+         Term_p term = node->val2.p_val;
+         if (SigIsPredicate(data->proofstate->signature, term->f_code))
+         {
+            vals[node->val1.i_val] = 1; // literal
+         }
+         else
+         {
+            vals[node->val1.i_val] = 0; // otherwise
+         }
+      }
+   }
+   NumTreeTraverseExit(stack);
+}
+
+static void tensor_fill_ini_nodes(float* vals, EnigmaWeightTfParam_p data)
+{
+   tensor_fill_ini_nodes0(vals, data->conj_terms, data);
+   tensor_fill_ini_nodes0(vals, data->terms, data);
+   
+   // debug
+   int i;
+   fprintf(GlobalOut, "ini_nodes = [");
+   for (i=0; i<data->fresh_t; i++)
+   {
+      fprintf(GlobalOut, "%d:%.0f, ", i, vals[i]);
+   }
+   fprintf(GlobalOut, "]\n");
+}
+
+static void tensor_fill(EnigmaWeightTfParam_p data)
+{
+   static float ini_nodes[2048];
+
+   tensor_fill_ini_nodes(ini_nodes, data);
+}
+
 static void extweight_init(EnigmaWeightTfParam_p data)
 {
    Clause_p clause;
@@ -484,6 +536,10 @@ EnigmaWeightTfParam_p EnigmaWeightTfParamAlloc(void)
    res->conj_tedges = PStackAlloc();
    res->conj_cedges = PStackAlloc();
 
+   res->ini_nodes = PStackAlloc(); 
+   res->ini_symbols = PStackAlloc(); 
+   res->ini_clauses = PStackAlloc(); 
+
    res->maxvar = 0;
    res->tmp_bank = NULL;
 
@@ -502,6 +558,10 @@ void EnigmaWeightTfParamFree(EnigmaWeightTfParam_p junk)
    PStackFree(junk->cedges);
    PStackFree(junk->conj_tedges);
    PStackFree(junk->conj_cedges);
+
+   PStackFree(junk->ini_nodes);
+   PStackFree(junk->ini_symbols);
+   PStackFree(junk->ini_clauses);
 
    if (junk->tmp_bank)
    {
@@ -571,6 +631,7 @@ double EnigmaWeightTfCompute(void* data, Clause_p clause)
    debug_symbols(local);
    debug_terms(local);
    debug_edges(local);
+   tensor_fill(local);
 
    names_reset(data);
 
