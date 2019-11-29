@@ -174,9 +174,34 @@ static void edge_clause(long cid, long tid, EnigmaWeightTfParam_p data)
    }
 }
 
+static bool edge_term_check(long i, long j, long k, long l, long b,
+   PStack_p edges)
+{
+   for (int idx=0; i<edges->current; i++)
+   { 
+      PDArray_p edge = PStackElementP(edges, idx);
+      if (
+         (PDArrayElementInt(edge, 0) == i) &&
+         (PDArrayElementInt(edge, 1) == j) &&
+         (PDArrayElementInt(edge, 2) == k) &&
+         (PDArrayElementInt(edge, 3) == l) &&
+         (PDArrayElementInt(edge, 4) == b))
+      {
+         return true;
+      }
+   }
+   return false;
+}
+
 static void edge_term(long i, long j, long k, long l, long b,
       EnigmaWeightTfParam_p data)
 {
+   if (edge_term_check(i, j, k, l, b, data->conj_tedges) ||
+       edge_term_check(i, j, k, l, b, data->tedges))
+   {
+      return;
+   }
+
    PDArray_p edge = PDArrayAlloc(5, 5);
    PDArrayAssignInt(edge, 0, i);
    PDArrayAssignInt(edge, 1, j);
@@ -547,13 +572,7 @@ double EnigmaWeightTfCompute(void* data, Clause_p clause)
    debug_terms(local);
    debug_edges(local);
 
-   static int counter = 1;
-   if (counter == 2)
-   {
-      names_reset(data);
-      counter = 0;
-   }
-   counter++;
+   names_reset(data);
 
    return 1.0;
 }
