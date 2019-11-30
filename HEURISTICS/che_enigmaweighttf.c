@@ -489,11 +489,73 @@ static void tensor_fill_ini_clauses(float* vals, EnigmaWeightTfParam_p data)
    }
 }
 
+static void tensor_fill_encode_list(PStack_p lists, float* vals, float* lens)
+{
+   int idx = 0;
+   for (int i=0; i<lists->current; i++)
+   {
+      PStack_p list = PStackElementP(lists, i);
+      lens[i] = list->current;
+      while (!PStackEmpty(list))
+      {
+         vals[idx++] = PStackPopInt(list);
+      }
+      PStackFree(list);
+   }
+   PStackFree(lists);
+}
+
+static void tensor_fill_clause_inputs(
+   float* clause_inputs_data, 
+   float* clause_inputs_lens, 
+   float* node_c_inputs_data, 
+   float* node_c_inputs_lens, 
+   EnigmaWeightTfParam_p data)
+{
+   int i;
+
+   PStack_p clists = PStackAlloc();
+   PStack_p tlists = PStackAlloc();
+   for (i=0; i<data->fresh_c; i++)
+   {
+      PStackPushP(clists, PStackAlloc());
+   }
+   for (i=0; i<data->fresh_t; i++)
+   {
+      PStackPushP(tlists, PStackAlloc());
+   }
+
+   for (i=0; i<data->conj_cedges->current; i++)
+   { 
+      PDArray_p edge = PStackElementP(data->conj_cedges, i);
+      long ci = PDArrayElementInt(edge, 0);
+      long tj = PDArrayElementInt(edge, 1);
+      PStackPushInt(PStackElementP(clists, ci), tj);
+      PStackPushInt(PStackElementP(tlists, tj), ci);
+   }
+   for (i=0; i<data->cedges->current; i++)
+   { 
+      PDArray_p edge = PStackElementP(data->cedges, i);
+      long ci = PDArrayElementInt(edge, 0);
+      long tj = PDArrayElementInt(edge, 1);
+      PStackPushInt(PStackElementP(clists, ci), tj);
+      PStackPushInt(PStackElementP(tlists, tj), ci);
+   }
+
+   tensor_fill_encode_list(clists, clause_inputs_data, clause_inputs_lens);
+   tensor_fill_encode_list(tlists, node_c_inputs_data, node_c_inputs_lens);
+}
+
+
 static void tensor_fill(EnigmaWeightTfParam_p data)
 {
    static float ini_nodes[2048];
    static float ini_symbols[2048];
    static float ini_clauses[2048];
+   static float clause_inputs_data[2048];
+   static float clause_inputs_lens[2048];
+   static float node_c_inputs_data[2048];
+   static float node_c_inputs_lens[2048];
 
    tensor_fill_ini_nodes(ini_nodes, data->conj_terms, data);
    tensor_fill_ini_nodes(ini_nodes, data->terms, data);
@@ -505,6 +567,15 @@ static void tensor_fill(EnigmaWeightTfParam_p data)
 
    tensor_fill_ini_clauses(ini_clauses, data);
    debug_vector("ini_clauses", ini_clauses, data->fresh_c);
+
+   tensor_fill_clause_inputs(clause_inputs_data, clause_inputs_lens, 
+      node_c_inputs_data, node_c_inputs_lens, data);
+   debug_vector("clause_inputs_data", clause_inputs_data, 
+      data->cedges->current + data->conj_cedges->current);
+   debug_vector("clause_inputs_lens", clause_inputs_lens, data->fresh_c);
+   debug_vector("node_c_inputs_data", node_c_inputs_data, 
+      data->cedges->current + data->conj_cedges->current);
+   debug_vector("node_c_inputs_lens", node_c_inputs_lens, data->fresh_t);
    
 }
 
