@@ -422,13 +422,13 @@ static void names_reset(EnigmaWeightTfParam_p data)
    data->maxvar = data->conj_maxvar;
 }
 
-static void tensor_fill_ini_nodes0(float* vals, NumTree_p terms, 
+static void tensor_fill_ini_nodes0(float* vals, NumTree_p syms, 
    EnigmaWeightTfParam_p data)
 {
    NumTree_p node;
    PStack_p stack;
 
-   stack = NumTreeTraverseInit(terms);
+   stack = NumTreeTraverseInit(syms);
    while ((node = NumTreeTraverseNext(stack)))
    {
       if (node->key < 0) 
@@ -451,6 +451,27 @@ static void tensor_fill_ini_nodes0(float* vals, NumTree_p terms,
    NumTreeTraverseExit(stack);
 }
 
+static void tensor_fill_ini_symbols0(float* vals, NumTree_p terms, 
+   EnigmaWeightTfParam_p data)
+{
+   NumTree_p node;
+   PStack_p stack;
+
+   stack = NumTreeTraverseInit(terms);
+   while ((node = NumTreeTraverseNext(stack)))
+   {
+      if (SigIsPredicate(data->proofstate->signature,  node->key)) 
+      {
+         vals[node->val1.i_val] = 1; // predicate
+      }
+      else 
+      {
+         vals[node->val1.i_val] = 0; // function
+      }
+   }
+   NumTreeTraverseExit(stack);
+}
+
 static void tensor_fill_ini_nodes(float* vals, EnigmaWeightTfParam_p data)
 {
    tensor_fill_ini_nodes0(vals, data->conj_terms, data);
@@ -466,11 +487,28 @@ static void tensor_fill_ini_nodes(float* vals, EnigmaWeightTfParam_p data)
    fprintf(GlobalOut, "]\n");
 }
 
+static void tensor_fill_ini_symbols(float* vals, EnigmaWeightTfParam_p data)
+{
+   tensor_fill_ini_symbols0(vals, data->conj_syms, data);
+   tensor_fill_ini_symbols0(vals, data->syms, data);
+   
+   // debug
+   int i;
+   fprintf(GlobalOut, "ini_symbols = [");
+   for (i=0; i<data->fresh_s; i++)
+   {
+      fprintf(GlobalOut, "%d:%.0f, ", i, vals[i]);
+   }
+   fprintf(GlobalOut, "]\n");
+}
+
 static void tensor_fill(EnigmaWeightTfParam_p data)
 {
    static float ini_nodes[2048];
+   static float ini_symbols[2048];
 
    tensor_fill_ini_nodes(ini_nodes, data);
+   tensor_fill_ini_symbols(ini_symbols, data);
 }
 
 static void extweight_init(EnigmaWeightTfParam_p data)
