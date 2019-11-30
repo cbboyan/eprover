@@ -391,6 +391,15 @@ static void debug_edges(EnigmaWeightTfParam_p data)
 
 }
 
+static void debug_vector(char* name, float* vals, int len)
+{
+   fprintf(GlobalOut, "%s = [ ", name);
+   for (int i=0; i<len; i++)
+   {
+      fprintf(GlobalOut, "%d:%.0f%s", i, vals[i], (i<len-1) ? ", " : " ]\n");
+   }
+}
+
 static void free_edges(PStack_p stack)
 {
    while (!PStackEmpty(stack))
@@ -422,7 +431,7 @@ static void names_reset(EnigmaWeightTfParam_p data)
    data->maxvar = data->conj_maxvar;
 }
 
-static void tensor_fill_ini_nodes0(float* vals, NumTree_p syms, 
+static void tensor_fill_ini_nodes(float* vals, NumTree_p syms, 
    EnigmaWeightTfParam_p data)
 {
    NumTree_p node;
@@ -451,7 +460,7 @@ static void tensor_fill_ini_nodes0(float* vals, NumTree_p syms,
    NumTreeTraverseExit(stack);
 }
 
-static void tensor_fill_ini_symbols0(float* vals, NumTree_p terms, 
+static void tensor_fill_ini_symbols(float* vals, NumTree_p terms, 
    EnigmaWeightTfParam_p data)
 {
    NumTree_p node;
@@ -472,43 +481,31 @@ static void tensor_fill_ini_symbols0(float* vals, NumTree_p terms,
    NumTreeTraverseExit(stack);
 }
 
-static void tensor_fill_ini_nodes(float* vals, EnigmaWeightTfParam_p data)
+static void tensor_fill_ini_clauses(float* vals, EnigmaWeightTfParam_p data)
 {
-   tensor_fill_ini_nodes0(vals, data->conj_terms, data);
-   tensor_fill_ini_nodes0(vals, data->terms, data);
-   
-   // debug
-   int i;
-   fprintf(GlobalOut, "ini_nodes = [");
-   for (i=0; i<data->fresh_t; i++)
+   for (int i=0; i<data->fresh_c; i++)
    {
-      fprintf(GlobalOut, "%d:%.0f, ", i, vals[i]);
+      vals[i] = (i < data->conj_fresh_c) ? 0 : 1;
    }
-   fprintf(GlobalOut, "]\n");
-}
-
-static void tensor_fill_ini_symbols(float* vals, EnigmaWeightTfParam_p data)
-{
-   tensor_fill_ini_symbols0(vals, data->conj_syms, data);
-   tensor_fill_ini_symbols0(vals, data->syms, data);
-   
-   // debug
-   int i;
-   fprintf(GlobalOut, "ini_symbols = [");
-   for (i=0; i<data->fresh_s; i++)
-   {
-      fprintf(GlobalOut, "%d:%.0f, ", i, vals[i]);
-   }
-   fprintf(GlobalOut, "]\n");
 }
 
 static void tensor_fill(EnigmaWeightTfParam_p data)
 {
    static float ini_nodes[2048];
    static float ini_symbols[2048];
+   static float ini_clauses[2048];
 
-   tensor_fill_ini_nodes(ini_nodes, data);
-   tensor_fill_ini_symbols(ini_symbols, data);
+   tensor_fill_ini_nodes(ini_nodes, data->conj_terms, data);
+   tensor_fill_ini_nodes(ini_nodes, data->terms, data);
+   debug_vector("ini_nodes", ini_nodes, data->fresh_t);
+
+   tensor_fill_ini_symbols(ini_symbols, data->conj_syms, data);
+   tensor_fill_ini_symbols(ini_symbols, data->syms, data);
+   debug_vector("ini_symbols", ini_symbols, data->fresh_s);
+
+   tensor_fill_ini_clauses(ini_clauses, data);
+   debug_vector("ini_clauses", ini_clauses, data->fresh_c);
+   
 }
 
 static void extweight_init(EnigmaWeightTfParam_p data)
