@@ -193,6 +193,15 @@ static bool edge_term_check(long i, long j, long k, long l, long b,
    return false;
 }
 
+static void edge_term_get(PDArray_p edge, long* i, long* j, long* k, long *l, long *b)
+{
+   *i = PDArrayElementInt(edge, 0);
+   *j = PDArrayElementInt(edge, 1);
+   *k = PDArrayElementInt(edge, 2);
+   *l = PDArrayElementInt(edge, 3);
+   *b = PDArrayElementInt(edge, 4);
+}
+
 static void edge_term(long i, long j, long k, long l, long b,
       EnigmaWeightTfParam_p data)
 {
@@ -400,6 +409,21 @@ static void debug_vector(char* name, float* vals, int len)
    }
 }
 
+static void debug_matrix(char* name, float* vals, int dimx, int dimy)
+{
+   fprintf(GlobalOut, "%s = [ ", name);
+   int idx = 0;
+   for (int x=0; x<dimx; x++)
+   {
+      fprintf(GlobalOut, "%d:[", x);
+      for (int y=0; y<dimy; y++)
+      {
+         fprintf(GlobalOut, "%.0f%s", vals[idx++], (y<dimy-1) ? "," : "]");
+      }
+      fprintf(GlobalOut, "]%s", (x<dimx-1) ? ", " : " ]\n");
+   }
+}
+
 static void free_edges(PStack_p stack)
 {
    while (!PStackEmpty(stack))
@@ -505,6 +529,70 @@ static void tensor_fill_encode_list(PStack_p lists, float* vals, float* lens)
    PStackFree(lists);
 }
 
+static void tensor_fill_encode_dict_symbol(PStack_p lists, 
+   float* nodes, float* sgn, float* lens)
+{
+   long i, j, k, l, b;
+   int idx_nodes = 0;
+   int idx_sgn = 0;
+   for (int idx=0; idx<lists->current; idx++)
+   {
+      PStack_p list = PStackElementP(lists, idx);
+      lens[idx] = list->current;
+      while (!PStackEmpty(list))
+      {
+         PDArray_p edge = PStackPopP(list);
+         edge_term_get(edge, &i, &j, &k, &l, &b);
+         nodes[idx_nodes++] = i;
+         nodes[idx_nodes++] = j;
+         nodes[idx_nodes++] = k;
+         sgn[idx_sgn++] = b;
+      }
+      PStackFree(list);
+   }
+   PStackFree(lists);
+}
+
+static void tensor_fill_encode_dict_node(PStack_p lists, 
+   float* symbols, float* nodes, float* sgn, float* lens, int node_mode)
+{
+   long i, j, k, l, b;
+   int idx_nodes = 0;
+   int idx_sgn = 0;
+   int idx_symbols = 0;
+   for (int idx=0; idx<lists->current; idx++)
+   {
+      PStack_p list = PStackElementP(lists, idx);
+      lens[idx] = list->current;
+      while (!PStackEmpty(list))
+      {
+         PDArray_p edge = PStackPopP(list);
+         edge_term_get(edge, &i, &j, &k, &l, &b);
+         switch (node_mode)
+         {
+         case 1:
+            nodes[idx_nodes++] = j;
+            nodes[idx_nodes++] = k;
+            break;
+         case 2:
+            nodes[idx_nodes++] = i;
+            nodes[idx_nodes++] = k;
+            break;
+         case 3:
+            nodes[idx_nodes++] = i;
+            nodes[idx_nodes++] = j;
+            break;
+         default:
+            Error("TensorFlow: Unknown encoding node_mode!", USAGE_ERROR);
+         }
+         symbols[idx_symbols++] = l;
+         sgn[idx_sgn++] = b;
+      }
+      PStackFree(list);
+   }
+   PStackFree(lists);
+}
+
 static void tensor_fill_clause_inputs(
    float* clause_inputs_data, 
    float* clause_inputs_lens, 
@@ -542,10 +630,87 @@ static void tensor_fill_clause_inputs(
       PStackPushInt(PStackElementP(tlists, tj), ci);
    }
 
+   // this also frees all the stacks
    tensor_fill_encode_list(clists, clause_inputs_data, clause_inputs_lens);
    tensor_fill_encode_list(tlists, node_c_inputs_data, node_c_inputs_lens);
 }
 
+static void tensor_fill_term_inputs(
+   float* symbol_inputs_nodes, 
+   float* symbol_inputs_sgn, 
+   float* symbol_inputs_len, 
+   float* node_inputs_1_symbols,
+   float* node_inputs_1_nodes,
+   float* node_inputs_1_sgn,
+   float* node_inputs_1_len,
+   float* node_inputs_2_symbols,
+   float* node_inputs_2_nodes,
+   float* node_inputs_2_sgn,
+   float* node_inputs_2_len,
+   float* node_inputs_3_symbols,
+   float* node_inputs_3_nodes,
+   float* node_inputs_3_sgn,
+   float* node_inputs_3_len,
+   EnigmaWeightTfParam_p data)
+{
+   int idx;
+
+   PStack_p slists = PStackAlloc();
+   for (idx=0; idx<data->fresh_s; idx++)
+   {
+      PStackPushP(slists, PStackAlloc());
+   }
+   PStack_p n1lists = PStackAlloc();
+   PStack_p n2lists = PStackAlloc();
+   PStack_p n3lists = PStackAlloc();
+   for (idx=0; idx<data->fresh_t; idx++)
+   {
+      PStackPushP(n1lists, PStackAlloc());
+      PStackPushP(n2lists, PStackAlloc());
+      PStackPushP(n3lists, PStackAlloc());
+   }
+
+   long i, j, k, l, b;
+   for (idx=0; idx<data->conj_tedges->current; idx++)
+   { 
+      PDArray_p edge = PStackElementP(data->conj_tedges, idx);
+      edge_term_get(edge, &i, &j, &k, &l, &b);
+      PStackPushP(PStackElementP(n1lists, i), edge);
+      if (j != -1)
+      {
+         PStackPushP(PStackElementP(n2lists, j), edge);
+      }
+      if (k != -1)
+      {
+         PStackPushP(PStackElementP(n3lists, k), edge);
+      }
+      PStackPushP(PStackElementP(slists, l), edge);
+   }
+   for (idx=0; idx<data->tedges->current; idx++)
+   { 
+      PDArray_p edge = PStackElementP(data->tedges, idx);
+      edge_term_get(edge, &i, &j, &k, &l, &b);
+      PStackPushP(PStackElementP(n1lists, i), edge);
+      if (j != -1)
+      {
+         PStackPushP(PStackElementP(n2lists, j), edge);
+      }
+      if (k != -1)
+      {
+         PStackPushP(PStackElementP(n3lists, k), edge);
+      }
+      PStackPushP(PStackElementP(slists, l), edge);
+   }
+
+   tensor_fill_encode_dict_symbol(slists, symbol_inputs_nodes, 
+      symbol_inputs_sgn, symbol_inputs_len);
+   tensor_fill_encode_dict_node(n1lists, node_inputs_1_symbols, 
+      node_inputs_1_nodes, node_inputs_1_sgn, node_inputs_1_len, 1);
+   tensor_fill_encode_dict_node(n2lists, node_inputs_2_symbols, 
+      node_inputs_2_nodes, node_inputs_2_sgn, node_inputs_2_len, 2);
+   tensor_fill_encode_dict_node(n3lists, node_inputs_3_symbols, 
+      node_inputs_3_nodes, node_inputs_3_sgn, node_inputs_3_len, 3);
+}
 
 static void tensor_fill(EnigmaWeightTfParam_p data)
 {
@@ -556,6 +721,21 @@ static void tensor_fill(EnigmaWeightTfParam_p data)
    static float clause_inputs_lens[2048];
    static float node_c_inputs_data[2048];
    static float node_c_inputs_lens[2048];
+   static float symbol_inputs_nodes[2048]; 
+   static float symbol_inputs_sgn[2048]; 
+   static float symbol_inputs_len[2048]; 
+   static float node_inputs_1_symbols[2048];
+   static float node_inputs_1_nodes[2048];
+   static float node_inputs_1_sgn[2048];
+   static float node_inputs_1_len[2048];
+   static float node_inputs_2_symbols[2048];
+   static float node_inputs_2_nodes[2048];
+   static float node_inputs_2_sgn[2048];
+   static float node_inputs_2_len[2048];
+   static float node_inputs_3_symbols[2048];
+   static float node_inputs_3_nodes[2048];
+   static float node_inputs_3_sgn[2048];
+   static float node_inputs_3_len[2048];
 
    tensor_fill_ini_nodes(ini_nodes, data->conj_terms, data);
    tensor_fill_ini_nodes(ini_nodes, data->terms, data);
@@ -576,6 +756,40 @@ static void tensor_fill(EnigmaWeightTfParam_p data)
    debug_vector("node_c_inputs_data", node_c_inputs_data, 
       data->cedges->current + data->conj_cedges->current);
    debug_vector("node_c_inputs_lens", node_c_inputs_lens, data->fresh_t);
+
+   tensor_fill_term_inputs(
+      symbol_inputs_nodes, 
+      symbol_inputs_sgn, 
+      symbol_inputs_len, 
+      node_inputs_1_symbols,
+      node_inputs_1_nodes,
+      node_inputs_1_sgn,
+      node_inputs_1_len,
+      node_inputs_2_symbols,
+      node_inputs_2_nodes,
+      node_inputs_2_sgn,
+      node_inputs_2_len,
+      node_inputs_3_symbols,
+      node_inputs_3_nodes,
+      node_inputs_3_sgn,
+      node_inputs_3_len,
+      data);
+   int te = data->tedges->current + data->conj_tedges->current;
+   debug_vector("symbol_inputs_len", symbol_inputs_len, data->fresh_s);
+   debug_vector("symbol_inputs_sgn", symbol_inputs_sgn, te);
+   debug_matrix("symbol_inputs_nodes", symbol_inputs_nodes, te, 3);
+   debug_vector("node_inputs_1_len", node_inputs_1_len, data->fresh_t);
+   debug_vector("node_inputs_1_symbols", node_inputs_1_symbols, te);
+   debug_vector("node_inputs_1_sgn", node_inputs_1_sgn, te);
+   debug_matrix("node_inputs_1_nodes", node_inputs_1_nodes, te, 2);
+   debug_vector("node_inputs_2_len", node_inputs_2_len, data->fresh_t);
+   debug_vector("node_inputs_2_symbols", node_inputs_2_symbols, te);
+   debug_vector("node_inputs_2_sgn", node_inputs_2_sgn, te);
+   debug_matrix("node_inputs_2_nodes", node_inputs_2_nodes, te, 2);
+   debug_vector("node_inputs_3_len", node_inputs_3_len, data->fresh_t);
+   debug_vector("node_inputs_3_symbols", node_inputs_3_symbols, te);
+   debug_vector("node_inputs_3_sgn", node_inputs_3_sgn, te);
+   debug_matrix("node_inputs_3_nodes", node_inputs_3_nodes, te, 2);
    
 }
 
