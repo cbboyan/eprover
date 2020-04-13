@@ -2,7 +2,7 @@
 
 File  : enigmatic-features.c
 
-Author: Stephan Schultz, Josef Urban, Jan Jakubuv
+Author: Stephan Schultz, AI4REASON
 
 Contents
  
@@ -22,6 +22,7 @@ Changes
 #include <cio_commandline.h>
 #include <cio_output.h>
 #include <ccl_proofstate.h>
+#include <che_enigmatic.h>
 
 /*---------------------------------------------------------------------*/
 /*                  Data types                                         */
@@ -34,51 +35,9 @@ typedef enum
    OPT_VERBOSE,
    OPT_OUTPUT,
    OPT_FREE_NUMBERS,
+   OPT_FEATURES,
 }OptionCodes;
 
-typedef struct enigmaticcell
-{
-   Sig_p sig;
-} EnigmaticCell, *Enigmatic_p;
-
-#define EnigmaticCellAlloc() (EnigmaticCell*) \
-        SizeMalloc(sizeof(EnigmaticCell))
-#define EnigmaticCellFree(junk) \
-        SizeFree(junk, sizeof(EnigmaticCell))
-
-typedef struct enigmaticinfocell
-{
-   long len;
-   long pos;
-   long neg;
-   long max_depth;
-   long avg_depth;
-   long width;
-   long avg_depth;
-   long vars;
-   long pos_eqs;
-   long neg_eqs;
-
-   // f(X,X,Y,Y)
-
-   long var_hist[6];
-   long func_hist[6];
-   long pred_hist[6];
-
-   long var_count[6];
-   long func_count[6];
-   long pred_count[6];
-
-   long var_rat[6];
-   long func_rat[6];
-   long pred_rat[6];
-
-} EnigmaticInfoCell, *EnigmaticInfo_p;
-
-#define EnigmaticInfoCellAlloc() (EnigmaticInfoCell*) \
-        SizeMalloc(sizeof(EnigmaticInfoCell))
-#define EnigmaticInfoCellFree(junk) \
-        SizeFree(junk, sizeof(EnigmaticInfoCell))
 
 /*---------------------------------------------------------------------*/
 /*                        Global Variables                             */
@@ -102,8 +61,12 @@ OptCell opts[] =
       '\0', "free-numbers",
       NoArg, NULL,
       "Treat numbers (strings of decimal digits) as normal free function "
-         "symbols in the input. By default, number now are supposed to denote"
-         " domain constants and to be implicitly different from each other."},
+      "symbols in the input. By default, number now are supposed to denote"
+      " domain constants and to be implicitly different from each other."},
+   {OPT_FEATURES,
+      'f', "features",
+      ReqArg, NULL,
+      "Enigma features specifier string."},
    {OPT_NOOPT,
       '\0', NULL,
       NoArg, NULL,
@@ -112,6 +75,7 @@ OptCell opts[] =
 
 char *outname = NULL;
 FunctionProperties free_symb_prop = FPIgnoreProps;
+EnigmaticFeatures_p features;
 
 /*---------------------------------------------------------------------*/
 /*                      Forward Declarations                           */
@@ -123,89 +87,6 @@ void print_help(FILE* out);
 /*---------------------------------------------------------------------*/
 /*                         Internal Functions                          */
 /*---------------------------------------------------------------------*/
-
-Enigmatic_p EnigmaticAlloc(void)
-{
-   Enigmatic_p res = EnigmaticCellAlloc();
-
-   res->sig = NULL;
-
-   return res;
-}
-
-void EnigmaticFree(Enigmatic_p junk)
-{
-   EnigmaticCellFree(junk);
-}
-
-EnigmaticInfo_p EnigmaticInfoAlloc(void)
-{
-   int i;
-   EnigmaticInfo_p res = EnigmaticInfoCellAlloc();
-
-   res->len = 0L;
-   res->pos = 0L; 
-   res->neg = 0L;
-   res->depth = 0L;
-   res->width = 0L;
-   res->vars = 0L;
-   res->eqs = 0L;
-
-   for (i=0; i<6; i++) { res->var_hist[i] = 0L; }
-   for (i=0; i<6; i++) { res->func_hist[i] = 0L; }
-   for (i=0; i<6; i++) { res->pred_hist[i] = 0L; }
-
-   for (i=0; i<6; i++) { res->var_count[i] = 0L; }
-   for (i=0; i<6; i++) { res->func_count[i] = 0L; }
-   for (i=0; i<6; i++) { res->pred_count[i] = 0L; }
-
-   for (i=0; i<6; i++) { res->var_rat[i] = 0L; }
-   for (i=0; i<6; i++) { res->func_rat[i] = 0L; }
-   for (i=0; i<6; i++) { res->pred_rat[i] = 0L; }
-
-   return res;
-}
-
-void EnigmaticInfoFree(EnigmaticInfo_p junk)
-{
-   EnigmaticInfoCellFree(junk);
-}
-
-static void info_term(EnigmaticInfo_p info, Term_p term, int depth, bool pos)
-{  
-   if (TermIsVar(term))
-   {
-      info->vars++;
-      info->depth = MAX(info->depth, depth);
-      return;
-
-   }
-
-   //  P(a) | ~Q(a,a)
-   // ~P(a) |  Q(a,a)
-}
-
-static void info_clause(EnigmaticInfo_p info, Clause_p clause)
-{
-   for (Eqn_p lit=clause->literals; lit; lit=lit->next)
-   {
-      bool pos = EqnIsPositive(lit);
-      if (pos) { info->pos++; } else { info->neg++; }
-
-      info_term(info, lit->lterm, 0, pos);
-      if (lit->rterm->f_code != SIG_TRUE_CODE)
-      {
-         info->len++;
-         info->eqs++;
-         info_term(info, lit->rterm, 0, pos);
-      }
-   }
-
-}
-
-void EnigmaticInfoCellExtend(EnigmaticInfo_p info, Clause_p clause)
-{
-}
 
 int main(int argc, char* argv[])
 {
@@ -261,6 +142,10 @@ CLState_p process_options(int argc, char* argv[])
          break;
       case OPT_FREE_NUMBERS:
          free_symb_prop = free_symb_prop|FPIsInteger|FPIsRational|FPIsFloat;
+         break;
+      case OPT_FEATURES:
+         features = EnigmaticFeaturesParse(arg);
+         EnigmaticFeaturesInfo(GlobalOut, features, arg);
          break;
       default:
          assert(false);

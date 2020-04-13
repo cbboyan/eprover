@@ -324,6 +324,7 @@ double EnigmaWeightXgbCompute(void* data, Clause_p clause)
       Error("ENIGMA: Failed computing XGBoost prediction:\n%s", 
          OTHER_ERROR, XGBGetLastError());
    }
+   printf("prediction: %p\n", pred);
    //printf("prediction: len=%ld first=%f\n", out_len, pred[0]);
    
    //res = 1 + ((1.0 - pred[0]) * 10.0);

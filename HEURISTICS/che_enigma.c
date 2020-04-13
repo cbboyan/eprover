@@ -90,7 +90,7 @@ static char* fcode_string(FunCode f_code, Enigmap_p enigmap)
 
       sprintf(str, "%s%c%d%s", sk, prefix, arity, postfix);
       StrTree_p node = StrTreeUpdate(&enigmap->name_cache, str, (IntOrP)0L, (IntOrP)0L);
-      return node->key;
+      return node->key; // node->key is now a ("global") copy of str
    }
    else
    {
