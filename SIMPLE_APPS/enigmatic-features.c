@@ -146,6 +146,7 @@ CLState_p process_options(int argc, char* argv[])
       case OPT_FEATURES:
          features = EnigmaticFeaturesParse(arg);
          EnigmaticFeaturesInfo(GlobalOut, features, arg);
+         EnigmaticFeaturesMap(GlobalOut, features);
          break;
       default:
          assert(false);

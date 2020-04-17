@@ -1,6 +1,6 @@
 /*-----------------------------------------------------------------------
 
-File  : che_enigmatic.c
+File  : che_enigmaticdata.c
 
 Author: Stephan Schultz, AI4REASON
 
@@ -18,7 +18,7 @@ Changes
 -----------------------------------------------------------------------*/
 
 
-#include "che_enigmatic.h"
+#include "che_enigmaticdata.h"
 
 
 
@@ -27,6 +27,8 @@ Changes
 /*---------------------------------------------------------------------*/
 
 #define INFO_SETTING(out,name,params,key) fprintf(out,"setting(\"%s:%s\", %ld).\n", name, #key, (long)params->key)
+
+#define RESET_ARRAY(array,len) for (i=0;i<len;i++) { array[i] = 0; }
 
 /*---------------------------------------------------------------------*/
 /*                      Forward Declarations                           */
@@ -243,6 +245,53 @@ static void info_settings(FILE* out, char* name, EnigmaticParams_p params)
    INFO_SETTING(out, name, params, base_depth);
 }
 
+static void names_array(FILE* out, char* prefix, long offset, char* names[], long size)
+{
+   if (offset == -1)
+   {
+      return;
+   }
+   for (int i=0; i<size; i++)
+   {
+      fprintf(out, "feature_name(%ld, \"%s:%s\").\n", offset+i, prefix, names[i]);
+   }
+
+}
+
+static void names_range(FILE* out, char* prefix, char* class, long offset, long size)
+{
+   if (offset == -1)
+   {
+      return;
+   }
+   if (class)
+   {
+      fprintf(out, "feature_begin(%ld, \"%s:%s\").\n", offset, prefix, class);
+      fprintf(out, "feature_end(%ld, \"%s:%s\").\n", offset+size-1, prefix, class);
+   }
+   else
+   {
+      fprintf(out, "feature_begin(%ld, \"%s\").\n", offset, prefix);
+      fprintf(out, "feature_end(%ld, \"%s\").\n", offset+size-1, prefix);
+}
+}
+
+static void names_clauses(FILE* out, char* name, EnigmaticParams_p params, long offset)
+{
+   if (offset == -1)
+   {
+      return;
+   }
+   names_array(out, name, params->offset_len, efn_lengths, EFC_LEN);
+   names_range(out, name, "var", params->offset_var, EFC_VAR(params)); 
+   names_range(out, name, "sym", params->offset_sym, EFC_SYM(params)); 
+   names_range(out, name, "eprover", params->offset_eprover, EFC_EPROVER); 
+   names_range(out, name, "horiz", params->offset_horiz, EFC_HORIZ(params)); 
+   names_range(out, name, "vert", params->offset_vert, EFC_VERT(params)); 
+   names_range(out, name, "count", params->offset_count, EFC_COUNT(params)); 
+   names_range(out, name, "depth", params->offset_depth, EFC_DEPTH(params)); 
+}
+
 /*---------------------------------------------------------------------*/
 /*                         Exported Functions                          */
 /*---------------------------------------------------------------------*/
@@ -376,6 +425,7 @@ EnigmaticFeatures_p EnigmaticFeaturesParse(char* spec)
    if (!features->clause)
    {
       features->clause = EnigmaticParamsAlloc();
+      features->clause->use_len = true;
    }
    if ((features->offset_goal == 0) && (!features->goal))
    {
@@ -434,6 +484,15 @@ void EnigmaticFeaturesInfo(FILE* out, EnigmaticFeatures_p features, char* spec)
    info_settings(out, "clause", features->clause);
    info_settings(out, "goal", features->goal);
    info_settings(out, "theory", features->theory);
+}
+
+void EnigmaticFeaturesMap(FILE* out, EnigmaticFeatures_p features)
+{
+   names_clauses(out, "clause", features->clause, features->offset_clause);
+   names_clauses(out, "goal", features->goal, features->offset_goal);
+   names_clauses(out, "theory", features->theory, features->offset_theory);
+   names_array(out, "problem", features->offset_problem, efn_problem, EBS_PROBLEM);
+   //names_proofwatch(out, offset_proofwatch);
 }
 
 EnigmaticClause_p EnigmaticClauseAlloc(EnigmaticParams_p params)
@@ -497,10 +556,19 @@ void EnigmaticClauseFree(EnigmaticClause_p junk)
    if (junk->depths) { NumTreeFree(junk->depths); }
 }
 
-#define RESET_ARRAY(array,len) for (i=0;i<len;i++) { array[i] = 0; }
-
 void EnigmaticClauseReset(EnigmaticClause_p enigma)
 {
+   enigma->len = 0;
+   enigma->lits = 0;
+   enigma->pos = 0;
+   enigma->neg = 0;
+   enigma->depth = 0;
+   enigma->width = 0;
+   enigma->avg_dept = 0;
+   enigma->pos_eqs = 0;
+   enigma->neg_eqs = 0;
+   enigma->pos_atoms = 0;
+   enigma->neg_atoms = 0;
    if (enigma->vert) 
    { 
       NumTreeFree(enigma->vert); 
