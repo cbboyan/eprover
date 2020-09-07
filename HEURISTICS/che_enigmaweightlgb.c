@@ -63,11 +63,11 @@ static void extweight_init(EnigmaWeightLgbParam_p data)
       EnigmapFillProblemFeatures(data->enigmap, data->proofstate->axioms);
    }
 
-   if (data->enigmap->version & EFSine)
-   {
-      data->enigmap->symb_rank = SinESymbolRanking(data->proofstate->axioms, data->proofstate->terms);
-      data->enigmap->symb_count = data->enigmap->sig->f_count+1;
-   }
+   //if (data->enigmap->version & EFSine)
+   //{
+   //   data->enigmap->symb_rank = SinESymbolRanking(data->proofstate->axioms, data->proofstate->terms);
+   //   data->enigmap->symb_count = data->enigmap->sig->f_count+1;
+   //}
 
    int len = 0;
    if (data->enigmap->version & EFConjecture)

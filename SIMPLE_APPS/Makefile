@@ -16,7 +16,7 @@ include ../Makefile.vars
 
 # Project specific variables
 
-PROJECT = ex_commandline term2dag enigma-features enigmatic-features #enigma-problem-features #enigma-svd-traintrans
+PROJECT = ex_commandline term2dag enigma-features lgb-predict enigmatic-features #enigma-problem-features #enigma-svd-traintrans
 LIB     = $(PROJECT)
 all: $(LIB)
 
@@ -51,6 +51,23 @@ ENIGMACONJFEATURES = enigma-features.o \
 
 enigma-features: $(ENIGMACONJFEATURES)
 	$(LD) -o enigma-features $(ENIGMACONJFEATURES) $(LIBS)
+
+#LGBPREDICT = lgb-predict.o \
+#            ../lib/CONTROL.a ../lib/PCL2.a ../lib/CLAUSES.a ../lib/ORDERINGS.a \
+#            ../lib/TERMS.a ../lib/INOUT.a ../lib/BASICS.a ../lib/HEURISTICS.a
+LGBPREDICT = lgb-predict.o ../lib/CONTROL.a ../lib/PCL2.a ../lib/HEURISTICS.a\
+            ../lib/LEARN.a\
+            ../lib/CLAUSES.a ../lib/ORDERINGS.a ../lib/TERMS.a\
+            ../lib/INOUT.a ../lib/BASICS.a \
+				../CONTRIB/liblinear/liblinear.a \
+				../CONTRIB/svdlibc/libsvd.a \
+				../CONTRIB/xgboost/libxgboost.a \
+				../CONTRIB/xgboost/librabit.a \
+				../CONTRIB/xgboost/libdmlc.a \
+				../CONTRIB/lightgbm/liblightgbm.a
+
+lgb-predict: $(LGBPREDICT)
+	$(LD) -o lgb-predict -fopenmp $(LGBPREDICT) $(LIBS)
 
 ENIGMATICFEATURES = enigmatic-features.o \
 				../lib/CONTROL.a ../lib/PCL2.a ../lib/CLAUSES.a ../lib/ORDERINGS.a \

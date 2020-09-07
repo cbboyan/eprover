@@ -27,48 +27,29 @@ Changes
 /*                    Data type declarations                           */
 /*---------------------------------------------------------------------*/
 
-/* ENIGMA feature names (efn) */
+extern char* efn_lengths[];
+extern char* efn_problem[];
 
-char* efn_lengths[] = {
-   "len",
-   "lits",
-   "pos",
-   "neg",
-   "depth",
-   "width",
-   "avg_dept",
-   "pos_eqs",
-   "neg_eqs",
-   "pos_atoms",
-   "neg_atoms",
-   NULL
-};
+/* Enigmatic first feature index */
+#define ENIGMATIC_FIRST     0
 
-char* efn_problem[] = {
-   "goals",
-   "axioms",
-   "clauses",
-   "literals",
-   "term_cells",
-   "unitgoals",
-   "unitaxioms",
-   "horngoals",
-   "hornaxioms",
-   "eq_clauses",
-   "peq_clauses",
-   "groundunitaxioms",
-   "groundgoals",
-   "groundpositiveaxioms",
-   "positiveaxioms",
-   "ng_unit_axioms_part",
-   "ground_positive_axioms_part",
-   "max_fun_arity",
-   "avg_fun_arity",
-   "sum_fun_arity",
-   "clause_max_depth",
-   "clause_avg_depth",
-   NULL
-};
+/* Enigmatic Default Value */
+#define EDV_COUNT           6
+#define EDV_BASE            1024
+#define EDV_LENGTH          3
+
+/* Enigmatic Feature Count */
+#define EFC_LEN             11
+#define EFC_VAR(params)     (3*(params->count_var))
+#define EFC_SYM(params)     (6*(params->count_sym))
+#define EFC_EPROVER         1
+#define EFC_VERT(params)    (params->base_vert)
+#define EFC_HORIZ(params)   (params->base_horiz)
+#define EFC_COUNT(params)   (params->base_count)
+#define EFC_DEPTH(params)   (params->base_depth)
+
+/* Enigmatic Block Size */
+#define EBS_PROBLEM         22
 
 typedef struct enigmaticparamscell
 {
@@ -110,7 +91,7 @@ typedef struct enigmaticfeaturescell
 
 typedef struct enigmaticclausecell
 {
-   EnigmaticParams_p params; // a copy, do not free
+   EnigmaticParams_p params; // a pointer copy, do not free!
 
    // length statistics
    long len;
@@ -157,7 +138,7 @@ typedef struct enigmaticvectorcell
    // theory features
    EnigmaticClause_p theory;
    // problem features
-   float problem_features[22];
+   float problem_features[EBS_PROBLEM];
    // proof watch features
 
 } EnigmaticVectorCell, *EnigmaticVector_p;
@@ -166,27 +147,6 @@ typedef struct enigmaticvectorcell
 /*---------------------------------------------------------------------*/
 /*                Exported Functions and Variables                     */
 /*---------------------------------------------------------------------*/
-
-/* Enigmatic first feature index */
-#define ENIGMATIC_FIRST     0
-
-/* Enigmatic Default Value */
-#define EDV_COUNT           6
-#define EDV_BASE            1024
-#define EDV_LENGTH          3
-
-/* Enigmatic Feature Count */
-#define EFC_LEN             11
-#define EFC_VAR(params)     (3*(params->count_var))
-#define EFC_SYM(params)     (6*(params->count_sym))
-#define EFC_EPROVER         1
-#define EFC_VERT(params)    (params->base_vert)
-#define EFC_HORIZ(params)   (params->base_horiz)
-#define EFC_COUNT(params)   (params->base_count)
-#define EFC_DEPTH(params)   (params->base_depth)
-
-/* Enigmatic Block Size */
-#define EBS_PROBLEM         22
 
 
 #define EnigmaticParamsCellAlloc() (EnigmaticParamsCell*) \
@@ -224,9 +184,8 @@ EnigmaticClause_p EnigmaticClauseAlloc(EnigmaticParams_p params);
 void EnigmaticClauseFree(EnigmaticClause_p junk);
 void EnigmaticClauseReset(EnigmaticClause_p enigma);
 
-//EnigmaticVector_p EnigmaticVectorAlloc(void);
-//void EnigmaticVectorFree(EnigmaticVector_p junk);
-
+EnigmaticVector_p EnigmaticVectorAlloc(EnigmaticFeatures_p features);
+void EnigmaticVectorFree(EnigmaticVector_p junk);
 
 
 #endif

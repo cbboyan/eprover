@@ -22,7 +22,7 @@ Changes
 #include <cio_commandline.h>
 #include <cio_output.h>
 #include <ccl_proofstate.h>
-#include <che_enigmatic.h>
+#include <che_enigmaticvectors.h>
 
 /*---------------------------------------------------------------------*/
 /*                  Data types                                         */
@@ -88,6 +88,23 @@ void print_help(FILE* out);
 /*                         Internal Functions                          */
 /*---------------------------------------------------------------------*/
 
+static void dump_clauses(FILE* out, char* filename, TB_p bank, EnigmaticVector_p vector)
+{
+   Scanner_p in = CreateScanner(StreamTypeFile, filename, true, NULL);
+   ScannerSetFormat(in, TSTPFormat);
+   
+   while (TestInpId(in, "cnf"))
+   {
+      Clause_p clause = ClauseParse(in, bank);
+      ClausePrint(out, clause, true);
+      fprintf(out, "\n");
+      ClauseFree(clause);
+   }
+
+   CheckInpTok(in, NoToken);
+   DestroyScanner(in);
+}
+
 int main(int argc, char* argv[])
 {
    InitIO(argv[0]);
@@ -96,7 +113,11 @@ int main(int argc, char* argv[])
    OutputFormat = TSTPFormat;
    if (outname) { OpenGlobalOut(outname); }
    ProofState_p state = ProofStateAlloc(free_symb_prop);
-  
+   EnigmaticVector_p vector = EnigmaticVectorAlloc(features);
+
+   dump_clauses(GlobalOut, args->argv[0], state->terms, vector);
+ 
+   EnigmaticVectorFree(vector);
    ProofStateFree(state);
    CLStateFree(args);
    ExitIO();
@@ -166,7 +187,7 @@ CLState_p process_options(int argc, char* argv[])
 void print_help(FILE* out)
 {
    fprintf(out, "\n\
-Usage: enigmatic-features [options] cnfs.tptp\n\
+Usage: enigmatic-features [options] clauses.p\n\
 \n\
 Make ENIGMA features from TPTP cnf clauses.\n\
 \n");

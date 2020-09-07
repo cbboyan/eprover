@@ -75,7 +75,7 @@ seperated by `;` and enclosed between `[` and `]`:
 Examples of parametric arguments:
 
 * `x[c=6]`: variable statistics with histograms of size 6
-* `v[l=3;h=256]`: vertical walks of length 3 hased to 256 buckets
+* `v[l=3;h=256]`: vertical walks of length 3 hashed to 256 buckets
 
 Example parametric specifiers:
 

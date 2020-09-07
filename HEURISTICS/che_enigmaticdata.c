@@ -30,6 +30,48 @@ Changes
 
 #define RESET_ARRAY(array,len) for (i=0;i<len;i++) { array[i] = 0; }
 
+/* ENIGMA feature names (efn) */
+char* efn_lengths[] = {
+   "len",
+   "lits",
+   "pos",
+   "neg",
+   "depth",
+   "width",
+   "avg_dept",
+   "pos_eqs",
+   "neg_eqs",
+   "pos_atoms",
+   "neg_atoms",
+   NULL
+};
+
+char* efn_problem[] = {
+   "goals",
+   "axioms",
+   "clauses",
+   "literals",
+   "term_cells",
+   "unitgoals",
+   "unitaxioms",
+   "horngoals",
+   "hornaxioms",
+   "eq_clauses",
+   "peq_clauses",
+   "groundunitaxioms",
+   "groundgoals",
+   "groundpositiveaxioms",
+   "positiveaxioms",
+   "ng_unit_axioms_part",
+   "ground_positive_axioms_part",
+   "max_fun_arity",
+   "avg_fun_arity",
+   "sum_fun_arity",
+   "clause_max_depth",
+   "clause_avg_depth",
+   NULL
+};
+
 /*---------------------------------------------------------------------*/
 /*                      Forward Declarations                           */
 /*---------------------------------------------------------------------*/
@@ -554,6 +596,7 @@ void EnigmaticClauseFree(EnigmaticClause_p junk)
    if (junk->horiz) { NumTreeFree(junk->horiz); }
    if (junk->counts) { NumTreeFree(junk->counts); }
    if (junk->depths) { NumTreeFree(junk->depths); }
+   EnigmaticClauseCellFree(junk);
 }
 
 void EnigmaticClauseReset(EnigmaticClause_p enigma)
@@ -606,6 +649,49 @@ void EnigmaticClauseReset(EnigmaticClause_p enigma)
       RESET_ARRAY(enigma->pred_rat, enigma->params->count_sym);
    }
 }
+
+EnigmaticVector_p EnigmaticVectorAlloc(EnigmaticFeatures_p features)
+{
+   EnigmaticVector_p vector = EnigmaticVectorCellAlloc();
+   vector->features = features;
+   vector->clause = NULL;
+   vector->goal = NULL;
+   vector->theory = NULL;
+   if (features->offset_clause != -1)
+   {
+      vector->clause = EnigmaticClauseAlloc(features->clause);
+   }
+   if (features->offset_goal != -1)
+   {
+      vector->goal = EnigmaticClauseAlloc(features->goal);
+   }
+   if (features->offset_theory != -1)
+   {
+      vector->theory = EnigmaticClauseAlloc(features->theory);
+   }
+   int i;
+   RESET_ARRAY(vector->problem_features, EBS_PROBLEM);
+   return vector;
+}
+
+
+void EnigmaticVectorFree(EnigmaticVector_p junk)
+{
+   if (junk->clause)
+   {
+      EnigmaticClauseFree(junk->clause);
+   }
+   if (junk->goal)
+   {
+      EnigmaticClauseFree(junk->goal);
+   }
+   if (junk->theory)
+   {
+      EnigmaticClauseFree(junk->theory);
+   }
+   EnigmaticVectorCellFree(junk);
+}
+
 
 /*---------------------------------------------------------------------*/
 /*                        End of File                                  */
