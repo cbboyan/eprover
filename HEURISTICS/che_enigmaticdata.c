@@ -607,30 +607,30 @@ void EnigmaticClauseReset(EnigmaticClause_p enigma)
    enigma->neg = 0;
    enigma->depth = 0;
    enigma->width = 0;
-   enigma->avg_dept = 0;
+   enigma->avg_depth = 0;
    enigma->pos_eqs = 0;
    enigma->neg_eqs = 0;
    enigma->pos_atoms = 0;
    enigma->neg_atoms = 0;
-   if (enigma->vert) 
-   { 
-      NumTreeFree(enigma->vert); 
-      enigma->vert = NULL; 
+   if (enigma->vert)
+   {
+      NumTreeFree(enigma->vert);
+      enigma->vert = NULL;
    }
-   if (enigma->horiz) 
-   { 
-      NumTreeFree(enigma->horiz); 
-      enigma->horiz = NULL; 
+   if (enigma->horiz)
+   {
+      NumTreeFree(enigma->horiz);
+      enigma->horiz = NULL;
    }
-   if (enigma->counts) 
-   { 
-      NumTreeFree(enigma->counts); 
-      enigma->counts = NULL; 
+   if (enigma->counts)
+   {
+      NumTreeFree(enigma->counts);
+      enigma->counts = NULL;
    }
-   if (enigma->depths) 
-   { 
-      NumTreeFree(enigma->depths); 
-      enigma->depths = NULL; 
+   if (enigma->depths)
+   {
+      NumTreeFree(enigma->depths);
+      enigma->depths = NULL;
    }
    int i;
    if (enigma->params->count_var > 0)

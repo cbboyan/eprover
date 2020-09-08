@@ -31,7 +31,11 @@ Changes
 /*                Exported Functions and Variables                     */
 /*---------------------------------------------------------------------*/
 
-//void EnigmaticClauseUpdate(EnigmaticClause_p enigma, Clause_p clause);
+void EnigmaticClauseReset(EnigmaticClause_p enigma);
+
+void EnigmaticClauseUpdate(EnigmaticClause_p enigma, Clause_p clause);
+
+void PrintEnigmaticVector(FILE* out, EnigmaticVector_p vector);
 
 // EnigmaticClauseSet
 // EnigmaticTheoryAdd

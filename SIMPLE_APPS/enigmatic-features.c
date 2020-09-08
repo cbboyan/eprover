@@ -98,6 +98,12 @@ static void dump_clauses(FILE* out, char* filename, TB_p bank, EnigmaticVector_p
       Clause_p clause = ClauseParse(in, bank);
       ClausePrint(out, clause, true);
       fprintf(out, "\n");
+
+      EnigmaticClauseUpdate(vector->clause, clause);
+      PrintEnigmaticVector(GlobalOut, vector);
+      fprintf(out, "\n");
+
+      EnigmaticClauseReset(vector->clause);
       ClauseFree(clause);
    }
 

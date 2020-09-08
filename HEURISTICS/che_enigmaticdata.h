@@ -100,7 +100,7 @@ typedef struct enigmaticclausecell
    long neg;
    long depth;
    long width;
-   float avg_dept;
+   float avg_depth;
    long pos_eqs;
    long neg_eqs;
    long pos_atoms;
