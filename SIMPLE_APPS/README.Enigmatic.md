@@ -93,6 +93,33 @@ Notes:
 * Thus, `C(v[b=256],h):G(h)` is the same as `C(v[b=256],h[b=256]):G([b=256])`
 
 
+
+p(X) | q(Y,Y,Y)    # 1 0 1 ... 1 3 0
+
+p(X,X) | q(Y,Y)
+
+p(X,Y) | q(X,Y)
+
+
+
+2x X
+1x Y
+1x Z
+
+2 1
+
+Y,Z
+X
+
+2
+
+
+
+
+
+
+
+
 Formal
 ======
 

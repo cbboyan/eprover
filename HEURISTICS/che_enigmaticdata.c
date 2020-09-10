@@ -30,6 +30,9 @@ Changes
 
 #define RESET_ARRAY(array,len) for (i=0;i<len;i++) { array[i] = 0; }
 
+#define PRINT_INT(key,val) if (val) fprintf(out, "%ld:%ld ", key, val)
+#define PRINT_FLOAT(key,val) if (val) fprintf(out, "%ld:%.2f ", key, val)
+
 /* ENIGMA feature names (efn) */
 char* efn_lengths[] = {
    "len",
@@ -38,7 +41,7 @@ char* efn_lengths[] = {
    "neg",
    "depth",
    "width",
-   "avg_dept",
+   "avg_depth",
    "pos_eqs",
    "neg_eqs",
    "pos_atoms",
@@ -332,6 +335,28 @@ static void names_clauses(FILE* out, char* name, EnigmaticParams_p params, long 
    names_range(out, name, "vert", params->offset_vert, EFC_VERT(params)); 
    names_range(out, name, "count", params->offset_count, EFC_COUNT(params)); 
    names_range(out, name, "depth", params->offset_depth, EFC_DEPTH(params)); 
+}
+
+static void print_enigmatic_clause(FILE* out, EnigmaticClause_p clause)
+{
+   if (!clause)
+   {
+      return;
+   }
+   if (clause->params->use_len)
+   {
+      PRINT_INT(clause->params->offset_len+0,  clause->len);
+      PRINT_INT(clause->params->offset_len+1,  clause->lits);
+      PRINT_INT(clause->params->offset_len+2,  clause->pos);
+      PRINT_INT(clause->params->offset_len+3,  clause->neg);
+      PRINT_INT(clause->params->offset_len+4,  clause->depth);
+      PRINT_INT(clause->params->offset_len+5,  clause->width);
+      PRINT_FLOAT(clause->params->offset_len+6,  clause->avg_depth);
+      PRINT_INT(clause->params->offset_len+7,  clause->pos_eqs);
+      PRINT_INT(clause->params->offset_len+8,  clause->neg_eqs);
+      PRINT_INT(clause->params->offset_len+9,  clause->pos_atoms);
+      PRINT_INT(clause->params->offset_len+10, clause->neg_atoms);
+   }
 }
 
 /*---------------------------------------------------------------------*/
@@ -690,6 +715,36 @@ void EnigmaticVectorFree(EnigmaticVector_p junk)
       EnigmaticClauseFree(junk->theory);
    }
    EnigmaticVectorCellFree(junk);
+}
+
+EnigmaticInfo_p EnigmaticInfoAlloc()
+{
+   EnigmaticInfo_p info = EnigmaticInfoCellAlloc();
+   info->occs = NULL;
+   info->sig = NULL;
+   return info;
+}
+
+void EnigmaticInfoReset(EnigmaticInfo_p info)
+{
+   if (info->occs)
+   {
+      NumTreeFree(info->occs);
+      info->occs = NULL;
+   }
+}
+
+void EnigmaticInfoFree(EnigmaticInfo_p junk)
+{
+   EnigmaticInfoReset(junk);
+   EnigmaticInfoCellFree(junk);
+}
+
+void PrintEnigmaticVector(FILE* out, EnigmaticVector_p vector)
+{
+   print_enigmatic_clause(out, vector->clause);
+   print_enigmatic_clause(out, vector->goal);
+   print_enigmatic_clause(out, vector->theory);
 }
 
 

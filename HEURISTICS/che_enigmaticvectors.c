@@ -21,7 +21,6 @@ Changes
 #include "che_enigmaticvectors.h"
 
 
-
 /*---------------------------------------------------------------------*/
 /*                        Global Variables                             */
 /*---------------------------------------------------------------------*/
@@ -34,14 +33,39 @@ Changes
 /*                         Internal Functions                          */
 /*---------------------------------------------------------------------*/
 
-static void update_term(EnigmaticClause_p enigma, Term_p term, long depth)
+static void update_occurrences(EnigmaticClause_p enigma, EnigmaticInfo_p info, Term_p term)
 {
+   FunCode f_code = term->f_code;
    if (TermIsVar(term))
    {
-      enigma->width++;
-      enigma->depth = MAX(enigma->depth, depth+1);
+      f_code -= info->var_offset; // clause variable offset
    }
-   else if (TermIsConst(term))
+   else if (f_code <= info->sig->internal_symbols)
+   {
+      return; // ignore internal symbols
+   }
+
+   NumTree_p vnode = NumTreeFind(&(info->occs), f_code);
+   if (vnode)
+   {
+      vnode->val1.i_val += 1;
+   }
+   else
+   {
+      vnode = NumTreeCellAllocEmpty();
+      vnode->key = f_code;
+      vnode->val1.i_val = 1;
+      NumTreeInsert(&(info->occs), vnode);
+      if (TermIsVar(term))
+      {
+         info->var_distinct++;
+      }
+   }
+}
+
+static void update_term(EnigmaticClause_p enigma, EnigmaticInfo_p info, Term_p term, long depth)
+{
+   if (TermIsVar(term) || TermIsConst(term))
    {
       enigma->width++;
       enigma->depth = MAX(enigma->depth, depth+1);
@@ -50,74 +74,113 @@ static void update_term(EnigmaticClause_p enigma, Term_p term, long depth)
    {
       for (int i=0; i<term->arity; i++)
       {
-         update_term(enigma, term->args[i], depth+1);
+         update_term(enigma, info, term->args[i], depth+1);
       }
    }
    enigma->len++;
+   update_occurrences(enigma, info, term);
 }
 
-static void update_lit(EnigmaticClause_p enigma, Eqn_p lit)
+static void update_lit(EnigmaticClause_p enigma, EnigmaticInfo_p info, Eqn_p lit)
 {
    bool pos = EqnIsPositive(lit);
    if (lit->rterm->f_code == SIG_TRUE_CODE)
    {
-      update_term(enigma, lit->lterm, pos ? 0 : 1);
+      update_term(enigma, info, lit->lterm, pos ? 0 : 1);
       if (pos) { enigma->pos_atoms++; } else { enigma->neg_atoms++; }
    }
    else
    {
       enigma->len++; // count equality
-      update_term(enigma, lit->lterm, 1);
-      update_term(enigma, lit->rterm, 1);
+      info->sig = lit->bank->sig;
+      update_term(enigma, info, lit->lterm, 1);
+      update_term(enigma, info, lit->rterm, 1);
       if (pos) { enigma->pos_eqs++; } else { enigma->neg_eqs++; }
    }
    if (pos) { enigma->pos++; } else { enigma->neg++; enigma->len++; }
    enigma->lits++;
 }
 
-#define PRINT_INT(key,val) if (val) fprintf(out, "%ld:%ld ", key, val)
-#define PRINT_FLOAT(key,val) if (val) fprintf(out, "%ld:%.2f ", key, val)
-
-static void dump_clause_block(FILE* out, EnigmaticClause_p clause)
+static void update_clause(EnigmaticClause_p enigma, EnigmaticInfo_p info, Clause_p clause)
 {
-   if (clause->params->use_len)
+   info->var_distinct = 0;
+   long max_depth = enigma->depth;
+   for (Eqn_p lit=clause->literals; lit; lit=lit->next)
    {
-      PRINT_INT(clause->params->offset_len+0,  clause->len);
-      PRINT_INT(clause->params->offset_len+1,  clause->lits);
-      PRINT_INT(clause->params->offset_len+2,  clause->pos);
-      PRINT_INT(clause->params->offset_len+3,  clause->neg);
-      PRINT_INT(clause->params->offset_len+4,  clause->depth);
-      PRINT_INT(clause->params->offset_len+5,  clause->width);
-      PRINT_FLOAT(clause->params->offset_len+6,  clause->avg_depth);
-      PRINT_INT(clause->params->offset_len+7,  clause->pos_eqs);
-      PRINT_INT(clause->params->offset_len+8,  clause->neg_eqs);
-      PRINT_INT(clause->params->offset_len+9,  clause->pos_atoms);
-      PRINT_INT(clause->params->offset_len+10, clause->neg_atoms);
+      enigma->depth = 0;
+      update_lit(enigma, info, lit);
+      enigma->avg_depth += enigma->depth; // temporarily the sum of literal depths
+      max_depth = MAX(max_depth, enigma->depth);
    }
+   enigma->depth = max_depth;
+   info->var_offset += (2 * info->var_distinct);
 }
 
 /*---------------------------------------------------------------------*/
 /*                         Exported Functions                          */
 /*---------------------------------------------------------------------*/
 
-void EnigmaticClauseUpdate(EnigmaticClause_p enigma, Clause_p clause)
+void EnigmaticClause(EnigmaticClause_p enigma, Clause_p clause, EnigmaticInfo_p info)
 {
-   long max_depth = enigma->depth;
-   for (Eqn_p lit=clause->literals; lit; lit=lit->next)
+   bool free_info;
+   if (info)
    {
-      enigma->depth = 0;
-      update_lit(enigma, lit);
-      enigma->avg_depth += enigma->depth; // temporalily the sum of literal depths
-      max_depth = MAX(max_depth, enigma->depth);
+      EnigmaticInfoReset(info);
+      free_info = false;
    }
-   enigma->depth = max_depth;
+   else
+   {
+      info = EnigmaticInfoAlloc();
+      free_info = true;
+   }
+
+   info->var_offset = 0;
+   update_clause(enigma, info, clause);
+   enigma->avg_depth /= enigma->lits;
+   
+   if (free_info) { EnigmaticInfoFree(info); }
 }
 
-void PrintEnigmaticVector(FILE* out, EnigmaticVector_p vector)
+void EnigmaticClauseSet(EnigmaticClause_p enigma, ClauseSet_p set, EnigmaticInfo_p info)
 {
-   dump_clause_block(out, vector->clause);
+   bool free_info;
+   if (info)
+   {
+      EnigmaticInfoReset(info);
+      free_info = false;
+   }
+   else
+   {
+      info = EnigmaticInfoAlloc();
+      free_info = true;
+   }
+   
+   info->var_offset = 0;
+   Clause_p anchor = set->anchor;
+   for (Clause_p clause=anchor->succ; clause!=anchor; clause=clause->succ)
+   {
+      update_clause(enigma, info, clause);
+   }
+   enigma->avg_depth /= enigma->lits;
+   
+   if (free_info) { EnigmaticInfoFree(info); }
 }
 
+void EnigmaticTheory(EnigmaticVector_p vector, ClauseSet_p axioms, EnigmaticInfo_p info)
+{
+   if (vector->theory)
+   {
+      EnigmaticClauseSet(vector->theory, axioms, info);
+   }
+}
+
+void EnigmaticGoal(EnigmaticVector_p vector, ClauseSet_p goal, EnigmaticInfo_p info)
+{
+   if (vector->goal)
+   {
+      EnigmaticClauseSet(vector->goal, goal, info);
+   }
+}
 
 /*---------------------------------------------------------------------*/
 /*                        End of File                                  */

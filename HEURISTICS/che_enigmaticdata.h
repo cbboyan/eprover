@@ -100,7 +100,8 @@ typedef struct enigmaticclausecell
    long neg;
    long depth;
    long width;
-   float avg_depth;
+   float avg_depth; // rename to avg_lit_depth
+   //float avg_lit_len; avg_lit_width
    long pos_eqs;
    long neg_eqs;
    long pos_atoms;
@@ -143,6 +144,18 @@ typedef struct enigmaticvectorcell
 
 } EnigmaticVectorCell, *EnigmaticVector_p;
 
+/* This is a data structure to encapsulate various data used when 
+ * computing features so that passing of large number of arguments
+ * is avoided.
+ */
+typedef struct enigmaticinfocell
+{
+   int var_offset;
+   int var_distinct;
+   NumTree_p occs; // symbol/vars occurrences map :: f_code -> occurrence count
+   Sig_p sig;
+} EnigmaticInfoCell, *EnigmaticInfo_p;
+
 
 /*---------------------------------------------------------------------*/
 /*                Exported Functions and Variables                     */
@@ -169,6 +182,10 @@ typedef struct enigmaticvectorcell
 #define EnigmaticVectorCellFree(junk) \
         SizeFree(junk, sizeof(EnigmaticVectorCell))
 
+#define EnigmaticInfoCellAlloc() (EnigmaticInfoCell*) \
+        SizeMalloc(sizeof(EnigmaticInfoCell))
+#define EnigmaticInfoCellFree(junk) \
+        SizeFree(junk, sizeof(EnigmaticInfoCell))
 
 EnigmaticParams_p EnigmaticParamsAlloc(void);
 void EnigmaticParamsFree(EnigmaticParams_p junk);
@@ -187,6 +204,11 @@ void EnigmaticClauseReset(EnigmaticClause_p enigma);
 EnigmaticVector_p EnigmaticVectorAlloc(EnigmaticFeatures_p features);
 void EnigmaticVectorFree(EnigmaticVector_p junk);
 
+EnigmaticInfo_p EnigmaticInfoAlloc();
+void EnigmaticInfoReset(EnigmaticInfo_p info);
+void EnigmaticInfoFree(EnigmaticInfo_p junk);
+
+void PrintEnigmaticVector(FILE* out, EnigmaticVector_p vector);
 
 #endif
 

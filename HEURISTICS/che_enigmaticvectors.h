@@ -22,6 +22,7 @@ Changes
 #define CHE_ENIGMATICVECTORS
 
 #include <che_enigmaticdata.h>
+#include <ccl_clausesets.h>
 
 /*---------------------------------------------------------------------*/
 /*                    Data type declarations                           */
@@ -31,15 +32,13 @@ Changes
 /*                Exported Functions and Variables                     */
 /*---------------------------------------------------------------------*/
 
-void EnigmaticClauseReset(EnigmaticClause_p enigma);
+void EnigmaticClause(EnigmaticClause_p enigma, Clause_p clause, EnigmaticInfo_p info);
 
-void EnigmaticClauseUpdate(EnigmaticClause_p enigma, Clause_p clause);
+void EnigmaticClauseSet(EnigmaticClause_p enigma, ClauseSet_p set, EnigmaticInfo_p info);
 
-void PrintEnigmaticVector(FILE* out, EnigmaticVector_p vector);
+void EnigmaticTheory(EnigmaticVector_p vector, ClauseSet_p axioms, EnigmaticInfo_p info);
 
-// EnigmaticClauseSet
-// EnigmaticTheoryAdd
-// EnigmaticGoalAdd
+void EnigmaticGoal(EnigmaticVector_p vector, ClauseSet_p goal, EnigmaticInfo_p info);
 
 #endif
 

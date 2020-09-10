@@ -35,6 +35,7 @@ typedef enum
    OPT_VERBOSE,
    OPT_OUTPUT,
    OPT_FREE_NUMBERS,
+   OPT_PROBLEM,
    OPT_FEATURES,
 }OptionCodes;
 
@@ -67,6 +68,10 @@ OptCell opts[] =
       'f', "features",
       ReqArg, NULL,
       "Enigma features specifier string."},
+   {OPT_PROBLEM,
+      'p', "problem",
+      ReqArg, NULL,
+      "TPTP problem file in CNF for goal/theory features."},
    {OPT_NOOPT,
       '\0', NULL,
       NoArg, NULL,
@@ -76,6 +81,7 @@ OptCell opts[] =
 char *outname = NULL;
 FunctionProperties free_symb_prop = FPIgnoreProps;
 EnigmaticFeatures_p features;
+char* problem_file = NULL;
 
 /*---------------------------------------------------------------------*/
 /*                      Forward Declarations                           */
@@ -88,7 +94,42 @@ void print_help(FILE* out);
 /*                         Internal Functions                          */
 /*---------------------------------------------------------------------*/
 
-static void dump_clauses(FILE* out, char* filename, TB_p bank, EnigmaticVector_p vector)
+static void process_problem(char* problem_file, TB_p bank, EnigmaticVector_p vector, EnigmaticInfo_p info)
+{
+   if (!problem_file)
+   {
+      return;
+   }
+
+   ClauseSet_p theory = ClauseSetAlloc();
+   ClauseSet_p goal = ClauseSetAlloc();
+   
+   Scanner_p in = CreateScanner(StreamTypeFile, problem_file, true, NULL);
+   ScannerSetFormat(in, TSTPFormat);
+   while (TestInpId(in, "cnf"))
+   {
+      Clause_p clause = ClauseParse(in, bank);
+      if (ClauseQueryTPTPType(clause) == CPTypeNegConjecture)
+      {
+         ClauseSetInsert(goal, clause);
+      }
+      else
+      {
+         ClauseSetInsert(theory, clause);
+      }
+   }
+   
+   CheckInpTok(in, NoToken);
+   DestroyScanner(in);
+
+   EnigmaticGoal(vector, goal, info);
+   EnigmaticTheory(vector, theory, info);
+
+   ClauseSetFree(theory);
+   ClauseSetFree(goal);
+}
+
+static void process_clauses(FILE* out, char* filename, TB_p bank, EnigmaticVector_p vector, EnigmaticInfo_p info)
 {
    Scanner_p in = CreateScanner(StreamTypeFile, filename, true, NULL);
    ScannerSetFormat(in, TSTPFormat);
@@ -99,7 +140,7 @@ static void dump_clauses(FILE* out, char* filename, TB_p bank, EnigmaticVector_p
       ClausePrint(out, clause, true);
       fprintf(out, "\n");
 
-      EnigmaticClauseUpdate(vector->clause, clause);
+      EnigmaticClause(vector->clause, clause, info);
       PrintEnigmaticVector(GlobalOut, vector);
       fprintf(out, "\n");
 
@@ -120,10 +161,13 @@ int main(int argc, char* argv[])
    if (outname) { OpenGlobalOut(outname); }
    ProofState_p state = ProofStateAlloc(free_symb_prop);
    EnigmaticVector_p vector = EnigmaticVectorAlloc(features);
+   EnigmaticInfo_p info = EnigmaticInfoAlloc();
 
-   dump_clauses(GlobalOut, args->argv[0], state->terms, vector);
+   process_problem(problem_file, state->terms, vector, info);
+   process_clauses(GlobalOut, args->argv[0], state->terms, vector, info);
  
    EnigmaticVectorFree(vector);
+   EnigmaticInfoFree(info);
    ProofStateFree(state);
    CLStateFree(args);
    ExitIO();
@@ -175,6 +219,9 @@ CLState_p process_options(int argc, char* argv[])
          EnigmaticFeaturesInfo(GlobalOut, features, arg);
          EnigmaticFeaturesMap(GlobalOut, features);
          break;
+      case OPT_PROBLEM:
+         problem_file = arg;
+         break;
       default:
          assert(false);
          break;
@@ -185,6 +232,16 @@ CLState_p process_options(int argc, char* argv[])
    {
       print_help(stdout);
       exit(NO_ERROR);
+   }
+
+   if (!features)
+   {
+      Error("Please specify features using the --features option.", USAGE_ERROR);
+   }
+
+   if ((features->goal || features->theory || (features->offset_problem != -1)) && !problem_file)
+   {
+      Error("Please specify the problem file using the --problem option.", USAGE_ERROR);
    }
    
    return state;
