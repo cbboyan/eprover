@@ -162,6 +162,7 @@ int main(int argc, char* argv[])
    ProofState_p state = ProofStateAlloc(free_symb_prop);
    EnigmaticVector_p vector = EnigmaticVectorAlloc(features);
    EnigmaticInfo_p info = EnigmaticInfoAlloc();
+   info->sig = state->signature;
 
    process_problem(problem_file, state->terms, vector, info);
    process_clauses(GlobalOut, args->argv[0], state->terms, vector, info);

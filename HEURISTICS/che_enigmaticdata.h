@@ -68,7 +68,7 @@ typedef struct enigmaticparamscell
    
    long offset_len;
    long offset_var;
-   long offset_sym;
+   long offset_sym; // TODO: split preds and funcs symbols
    long offset_eprover;
    long offset_horiz;
    long offset_vert;
@@ -145,7 +145,7 @@ typedef struct enigmaticvectorcell
 } EnigmaticVectorCell, *EnigmaticVector_p;
 
 /* This is a data structure to encapsulate various data used when 
- * computing features so that passing of large number of arguments
+ * computing features so that passing of a large number of arguments
  * is avoided.
  */
 typedef struct enigmaticinfocell
@@ -156,6 +156,7 @@ typedef struct enigmaticinfocell
    Sig_p sig;
 } EnigmaticInfoCell, *EnigmaticInfo_p;
 
+typedef void (*FillFunc)(void*, long, float);
 
 /*---------------------------------------------------------------------*/
 /*                Exported Functions and Variables                     */
@@ -203,6 +204,7 @@ void EnigmaticClauseReset(EnigmaticClause_p enigma);
 
 EnigmaticVector_p EnigmaticVectorAlloc(EnigmaticFeatures_p features);
 void EnigmaticVectorFree(EnigmaticVector_p junk);
+void EnigmaticVectorFill(EnigmaticVector_p vector, FillFunc fun, void* data);
 
 EnigmaticInfo_p EnigmaticInfoAlloc();
 void EnigmaticInfoReset(EnigmaticInfo_p info);

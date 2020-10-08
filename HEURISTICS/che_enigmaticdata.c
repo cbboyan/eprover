@@ -337,26 +337,80 @@ static void names_clauses(FILE* out, char* name, EnigmaticParams_p params, long 
    names_range(out, name, "depth", params->offset_depth, EFC_DEPTH(params)); 
 }
 
-static void print_enigmatic_clause(FILE* out, EnigmaticClause_p clause)
+static void fill_print(void* data, long key, float val)
+{
+   if (!val) { return; }
+   FILE* out = data;
+   if (ceilf(val) == val)
+   {
+      fprintf(out, "%ld:%ld ", key, (long)val);
+   }
+   else
+   {
+      fprintf(out, "%ld:%.2f ", key, val);
+   }
+}
+
+static void fill_lengths(FillFunc set, void* data, EnigmaticClause_p clause)
+{
+   if (clause->params->use_len)
+   {
+      long offset = clause->params->offset_len;
+      set(data, offset+0,  clause->len);
+      set(data, offset+1,  clause->lits);
+      set(data, offset+2,  clause->pos);
+      set(data, offset+3,  clause->neg);
+      set(data, offset+4,  clause->depth);
+      set(data, offset+5,  clause->width);
+      set(data, offset+6,  clause->avg_depth);
+      set(data, offset+7,  clause->pos_eqs);
+      set(data, offset+8,  clause->neg_eqs);
+      set(data, offset+9,  clause->pos_atoms);
+      set(data, offset+10, clause->neg_atoms);
+   }
+}
+
+static void fill_array_int(FillFunc set, void* data, long* array, int len, long offset)
+{
+   for (int i=0; i<len; i++)
+   {
+      set(data, offset+i, (float)array[i]);
+   }
+}
+
+static void fill_array_float(FillFunc set, void* data, float* array, int len, long offset)
+{
+   for (int i=0; i<len; i++)
+   {
+      set(data, offset+i, array[i]);
+   }
+}
+
+static void fill_hist(FillFunc set, void* data, long offset, long len, long* hist, long* count, float* rat)
+{
+   fill_array_int(set, data, hist, len, offset);
+   fill_array_int(set, data, count, len, offset+1*len);
+   fill_array_float(set, data, rat, len, offset+2*len);
+}
+
+static void fill_hists(FillFunc set, void* data, EnigmaticClause_p clause)
+{
+   fill_hist(set, data, clause->params->offset_var, clause->params->count_var,
+      clause->var_hist, clause->var_count, clause->var_rat);
+   fill_hist(set, data, clause->params->offset_sym, clause->params->count_sym,
+      clause->pred_hist, clause->pred_count, clause->pred_rat);
+   fill_hist(set, data, clause->params->offset_sym+clause->params->count_sym, clause->params->count_sym,
+      clause->func_hist, clause->func_count, clause->func_rat);
+}
+
+static void fill_clause(FillFunc set, void* data, EnigmaticClause_p clause)
 {
    if (!clause)
    {
       return;
    }
-   if (clause->params->use_len)
-   {
-      PRINT_INT(clause->params->offset_len+0,  clause->len);
-      PRINT_INT(clause->params->offset_len+1,  clause->lits);
-      PRINT_INT(clause->params->offset_len+2,  clause->pos);
-      PRINT_INT(clause->params->offset_len+3,  clause->neg);
-      PRINT_INT(clause->params->offset_len+4,  clause->depth);
-      PRINT_INT(clause->params->offset_len+5,  clause->width);
-      PRINT_FLOAT(clause->params->offset_len+6,  clause->avg_depth);
-      PRINT_INT(clause->params->offset_len+7,  clause->pos_eqs);
-      PRINT_INT(clause->params->offset_len+8,  clause->neg_eqs);
-      PRINT_INT(clause->params->offset_len+9,  clause->pos_atoms);
-      PRINT_INT(clause->params->offset_len+10, clause->neg_atoms);
-   }
+   fill_lengths(set, data, clause);
+   fill_hists(set, data, clause);
 }
 
 /*---------------------------------------------------------------------*/
@@ -740,13 +794,17 @@ void EnigmaticInfoFree(EnigmaticInfo_p junk)
    EnigmaticInfoCellFree(junk);
 }
 
-void PrintEnigmaticVector(FILE* out, EnigmaticVector_p vector)
+void EnigmaticVectorFill(EnigmaticVector_p vector, FillFunc fun, void* data)
 {
-   print_enigmatic_clause(out, vector->clause);
-   print_enigmatic_clause(out, vector->goal);
-   print_enigmatic_clause(out, vector->theory);
+   fill_clause(fun, data, vector->clause);
+   fill_clause(fun, data, vector->goal);
+   fill_clause(fun, data, vector->theory);
 }
 
+void PrintEnigmaticVector(FILE* out, EnigmaticVector_p vector)
+{
+   EnigmaticVectorFill(vector, fill_print, out);
+}
 
 /*---------------------------------------------------------------------*/
 /*                        End of File                                  */
