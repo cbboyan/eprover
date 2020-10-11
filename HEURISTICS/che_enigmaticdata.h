@@ -51,6 +51,13 @@ extern char* efn_problem[];
 /* Enigmatic Block Size */
 #define EBS_PROBLEM         22
 
+/* Enigmatic Symbol Strings */
+#define ENIGMATIC_VAR       "*"
+#define ENIGMATIC_POS       "+"
+#define ENIGMATIC_NEG       "-"
+#define ENIGMATIC_SKO       "?"
+#define ENIGMATIC_EQ        "="
+
 typedef struct enigmaticparamscell
 {
    long features;
@@ -150,10 +157,15 @@ typedef struct enigmaticvectorcell
  */
 typedef struct enigmaticinfocell
 {
-   int var_offset;
-   int var_distinct;
-   NumTree_p occs; // symbol/vars occurrences map :: f_code -> occurrence count
-   Sig_p sig;
+   int var_offset;   // variable offset to distinquish variables from different clauses
+   int var_distinct; // count of distinct variables
+   NumTree_p occs;   // symbol/vars occurrences map :: f_code -> occurrence count
+   Sig_p sig;        // signature copy
+   PStack_p path;    // current symbol path with a literal
+   bool pos;         // is current literal positive?
+   StrTree_p name_cache; // stores enigmatized symbol names (skolems & anonymous)
+   bool collect_hashes;  // collect feature hash statistics in the below:
+   StrTree_p hashes;     //   (hash map :: festure string -> feature hashed id)
 } EnigmaticInfoCell, *EnigmaticInfo_p;
 
 typedef void (*FillFunc)(void*, long, float);
@@ -195,8 +207,6 @@ EnigmaticParams_p EnigmaticParamsCopy(EnigmaticParams_p source);
 EnigmaticFeatures_p EnigmaticFeaturesAlloc(void);
 void EnigmaticFeaturesFree(EnigmaticFeatures_p junk);
 EnigmaticFeatures_p EnigmaticFeaturesParse(char* spec);
-void EnigmaticFeaturesInfo(FILE* out, EnigmaticFeatures_p features, char* spec);
-void EnigmaticFeaturesMap(FILE* out, EnigmaticFeatures_p features);
 
 EnigmaticClause_p EnigmaticClauseAlloc(EnigmaticParams_p params);
 void EnigmaticClauseFree(EnigmaticClause_p junk);
@@ -211,6 +221,9 @@ void EnigmaticInfoReset(EnigmaticInfo_p info);
 void EnigmaticInfoFree(EnigmaticInfo_p junk);
 
 void PrintEnigmaticVector(FILE* out, EnigmaticVector_p vector);
+void PrintEnigmaticFeaturesMap(FILE* out, EnigmaticFeatures_p features);
+void PrintEnigmaticFeaturesInfo(FILE* out, EnigmaticFeatures_p features, char* spec);
+void PrintEnigmaticHashes(FILE* out, EnigmaticInfo_p info);
 
 #endif
 

@@ -403,6 +403,18 @@ static void fill_hists(FillFunc set, void* data, EnigmaticClause_p clause)
       clause->func_hist, clause->func_count, clause->func_rat);
 }
 
+static void fill_hashes(FillFunc set, void* data, NumTree_p map, long offset)
+{
+   NumTree_p node;
+   if (!map) { return; }
+   PStack_p stack = NumTreeTraverseInit(map);
+   while ((node = NumTreeTraverseNext(stack)))
+   {
+      set(data, offset + node->key, node->val1.i_val);
+   }
+   NumTreeTraverseExit(stack);
+}
+
 static void fill_clause(FillFunc set, void* data, EnigmaticClause_p clause)
 {
    if (!clause)
@@ -411,6 +423,10 @@ static void fill_clause(FillFunc set, void* data, EnigmaticClause_p clause)
    }
    fill_lengths(set, data, clause);
    fill_hists(set, data, clause);
+   fill_hashes(set, data, clause->vert, clause->params->offset_vert);
+   fill_hashes(set, data, clause->horiz, clause->params->offset_horiz);
+   fill_hashes(set, data, clause->counts, clause->params->offset_count);
+   fill_hashes(set, data, clause->depths, clause->params->offset_depth);
 }
 
 /*---------------------------------------------------------------------*/
@@ -588,34 +604,6 @@ EnigmaticFeatures_p EnigmaticFeaturesParse(char* spec)
    return features;
 }
 
-void EnigmaticFeaturesInfo(FILE* out, EnigmaticFeatures_p features, char* spec)
-{
-   if (spec)
-   {
-      fprintf(out, "features(\"%s\").\n", spec);
-   }
-   info_offset(out, "clause", NULL, features->offset_clause);
-   info_offset(out, "goal", NULL, features->offset_goal);
-   info_offset(out, "theory", NULL, features->offset_theory);
-   info_offset(out, "problem", NULL, features->offset_problem);
-   info_offset(out, "proofwatch", NULL, features->offset_proofwatch);
-   info_suboffsets(out, "clause", features->clause);
-   info_suboffsets(out, "goal", features->goal);
-   info_suboffsets(out, "theory", features->theory);
-   info_settings(out, "clause", features->clause);
-   info_settings(out, "goal", features->goal);
-   info_settings(out, "theory", features->theory);
-}
-
-void EnigmaticFeaturesMap(FILE* out, EnigmaticFeatures_p features)
-{
-   names_clauses(out, "clause", features->clause, features->offset_clause);
-   names_clauses(out, "goal", features->goal, features->offset_goal);
-   names_clauses(out, "theory", features->theory, features->offset_theory);
-   names_array(out, "problem", features->offset_problem, efn_problem, EBS_PROBLEM);
-   //names_proofwatch(out, offset_proofwatch);
-}
-
 EnigmaticClause_p EnigmaticClauseAlloc(EnigmaticParams_p params)
 {
    EnigmaticClause_p enigma = EnigmaticClauseCellAlloc();
@@ -776,9 +764,14 @@ EnigmaticInfo_p EnigmaticInfoAlloc()
    EnigmaticInfo_p info = EnigmaticInfoCellAlloc();
    info->occs = NULL;
    info->sig = NULL;
+   info->path = PStackAlloc();
+   info->name_cache = NULL;
+   info->collect_hashes = false;
+   info->hashes = NULL;
    return info;
 }
 
+// reset between clauses; does not reset: name_cache and hashes stats
 void EnigmaticInfoReset(EnigmaticInfo_p info)
 {
    if (info->occs)
@@ -786,11 +779,21 @@ void EnigmaticInfoReset(EnigmaticInfo_p info)
       NumTreeFree(info->occs);
       info->occs = NULL;
    }
+   PStackReset(info->path);
 }
 
 void EnigmaticInfoFree(EnigmaticInfo_p junk)
 {
    EnigmaticInfoReset(junk);
+   PStackFree(junk->path);
+   if (junk->name_cache)
+   {
+      StrTreeFree(junk->name_cache);
+   }
+   if (junk->hashes)
+   {
+      StrTreeFree(junk->hashes);
+   }
    EnigmaticInfoCellFree(junk);
 }
 
@@ -805,6 +808,48 @@ void PrintEnigmaticVector(FILE* out, EnigmaticVector_p vector)
 {
    EnigmaticVectorFill(vector, fill_print, out);
 }
+
+void PrintEnigmaticFeaturesMap(FILE* out, EnigmaticFeatures_p features)
+{
+   names_clauses(out, "clause", features->clause, features->offset_clause);
+   names_clauses(out, "goal", features->goal, features->offset_goal);
+   names_clauses(out, "theory", features->theory, features->offset_theory);
+   names_array(out, "problem", features->offset_problem, efn_problem, EBS_PROBLEM);
+   //names_proofwatch(out, offset_proofwatch);
+}
+
+void PrintEnigmaticFeaturesInfo(FILE* out, EnigmaticFeatures_p features, char* spec)
+{
+   if (spec)
+   {
+      fprintf(out, "features(\"%s\").\n", spec);
+   }
+   info_offset(out, "clause", NULL, features->offset_clause);
+   info_offset(out, "goal", NULL, features->offset_goal);
+   info_offset(out, "theory", NULL, features->offset_theory);
+   info_offset(out, "problem", NULL, features->offset_problem);
+   info_offset(out, "proofwatch", NULL, features->offset_proofwatch);
+   info_suboffsets(out, "clause", features->clause);
+   info_suboffsets(out, "goal", features->goal);
+   info_suboffsets(out, "theory", features->theory);
+   info_settings(out, "clause", features->clause);
+   info_settings(out, "goal", features->goal);
+   info_settings(out, "theory", features->theory);
+}
+
+void PrintEnigmaticHashes(FILE* out, EnigmaticInfo_p info)
+{
+   if (!info->hashes) { return; }
+   StrTree_p node;
+   PStack_p stack = PStackAlloc(); 
+   stack = StrTreeTraverseInit(info->hashes);
+   while ((node = StrTreeTraverseNext(stack)))
+   {
+      fprintf(GlobalOut, "hash(%ld, \"%s\", %ld).\n", node->val1.i_val, node->key, node->val2.i_val);
+   }
+   StrTreeTraverseExit(stack);
+}
+
 
 /*---------------------------------------------------------------------*/
 /*                        End of File                                  */

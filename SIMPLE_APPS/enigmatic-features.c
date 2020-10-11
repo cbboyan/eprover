@@ -163,9 +163,14 @@ int main(int argc, char* argv[])
    EnigmaticVector_p vector = EnigmaticVectorAlloc(features);
    EnigmaticInfo_p info = EnigmaticInfoAlloc();
    info->sig = state->signature;
+   info->collect_hashes = true;
 
    process_problem(problem_file, state->terms, vector, info);
    process_clauses(GlobalOut, args->argv[0], state->terms, vector, info);
+   
+   PrintEnigmaticFeaturesInfo(GlobalOut, features, "FIX-ME");
+   PrintEnigmaticFeaturesMap(GlobalOut, features);
+   PrintEnigmaticHashes(GlobalOut, info);
  
    EnigmaticVectorFree(vector);
    EnigmaticInfoFree(info);
@@ -217,8 +222,6 @@ CLState_p process_options(int argc, char* argv[])
          break;
       case OPT_FEATURES:
          features = EnigmaticFeaturesParse(arg);
-         EnigmaticFeaturesInfo(GlobalOut, features, arg);
-         EnigmaticFeaturesMap(GlobalOut, features);
          break;
       case OPT_PROBLEM:
          problem_file = arg;

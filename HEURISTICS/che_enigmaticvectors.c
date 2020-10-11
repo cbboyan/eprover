@@ -27,6 +27,8 @@ Changes
 /*                        Global Variables                             */
 /*---------------------------------------------------------------------*/
 
+#define DEPTH(info) (info->path->current - (info->pos ? 1 : 0))
+
 /*---------------------------------------------------------------------*/
 /*                      Forward Declarations                           */
 /*---------------------------------------------------------------------*/
@@ -34,6 +36,87 @@ Changes
 /*---------------------------------------------------------------------*/
 /*                         Internal Functions                          */
 /*---------------------------------------------------------------------*/
+
+
+static __inline__ unsigned long hash_sdbm(unsigned long hash, int c)
+{
+   return (c + (hash << 6) + (hash << 16) - hash);
+}
+
+static unsigned long hash_update(unsigned long *hash, char* str, DStr_p out)
+{
+   if (out)
+   {
+      DStrAppendStr(out, str);
+   }
+
+   int c;
+   while ((c = *str++))
+   {
+      *hash = hash_sdbm(*hash, c);
+   }
+
+   return *hash;
+}
+
+/*
+static unsigned long hash_string(char* str)
+{
+   unsigned long hash = 0;
+   return hash_update(&hash, str, NULL);
+}
+*/
+
+static __inline__ unsigned long hash_base(unsigned long* hash, long base)
+{
+   *hash = (*hash) % base;
+   return *hash;
+}
+
+static bool symbol_skolem(char* name)
+{
+   if (name[0] == 'e') // be fast
+   {
+      if ((strncmp(name, "esk", 3) == 0) || (strncmp(name, "epred", 5) == 0))
+      {
+         return true;
+      }
+   }
+   return false;
+}
+
+static bool symbol_internal(char* name)
+{
+   return (name[0] == '$');
+}
+
+static char* symbol_string(EnigmaticClause_p enigma, EnigmaticInfo_p info, FunCode f_code)
+{
+   static char str[128];
+   static char postfix[16] = "\0";
+      
+   if (f_code < 0)               { return ENIGMATIC_VAR; }
+   if (f_code == SIG_TRUE_CODE)  { return ENIGMATIC_POS; }
+   if (f_code == SIG_FALSE_CODE) { return ENIGMATIC_NEG; }
+
+   char* name = SigFindName(info->sig, f_code);
+   bool skolem = symbol_skolem(name);
+   if ((!(skolem || enigma->params->anonymous)) || (symbol_internal(name)))
+   {
+      return name;
+   }
+
+   char* sk = skolem ? ENIGMATIC_SKO : "";
+   char prefix = SigIsPredicate(info->sig, f_code) ? 'p' : 'f'; 
+   int arity = SigFindArity(info->sig, f_code);
+   // TODO: if enigma->params->anonymous_sine
+   //          && f_code < info->sine_symb_count:
+   //          snprintf(postfix, 16, "^%ld", info->sine_symb_rank[f_code]);
+   sprintf(str, "%s%c%d%s", sk, prefix, arity, postfix);
+   
+   StrTree_p node = StrTreeUpdate(&info->name_cache, str, (IntOrP)0L, (IntOrP)0L);
+   return node->key; // node->key is now a ("global") copy of str
+}
 
 static void update_occurrences(EnigmaticClause_p enigma, EnigmaticInfo_p info, Term_p term)
 {
@@ -65,41 +148,110 @@ static void update_occurrences(EnigmaticClause_p enigma, EnigmaticInfo_p info, T
    }
 }
 
-static void update_term(EnigmaticClause_p enigma, EnigmaticInfo_p info, Term_p term, long depth)
+static void update_feature(NumTree_p* map, unsigned long fid)
 {
+   NumTree_p node = NumTreeFind(map, fid);
+   if (!node) 
+   {
+      node = NumTreeCellAllocEmpty();
+      node->key = fid;
+      node->val1.i_val = 0;
+      NumTreeInsert(map, node);
+   }
+   node->val1.i_val++;
+}
+
+static void update_stats(unsigned long fid, EnigmaticInfo_p info, DStr_p fstr)
+{
+   if (!fstr) { return; }
+   StrTree_p node = StrTreeFind(&info->hashes, DStrView(fstr));
+   if (!node)
+   {
+      node = StrTreeStore(&info->hashes, DStrView(fstr), (IntOrP)(long)fid, (IntOrP)0L);
+   }
+   node->val2.i_val++; // increase the usage ('encounter') counter
+}
+
+static void update_verts(EnigmaticClause_p enigma, EnigmaticInfo_p info, Term_p term)
+{
+   int i;
+
+   if ((!TermIsVar(term)) && 
+       (!TermIsConst(term)) && 
+       (info->path->current < enigma->params->length_vert))
+   { 
+      // not enough symbols yet && not yet the end
+      return; 
+   }
+
+   long len = enigma->params->length_vert;
+   long begin = info->path->current - len;
+   if (begin < 0)
+   {
+      len += begin;
+      begin = 0;
+   }
+   
+   unsigned long fid = 0;
+   DStr_p fstr = info->collect_hashes ? DStrAlloc() : NULL;
+   for (i=0; i<len; i++)
+   {
+      FunCode f_code = info->path->stack[begin+i].i_val;
+      hash_update(&fid, symbol_string(enigma, info, f_code), fstr);
+      hash_update(&fid, ":", fstr);
+   }
+   hash_base(&fid, enigma->params->base_vert);
+   update_feature(&enigma->vert, fid);
+   update_stats(fid, info, fstr);
+   if (fstr) { DStrFree(fstr); }
+}
+
+static void update_paths(EnigmaticClause_p enigma, EnigmaticInfo_p info, Term_p term)
+{
+   update_verts(enigma, info, term);
+}
+
+static void update_term(EnigmaticClause_p enigma, EnigmaticInfo_p info, Term_p term)
+{
+   PStackPushInt(info->path, term->f_code);
    if (TermIsVar(term) || TermIsConst(term))
    {
       enigma->width++;
-      enigma->depth = MAX(enigma->depth, depth+1);
+      enigma->depth = MAX(enigma->depth, DEPTH(info));
    }
    else
    {
       for (int i=0; i<term->arity; i++)
       {
-         update_term(enigma, info, term->args[i], depth+1);
+         update_term(enigma, info, term->args[i]);
       }
    }
    enigma->len++;
    update_occurrences(enigma, info, term);
+   update_paths(enigma, info, term);
+   PStackPop(info->path);
 }
 
 static void update_lit(EnigmaticClause_p enigma, EnigmaticInfo_p info, Eqn_p lit)
 {
-   bool pos = EqnIsPositive(lit);
+   info->pos = EqnIsPositive(lit);
+   PStackPushInt(info->path, info->pos ? SIG_TRUE_CODE : SIG_FALSE_CODE);
    if (lit->rterm->f_code == SIG_TRUE_CODE)
    {
-      update_term(enigma, info, lit->lterm, pos ? 0 : 1);
-      if (pos) { enigma->pos_atoms++; } else { enigma->neg_atoms++; }
+      update_term(enigma, info, lit->lterm);
+      if (info->pos) { enigma->pos_atoms++; } else { enigma->neg_atoms++; }
    }
    else
    {
+      PStackPushInt(info->path, info->sig->eqn_code);
       enigma->len++; // count equality
-      update_term(enigma, info, lit->lterm, 1);
-      update_term(enigma, info, lit->rterm, 1);
-      if (pos) { enigma->pos_eqs++; } else { enigma->neg_eqs++; }
+      update_term(enigma, info, lit->lterm);
+      update_term(enigma, info, lit->rterm);
+      if (info->pos) { enigma->pos_eqs++; } else { enigma->neg_eqs++; }
    }
-   if (pos) { enigma->pos++; } else { enigma->neg++; enigma->len++; }
+   if (info->pos) { enigma->pos++; } else { enigma->neg++; enigma->len++; }
    enigma->lits++;
+   PStackReset(info->path);
 }
 
 static void update_clause(EnigmaticClause_p enigma, EnigmaticInfo_p info, Clause_p clause)
