@@ -37,6 +37,10 @@ Changes
 /*                         Internal Functions                          */
 /*---------------------------------------------------------------------*/
 
+static int hist_cmp(const long* x, const long* y, long* hist)
+{
+   return hist[(*y)-1] - hist[(*x)-1];
+}
 
 static __inline__ unsigned long hash_sdbm(unsigned long hash, int c)
 {
@@ -58,14 +62,6 @@ static unsigned long hash_update(unsigned long *hash, char* str, DStr_p out)
 
    return *hash;
 }
-
-/*
-static unsigned long hash_string(char* str)
-{
-   unsigned long hash = 0;
-   return hash_update(&hash, str, NULL);
-}
-*/
 
 static __inline__ unsigned long hash_base(unsigned long* hash, long base)
 {
@@ -148,7 +144,7 @@ static void update_occurrences(EnigmaticClause_p enigma, EnigmaticInfo_p info, T
    }
 }
 
-static void update_feature(NumTree_p* map, unsigned long fid)
+static void update_feature_inc(NumTree_p* map, unsigned long fid)
 {
    NumTree_p node = NumTreeFind(map, fid);
    if (!node) 
@@ -159,6 +155,19 @@ static void update_feature(NumTree_p* map, unsigned long fid)
       NumTreeInsert(map, node);
    }
    node->val1.i_val++;
+}
+
+static void update_feature_max(NumTree_p* map, unsigned long fid, long val)
+{
+   NumTree_p node = NumTreeFind(map, fid);
+   if (!node) 
+   {
+      node = NumTreeCellAllocEmpty();
+      node->key = fid;
+      node->val1.i_val = 0;
+      NumTreeInsert(map, node);
+   }
+   node->val1.i_val = MAX(val, node->val1.i_val);
 }
 
 static void update_stats(unsigned long fid, EnigmaticInfo_p info, DStr_p fstr)
@@ -176,15 +185,20 @@ static void update_verts(EnigmaticClause_p enigma, EnigmaticInfo_p info, Term_p 
 {
    int i;
 
+   if (enigma->params->offset_vert < 0) { return; }
+
+   long len = enigma->params->length_vert;
    if ((!TermIsVar(term)) && 
        (!TermIsConst(term)) && 
-       (info->path->current < enigma->params->length_vert))
+       ((info->path->current < len) || (len == 0)))
    { 
       // not enough symbols yet && not yet the end
       return; 
    }
-
-   long len = enigma->params->length_vert;
+   if (len == 0)
+   {
+      len = info->path->current; // infinite paths length
+   }
    long begin = info->path->current - len;
    if (begin < 0)
    {
@@ -192,7 +206,7 @@ static void update_verts(EnigmaticClause_p enigma, EnigmaticInfo_p info, Term_p 
       begin = 0;
    }
    
-   unsigned long fid = 0;
+   unsigned long fid = 0; // feature id
    DStr_p fstr = info->collect_hashes ? DStrAlloc() : NULL;
    for (i=0; i<len; i++)
    {
@@ -201,7 +215,58 @@ static void update_verts(EnigmaticClause_p enigma, EnigmaticInfo_p info, Term_p 
       hash_update(&fid, ":", fstr);
    }
    hash_base(&fid, enigma->params->base_vert);
-   update_feature(&enigma->vert, fid);
+   update_feature_inc(&enigma->vert, fid);
+   update_stats(fid, info, fstr);
+   if (fstr) { DStrFree(fstr); }
+}
+
+static void update_horiz(EnigmaticClause_p enigma, EnigmaticInfo_p info, Term_p term)
+{
+   if (enigma->params->offset_horiz < 0) { return; }
+
+   unsigned long fid = 0;
+   DStr_p fstr = info->collect_hashes ? DStrAlloc() : NULL;
+   hash_update(&fid, symbol_string(enigma, info, term->f_code), fstr);
+   hash_update(&fid, ".", fstr);
+   for (int i=0; i<term->arity; i++)
+   {
+      hash_update(&fid, symbol_string(enigma, info, term->args[i]->f_code), fstr);
+      hash_update(&fid, ".", fstr);
+   }
+   hash_base(&fid, enigma->params->base_horiz);
+   update_feature_inc(&enigma->horiz, fid);
+   update_stats(fid, info, fstr);
+   if (fstr) { DStrFree(fstr); }
+}
+
+static void update_counts(EnigmaticClause_p enigma, EnigmaticInfo_p info, Term_p term)
+{
+   if (enigma->params->offset_count < 0) { return; }
+
+   unsigned long fid = 0;
+   DStr_p fstr = info->collect_hashes ? DStrAlloc() : NULL;
+   char* sign = info->pos ? ENIGMATIC_POS : ENIGMATIC_NEG;
+   hash_update(&fid, "#", fstr);
+   hash_update(&fid, sign , fstr);
+   hash_update(&fid, symbol_string(enigma, info, term->f_code), fstr);
+   hash_base(&fid, enigma->params->base_count);
+   update_feature_inc(&enigma->counts, fid);
+   update_stats(fid, info, fstr);
+   if (fstr) { DStrFree(fstr); }
+}
+
+static void update_depths(EnigmaticClause_p enigma, EnigmaticInfo_p info, Term_p term)
+{
+   if (enigma->params->offset_depth < 0) { return; }
+
+   unsigned long fid = 0;
+   DStr_p fstr = info->collect_hashes ? DStrAlloc() : NULL;
+   char* sign = info->pos ? ENIGMATIC_POS : ENIGMATIC_NEG;
+   hash_update(&fid, "%", fstr);
+   hash_update(&fid, sign , fstr);
+   hash_update(&fid, symbol_string(enigma, info, term->f_code), fstr);
+   hash_base(&fid, enigma->params->base_depth);
+   update_feature_max(&enigma->depths, fid, DEPTH(info));
    update_stats(fid, info, fstr);
    if (fstr) { DStrFree(fstr); }
 }
@@ -209,6 +274,9 @@ static void update_verts(EnigmaticClause_p enigma, EnigmaticInfo_p info, Term_p 
 static void update_paths(EnigmaticClause_p enigma, EnigmaticInfo_p info, Term_p term)
 {
    update_verts(enigma, info, term);
+   update_horiz(enigma, info, term);
+   update_counts(enigma, info, term);
+   update_depths(enigma, info, term);
 }
 
 static void update_term(EnigmaticClause_p enigma, EnigmaticInfo_p info, Term_p term)
@@ -267,11 +335,6 @@ static void update_clause(EnigmaticClause_p enigma, EnigmaticInfo_p info, Clause
    }
    enigma->depth = max_depth;
    info->var_offset += (2 * info->var_distinct);
-}
-
-static int hist_cmp(const long* x, const long* y, long* hist)
-{
-   return hist[(*y)-1] - hist[(*x)-1];
 }
 
 static void update_hist(long* hist, long count, NumTree_p node)
