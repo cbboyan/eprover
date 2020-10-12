@@ -131,8 +131,15 @@ static void process_problem(char* problem_file, TB_p bank, EnigmaticVector_p vec
    EnigmaticGoal(vector, goal, info);
    EnigmaticTheory(vector, theory, info);
 
+   ClauseSet_p problem = ClauseSetAlloc();
+   ClauseSetInsertSet(problem, theory); // this moves(!) clauses
+   ClauseSetInsertSet(problem, goal);
+   EnigmaticProblem(vector, problem, info);
+
+   ClauseSetFreeClauses(problem);
    ClauseSetFree(theory);
    ClauseSetFree(goal);
+   ClauseSetFree(problem);
 }
 
 static void process_clauses(FILE* out, char* filename, TB_p bank, EnigmaticVector_p vector, EnigmaticInfo_p info)

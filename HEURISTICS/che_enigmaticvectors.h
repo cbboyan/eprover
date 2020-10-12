@@ -40,6 +40,8 @@ void EnigmaticTheory(EnigmaticVector_p vector, ClauseSet_p axioms, EnigmaticInfo
 
 void EnigmaticGoal(EnigmaticVector_p vector, ClauseSet_p goal, EnigmaticInfo_p info);
 
+void EnigmaticProblem(EnigmaticVector_p vector, ClauseSet_p problem, EnigmaticInfo_p info);
+
 #endif
 
 /*---------------------------------------------------------------------*/

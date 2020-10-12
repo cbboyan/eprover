@@ -347,7 +347,7 @@ static void fill_print(void* data, long key, float val)
    }
    else
    {
-      fprintf(out, "%ld:%.2f ", key, val);
+      fprintf(out, "%ld:%f ", key, val);
    }
 }
 
@@ -427,6 +427,17 @@ static void fill_clause(FillFunc set, void* data, EnigmaticClause_p clause)
    fill_hashes(set, data, clause->horiz, clause->params->offset_horiz);
    fill_hashes(set, data, clause->counts, clause->params->offset_count);
    fill_hashes(set, data, clause->depths, clause->params->offset_depth);
+}
+
+static void fill_problem(FillFunc set, void* data, EnigmaticVector_p vector)
+{
+   long offset = vector->features->offset_problem;
+   if (offset < 0) { return; }
+
+   for (int i=0; i<EBS_PROBLEM; i++)
+   {
+      set(data, offset + i, vector->problem_features[i]);
+   }
 }
 
 /*---------------------------------------------------------------------*/
@@ -809,6 +820,7 @@ void EnigmaticVectorFill(EnigmaticVector_p vector, FillFunc fun, void* data)
    fill_clause(fun, data, vector->clause);
    fill_clause(fun, data, vector->goal);
    fill_clause(fun, data, vector->theory);
+   fill_problem(fun, data, vector);
 }
 
 void PrintEnigmaticVector(FILE* out, EnigmaticVector_p vector)

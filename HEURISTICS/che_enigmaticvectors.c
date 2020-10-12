@@ -17,10 +17,11 @@ Changes
 
 -----------------------------------------------------------------------*/
 
-#define _GNU_SOURCE
+#define _GNU_SOURCE // for qsort_r
 
-#include "che_enigmaticvectors.h"
 #include <stdlib.h>
+#include "che_enigmaticvectors.h"
+#include <che_clausesetfeatures.h>
 
 
 /*---------------------------------------------------------------------*/
@@ -192,7 +193,7 @@ static void update_verts(EnigmaticClause_p enigma, EnigmaticInfo_p info, Term_p 
        (!TermIsConst(term)) && 
        ((info->path->current < len) || (len == 0)))
    { 
-      // not enough symbols yet && not yet the end
+      // not enough symbols yet && not yet the end && not infinite paths
       return; 
    }
    if (len == 0)
@@ -451,6 +452,37 @@ void EnigmaticGoal(EnigmaticVector_p vector, ClauseSet_p goal, EnigmaticInfo_p i
    {
       EnigmaticClauseSet(vector->goal, goal, info);
    }
+}
+
+void EnigmaticProblem(EnigmaticVector_p vector, ClauseSet_p problem, EnigmaticInfo_p info)
+{
+   SpecFeature_p spec = SpecFeatureCellAlloc();
+   SpecFeaturesCompute(spec, problem, info->sig);
+
+   vector->problem_features[0] = spec->goals;
+   vector->problem_features[1] = spec->axioms;
+   vector->problem_features[2] = spec->clauses;
+   vector->problem_features[3] = spec->literals;
+   vector->problem_features[4] = spec->term_cells;
+   vector->problem_features[5] = spec->unitgoals;
+   vector->problem_features[6] = spec->unitaxioms;
+   vector->problem_features[7] = spec->horngoals;
+   vector->problem_features[8] = spec->hornaxioms;
+   vector->problem_features[9] = spec->eq_clauses;
+   vector->problem_features[10] = spec->peq_clauses;
+   vector->problem_features[11] = spec->groundunitaxioms;
+   vector->problem_features[12] = spec->groundgoals;
+   vector->problem_features[13] = spec->groundpositiveaxioms;
+   vector->problem_features[14] = spec->positiveaxioms;
+   vector->problem_features[15] = spec->ng_unit_axioms_part;
+   vector->problem_features[16] = spec->ground_positive_axioms_part;
+   vector->problem_features[17] = spec->max_fun_arity;
+   vector->problem_features[18] = spec->avg_fun_arity;
+   vector->problem_features[19] = spec->sum_fun_arity;
+   vector->problem_features[20] = spec->clause_max_depth;
+   vector->problem_features[21] = spec->clause_avg_depth;
+   
+   SpecFeatureCellFree(spec);
 }
 
 /*---------------------------------------------------------------------*/
