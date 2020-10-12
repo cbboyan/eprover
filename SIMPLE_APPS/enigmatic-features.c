@@ -34,6 +34,7 @@ typedef enum
    OPT_HELP,
    OPT_VERBOSE,
    OPT_OUTPUT,
+   OPT_OUTPUT_MAP,
    OPT_FREE_NUMBERS,
    OPT_PROBLEM,
    OPT_FEATURES,
@@ -58,6 +59,10 @@ OptCell opts[] =
       'o', "output-file",
       ReqArg, NULL,
       "Redirect output into the named file."},
+   {OPT_OUTPUT_MAP,
+      'm', "output-map",
+      ReqArg, NULL,
+      "Writes Enigma feature info mapping into the named file."},
    {OPT_FREE_NUMBERS,
       '\0', "free-numbers",
       NoArg, NULL,
@@ -79,6 +84,7 @@ OptCell opts[] =
 };
 
 char *outname = NULL;
+FILE* MapOut = NULL;
 FunctionProperties free_symb_prop = FPIgnoreProps;
 EnigmaticFeatures_p features;
 char* problem_file = NULL;
@@ -167,10 +173,14 @@ int main(int argc, char* argv[])
 
    process_problem(problem_file, state->terms, vector, info);
    process_clauses(GlobalOut, args->argv[0], state->terms, vector, info);
-   
-   PrintEnigmaticFeaturesInfo(GlobalOut, features, "FIX-ME");
-   PrintEnigmaticFeaturesMap(GlobalOut, features);
-   PrintEnigmaticHashes(GlobalOut, info);
+  
+   if (MapOut)
+   {
+      PrintEnigmaticFeaturesInfo(MapOut, features);
+      PrintEnigmaticFeaturesMap(MapOut, features);
+      PrintEnigmaticHashes(MapOut, info);
+      fclose(MapOut);
+   }
  
    EnigmaticVectorFree(vector);
    EnigmaticInfoFree(info);
@@ -216,6 +226,9 @@ CLState_p process_options(int argc, char* argv[])
          exit(NO_ERROR);
       case OPT_OUTPUT:
          outname = arg;
+         break;
+      case OPT_OUTPUT_MAP:
+         MapOut = fopen(arg, "w");
          break;
       case OPT_FREE_NUMBERS:
          free_symb_prop = free_symb_prop|FPIsInteger|FPIsRational|FPIsFloat;

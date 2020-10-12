@@ -85,6 +85,8 @@ typedef struct enigmaticparamscell
 
 typedef struct enigmaticfeaturescell
 {
+   DStr_p spec;
+
    long offset_clause;
    long offset_goal;
    long offset_theory;
@@ -222,7 +224,7 @@ void EnigmaticInfoFree(EnigmaticInfo_p junk);
 
 void PrintEnigmaticVector(FILE* out, EnigmaticVector_p vector);
 void PrintEnigmaticFeaturesMap(FILE* out, EnigmaticFeatures_p features);
-void PrintEnigmaticFeaturesInfo(FILE* out, EnigmaticFeatures_p features, char* spec);
+void PrintEnigmaticFeaturesInfo(FILE* out, EnigmaticFeatures_p features);
 void PrintEnigmaticHashes(FILE* out, EnigmaticInfo_p info);
 
 #endif

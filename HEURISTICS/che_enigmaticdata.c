@@ -491,6 +491,7 @@ EnigmaticParams_p EnigmaticParamsCopy(EnigmaticParams_p source)
 EnigmaticFeatures_p EnigmaticFeaturesAlloc(void)
 {
    EnigmaticFeatures_p features = EnigmaticFeaturesCellAlloc();
+   features->spec = NULL;
    features->offset_clause = -1;
    features->offset_goal = -1;
    features->offset_theory = -1;
@@ -516,12 +517,18 @@ void EnigmaticFeaturesFree(EnigmaticFeatures_p junk)
    {
       EnigmaticParamsFree(junk->theory);
    }
+   if (junk->spec)
+   {
+      DStrFree(junk->spec);
+   }
    EnigmaticFeaturesCellFree(junk);
 }
 
 EnigmaticFeatures_p EnigmaticFeaturesParse(char* spec)
 {
    EnigmaticFeatures_p features = EnigmaticFeaturesAlloc();
+   features->spec = DStrAlloc();
+   DStrAppendStr(features->spec, spec);
 
    while (*spec)
    {
@@ -818,12 +825,9 @@ void PrintEnigmaticFeaturesMap(FILE* out, EnigmaticFeatures_p features)
    //names_proofwatch(out, offset_proofwatch);
 }
 
-void PrintEnigmaticFeaturesInfo(FILE* out, EnigmaticFeatures_p features, char* spec)
+void PrintEnigmaticFeaturesInfo(FILE* out, EnigmaticFeatures_p features)
 {
-   if (spec)
-   {
-      fprintf(out, "features(\"%s\").\n", spec);
-   }
+   fprintf(out, "features(\"%s\").\n", DStrView(features->spec));
    info_offset(out, "clause", NULL, features->offset_clause);
    info_offset(out, "goal", NULL, features->offset_goal);
    info_offset(out, "theory", NULL, features->offset_theory);
@@ -845,7 +849,7 @@ void PrintEnigmaticHashes(FILE* out, EnigmaticInfo_p info)
    stack = StrTreeTraverseInit(info->hashes);
    while ((node = StrTreeTraverseNext(stack)))
    {
-      fprintf(GlobalOut, "hash(%ld, \"%s\", %ld).\n", node->val1.i_val, node->key, node->val2.i_val);
+      fprintf(out, "hash(%ld, \"%s\", %ld).\n", node->val1.i_val, node->key, node->val2.i_val);
    }
    StrTreeTraverseExit(stack);
 }
