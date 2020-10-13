@@ -192,10 +192,17 @@ int main(int argc, char* argv[])
    }
  
    EnigmaticVectorFree(vector);
+   EnigmaticFeaturesFree(features);
    EnigmaticInfoFree(info);
    ProofStateFree(state);
    CLStateFree(args);
    ExitIO();
+
+#ifdef CLB_MEMORY_DEBUG
+   RegMemCleanUp();
+   MemFlushFreeList();
+   MemDebugPrintStats(stdout);
+#endif
 
    return 0;
 }

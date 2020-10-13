@@ -878,8 +878,7 @@ void PrintEnigmaticHashes(FILE* out, EnigmaticInfo_p info)
 {
    if (!info->hashes) { return; }
    StrTree_p node;
-   PStack_p stack = PStackAlloc(); 
-   stack = StrTreeTraverseInit(info->hashes);
+   PStack_p stack = StrTreeTraverseInit(info->hashes);
    while ((node = StrTreeTraverseNext(stack)))
    {
       fprintf(out, "hash(%ld, \"%s\", %ld).\n", node->val1.i_val, node->key, node->val2.i_val);
