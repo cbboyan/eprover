@@ -437,6 +437,13 @@ void EnigmaticClause(EnigmaticClause_p enigma, Clause_p clause, EnigmaticInfo_p 
    update_hists(enigma, info);
 }
 
+Clause_p EnigmaticFormulaToClause(WFormula_p formula, EnigmaticInfo_p info)
+{
+   Eqn_p lits = EqnAlloc(formula->tformula, info->bank->false_term, info->bank, true);
+   Clause_p encode = ClauseAlloc(lits);
+   return encode;
+}
+
 void EnigmaticClauseSet(EnigmaticClause_p enigma, ClauseSet_p set, EnigmaticInfo_p info)
 {
    EnigmaticInfoReset(info);

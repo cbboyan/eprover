@@ -18,6 +18,7 @@ Changes
 -----------------------------------------------------------------------*/
 
 
+#include <math.h>
 #include "che_enigmaticdata.h"
 
 
@@ -408,7 +409,7 @@ static void names_clauses(FILE* out, char* name, EnigmaticParams_p params, long 
 
 static void fill_print(void* data, long key, float val)
 {
-   if (!val) { return; }
+   if ((!val) || (isnan(val))) { return; }
    FILE* out = data;
    if (ceilf(val) == val)
    {

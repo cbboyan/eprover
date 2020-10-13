@@ -22,6 +22,7 @@ Changes
 #include <cio_commandline.h>
 #include <cio_output.h>
 #include <ccl_proofstate.h>
+#include <ccl_formula_wrapper.h>
 #include <che_enigmaticvectors.h>
 
 /*---------------------------------------------------------------------*/
@@ -102,7 +103,7 @@ void print_help(FILE* out);
 /*                         Internal Functions                          */
 /*---------------------------------------------------------------------*/
 
-static void process_problem(char* problem_file, TB_p bank, EnigmaticVector_p vector, EnigmaticInfo_p info)
+static void process_problem(char* problem_file, EnigmaticVector_p vector, EnigmaticInfo_p info)
 {
    if (!problem_file)
    {
@@ -111,13 +112,33 @@ static void process_problem(char* problem_file, TB_p bank, EnigmaticVector_p vec
 
    ClauseSet_p theory = ClauseSetAlloc();
    ClauseSet_p goal = ClauseSetAlloc();
-   
+
    Scanner_p in = CreateScanner(StreamTypeFile, problem_file, true, NULL, true);
    ScannerSetFormat(in, TSTPFormat);
-   while (TestInpId(in, "cnf"))
+   ClauseSet_p wlset = ClauseSetAlloc();
+   FormulaSet_p fset = FormulaSetAlloc();
+   
+   FormulaAndClauseSetParse(in, fset, wlset, info->bank, NULL, NULL);
+   WFormula_p handle;
+   Clause_p clause;
+   FormulaProperties props;
+   for (handle=fset->anchor->succ; handle!=fset->anchor; handle=handle->succ)
    {
-      Clause_p clause = ClauseParse(in, bank);
-      if (ClauseQueryTPTPType(clause) == CPTypeNegConjecture)
+      bool is_goal = false;
+      if (handle->is_clause) 
+      {
+         props = FormulaQueryType(handle);
+         clause = WFormClauseToClause(handle);
+      }
+      else
+      {
+         clause = EnigmaticFormulaToClause(handle, info);
+         props = ClauseQueryTPTPType(clause);
+      }
+      is_goal = ((props == CPTypeNegConjecture) ||
+                 (props == CPTypeConjecture) ||
+                 (props == CPTypeHypothesis));
+      if (is_goal) 
       {
          ClauseSetInsert(goal, clause);
       }
@@ -126,7 +147,6 @@ static void process_problem(char* problem_file, TB_p bank, EnigmaticVector_p vec
          ClauseSetInsert(theory, clause);
       }
    }
-   
    CheckInpTok(in, NoToken);
    DestroyScanner(in);
 
@@ -142,25 +162,40 @@ static void process_problem(char* problem_file, TB_p bank, EnigmaticVector_p vec
    ClauseSetFree(theory);
    ClauseSetFree(goal);
    ClauseSetFree(problem);
+   ClauseSetFreeClauses(wlset);
+   ClauseSetFree(wlset);
+   FormulaSetFreeFormulas(fset);
+   FormulaSetFree(fset);
 }
 
-static void process_clauses(FILE* out, char* filename, TB_p bank, EnigmaticVector_p vector, EnigmaticInfo_p info)
+static void process_clauses(FILE* out, char* filename, EnigmaticVector_p vector, EnigmaticInfo_p info)
 {
    Scanner_p in = CreateScanner(StreamTypeFile, filename, true, NULL, true);
    ScannerSetFormat(in, TSTPFormat);
+   Clause_p clause;
+   WFormula_p formula = NULL;
    
-   while (TestInpId(in, "cnf"))
+   while (TestInpId(in, "input_formula|input_clause|fof|cnf|tff|tcf"))
    {
-      Clause_p clause = ClauseParse(in, bank);
+      if (TestInpId(in, "input_clause|cnf"))
+      {
+         clause = ClauseParse(in, info->bank);
+      }
+      else 
+      {
+         formula = WFormulaParse(in, info->bank);
+         clause = EnigmaticFormulaToClause(formula, info);
+         WFormulaFree(formula);
+      }
       ClausePrint(out, clause, true);
       fprintf(out, "\n");
 
       EnigmaticClause(vector->clause, clause, info);
       PrintEnigmaticVector(GlobalOut, vector);
-      fprintf(out, "\n");
 
-      EnigmaticClauseReset(vector->clause);
       ClauseFree(clause);
+      fprintf(out, "\n");
+      EnigmaticClauseReset(vector->clause);
    }
 
    CheckInpTok(in, NoToken);
@@ -176,12 +211,14 @@ int main(int argc, char* argv[])
    if (outname) { OpenGlobalOut(outname); }
    ProofState_p state = ProofStateAlloc(free_symb_prop);
    EnigmaticVector_p vector = EnigmaticVectorAlloc(features);
+
    EnigmaticInfo_p info = EnigmaticInfoAlloc();
    info->sig = state->signature;
+   info->bank = state->terms;
    info->collect_hashes = true;
 
-   process_problem(problem_file, state->terms, vector, info);
-   process_clauses(GlobalOut, args->argv[0], state->terms, vector, info);
+   process_problem(problem_file, vector, info);
+   process_clauses(GlobalOut, args->argv[0], vector, info);
   
    if (MapOut)
    {

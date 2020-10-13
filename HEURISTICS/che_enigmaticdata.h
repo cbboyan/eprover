@@ -168,7 +168,8 @@ typedef struct enigmaticinfocell
    int var_offset;   // variable offset to distinquish variables from different clauses
    int var_distinct; // count of distinct variables
    NumTree_p occs;   // symbol/vars occurrences map :: f_code -> occurrence count
-   Sig_p sig;        // signature copy
+   Sig_p sig;        // signature link
+   TB_p bank;        // term bank
    PStack_p path;    // current symbol path with a literal
    bool pos;         // is current literal positive?
    StrTree_p name_cache; // stores enigmatized symbol names (skolems & anonymous)

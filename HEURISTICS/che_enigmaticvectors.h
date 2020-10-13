@@ -34,6 +34,10 @@ Changes
 
 void EnigmaticClause(EnigmaticClause_p enigma, Clause_p clause, EnigmaticInfo_p info);
 
+void EnigmaticClause(EnigmaticClause_p enigma, Clause_p clause, EnigmaticInfo_p info);
+
+Clause_p EnigmaticFormulaToClause(WFormula_p formula, EnigmaticInfo_p info);
+
 void EnigmaticClauseSet(EnigmaticClause_p enigma, ClauseSet_p set, EnigmaticInfo_p info);
 
 void EnigmaticTheory(EnigmaticVector_p vector, ClauseSet_p axioms, EnigmaticInfo_p info);
