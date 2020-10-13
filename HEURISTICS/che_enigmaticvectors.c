@@ -478,6 +478,8 @@ void EnigmaticProblem(EnigmaticVector_p vector, ClauseSet_p problem, EnigmaticIn
 {
    SpecFeature_p spec = SpecFeatureCellAlloc();
    SpecFeaturesCompute(spec, problem, info->sig);
+   SpecLimits_p limits = CreateDefaultSpecLimits();
+   SpecFeaturesAddEval(spec, limits);
 
    vector->problem_features[ 0] = spec->axiomtypes;
    vector->problem_features[ 1] = spec->goaltypes;
@@ -524,6 +526,7 @@ void EnigmaticProblem(EnigmaticVector_p vector, ClauseSet_p problem, EnigmaticIn
    vector->problem_features[42] = spec->pred_nonconst_count;             
 
    SpecFeatureCellFree(spec);
+   SpecLimitsCellFree(limits);
 }
 
 /*---------------------------------------------------------------------*/

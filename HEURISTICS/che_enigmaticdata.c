@@ -416,7 +416,7 @@ static void fill_print(void* data, long key, float val)
    }
    else
    {
-      fprintf(out, "%ld:%f ", key, val);
+      fprintf(out, "%ld:%.2f ", key, val);
    }
 }
 
