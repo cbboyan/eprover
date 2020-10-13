@@ -22,6 +22,7 @@ Changes
 #define CHE_ENIGMATICDATA
 
 #include <ccl_clauses.h>
+#include <che_prio_funs.h>
 
 /*---------------------------------------------------------------------*/
 /*                    Data type declarations                           */
@@ -29,6 +30,9 @@ Changes
 
 extern char* efn_lengths[];
 extern char* efn_problem[];
+extern char* efn_prios[];
+
+extern ClausePrioFun ecb_prios[];
 
 /* Enigmatic first feature index */
 #define ENIGMATIC_FIRST     0
@@ -42,7 +46,7 @@ extern char* efn_problem[];
 #define EFC_LEN             11
 #define EFC_VAR(params)     (3*(params->count_var))
 #define EFC_SYM(params)     (6*(params->count_sym))
-#define EFC_EPROVER         1
+#define EFC_PRIOS           22
 #define EFC_VERT(params)    (params->base_vert)
 #define EFC_HORIZ(params)   (params->base_horiz)
 #define EFC_COUNT(params)   (params->base_count)
@@ -64,7 +68,7 @@ typedef struct enigmaticparamscell
    bool anonymous;
 
    bool use_len;
-   bool use_eprover;
+   bool use_prios;
    long count_var;
    long count_sym;
    long length_vert;
@@ -75,8 +79,8 @@ typedef struct enigmaticparamscell
    
    long offset_len;
    long offset_var;
-   long offset_sym; // TODO: split preds and funcs symbols
-   long offset_eprover;
+   long offset_sym;
+   long offset_prios;
    long offset_horiz;
    long offset_vert;
    long offset_count;
@@ -135,6 +139,8 @@ typedef struct enigmaticclausecell
    NumTree_p counts;
    // symbol depth statistic features
    NumTree_p depths;
+
+   float prios[EFC_PRIOS];
 
 } EnigmaticClauseCell, *EnigmaticClause_p;
 

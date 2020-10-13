@@ -34,7 +34,7 @@ Changes
 #define PRINT_FLOAT(key,val) if (val) fprintf(out, "%ld:%.2f ", key, val)
 
 /* ENIGMA feature names (efn) */
-char* efn_lengths[] = {
+char* efn_lengths[EFC_LEN] = {
    "len",
    "lits",
    "pos",
@@ -45,11 +45,10 @@ char* efn_lengths[] = {
    "pos_eqs",
    "neg_eqs",
    "pos_atoms",
-   "neg_atoms",
-   NULL
+   "neg_atoms"
 };
 
-char* efn_problem[] = {
+char* efn_problem[EBS_PROBLEM] = {
    "axiomtypes",
    "goaltypes",
    "eq_content",
@@ -92,8 +91,57 @@ char* efn_problem[] = {
    "sum_pred_arity",
    "fun_const_count",
    "fun_nonconst_count",
-   "pred_nonconst_count",
-   NULL
+   "pred_nonconst_count"
+};
+
+char* efn_prios[EFC_PRIOS] = {
+   "PreferGroundGoals",
+   "PreferUnitGroundGoals",
+   "PreferGround",
+   "PreferNonGround",
+   "PreferGoals",
+   "PreferNonGoals",
+   "PreferMixed",
+   "PreferPositive",
+   "PreferNegative",
+   "PreferUnits",
+   "PreferNonEqUnits",
+   "PreferDemods",
+   "PreferNonUnits",
+   "ByLiteralNumber",
+   "ByNegLitDist",
+   "GoalDifficulty",
+   "PreferHorn",
+   "PreferNonHorn",
+   "PreferUnitAndNonEq",
+   "DeferNonUnitMaxPosEq",
+   "ByPosLitNo",
+   "ByHornDist"
+};
+
+ClausePrioFun ecb_prios[EFC_PRIOS] = {
+   PrioFunPreferGroundGoals,
+   PrioFunPreferUnitGroundGoals,
+   PrioFunPreferGround,
+   PrioFunPreferNonGround,
+   PrioFunPreferGoals,
+   PrioFunPreferNonGoals,
+   PrioFunPreferMixed,
+   PrioFunPreferPositive,
+   PrioFunPreferNegative,
+   PrioFunPreferUnits,
+   PrioFunPreferNonEqUnits,
+   PrioFunPreferDemods,
+   PrioFunPreferNonUnits,
+   PrioFunByLiteralNumber,
+   PrioFunByNegLitDist,
+   PrioFunGoalDifficulty,
+   PrioFunPreferHorn,
+   PrioFunPreferNonHorn,
+   PrioFunPreferUnitAndNonEq,
+   PrioFunDeferNonUnitMaxPosEq,
+   PrioFunByPosLitNo,
+   PrioFunByHornDist
 };
 
 /*---------------------------------------------------------------------*/
@@ -210,7 +258,7 @@ static EnigmaticParams_p parse_block(char** spec)
       switch (arg) 
       {
          case 'l': params->use_len = true; break;
-         case 'e': params->use_eprover = true; break;
+         case 'e': params->use_prios = true; break;
          case 'a': params->anonymous = true; break;
          case 'x': parse_one(spec, 'c', &params->count_var, &default_count); break;
          case 's': parse_one(spec, 'c', &params->count_sym, &default_count); break;
@@ -249,7 +297,7 @@ static long params_offsets(EnigmaticParams_p params, long start)
    params_offset(params->use_len, &params->offset_len, EFC_LEN, &cur);
    params_offset(params->count_var != -1, &params->offset_var, EFC_VAR(params), &cur);
    params_offset(params->count_sym != -1, &params->offset_sym, EFC_SYM(params), &cur);
-   params_offset(params->use_eprover, &params->offset_eprover, EFC_EPROVER, &cur);
+   params_offset(params->use_prios, &params->offset_prios, EFC_PRIOS, &cur);
    params_offset(params->base_horiz != -1, &params->offset_horiz, EFC_HORIZ(params), &cur);
    params_offset(params->base_vert != -1, &params->offset_vert, EFC_VERT(params), &cur);
    params_offset(params->base_count != -1, &params->offset_count, EFC_COUNT(params), &cur);
@@ -285,7 +333,7 @@ static void info_suboffsets(FILE* out, char* name, EnigmaticParams_p params)
    info_offset(out, name, "len", params->offset_len);
    info_offset(out, name, "var", params->offset_var);
    info_offset(out, name, "sym", params->offset_sym);
-   info_offset(out, name, "eprover", params->offset_eprover);
+   info_offset(out, name, "eprover", params->offset_prios);
    info_offset(out, name, "horiz", params->offset_horiz);
    info_offset(out, name, "vert", params->offset_vert);
    info_offset(out, name, "count", params->offset_count);
@@ -301,7 +349,7 @@ static void info_settings(FILE* out, char* name, EnigmaticParams_p params)
    INFO_SETTING(out, name, params, features);
    INFO_SETTING(out, name, params, anonymous);
    INFO_SETTING(out, name, params, use_len);
-   INFO_SETTING(out, name, params, use_eprover);
+   INFO_SETTING(out, name, params, use_prios);
    INFO_SETTING(out, name, params, count_var);
    INFO_SETTING(out, name, params, count_sym);
    INFO_SETTING(out, name, params, length_vert);
@@ -351,7 +399,7 @@ static void names_clauses(FILE* out, char* name, EnigmaticParams_p params, long 
    names_array(out, name, params->offset_len, efn_lengths, EFC_LEN);
    names_range(out, name, "var", params->offset_var, EFC_VAR(params)); 
    names_range(out, name, "sym", params->offset_sym, EFC_SYM(params)); 
-   names_range(out, name, "eprover", params->offset_eprover, EFC_EPROVER); 
+   names_array(out, name, params->offset_prios, efn_prios, EFC_PRIOS);
    names_range(out, name, "horiz", params->offset_horiz, EFC_HORIZ(params)); 
    names_range(out, name, "vert", params->offset_vert, EFC_VERT(params)); 
    names_range(out, name, "count", params->offset_count, EFC_COUNT(params)); 
@@ -436,6 +484,16 @@ static void fill_hashes(FillFunc set, void* data, NumTree_p map, long offset)
    NumTreeTraverseExit(stack);
 }
 
+static void fill_prios(FillFunc set, void* data, EnigmaticClause_p clause)
+{
+   if (!clause->params->use_prios) { return; }
+
+   for (int i=0; i<EFC_PRIOS; i++)
+   {
+      set(data, clause->params->offset_prios + i, clause->prios[i]);
+   }
+}
+
 static void fill_clause(FillFunc set, void* data, EnigmaticClause_p clause)
 {
    if (!clause)
@@ -444,6 +502,7 @@ static void fill_clause(FillFunc set, void* data, EnigmaticClause_p clause)
    }
    fill_lengths(set, data, clause);
    fill_hists(set, data, clause);
+   fill_prios(set, data, clause);
    fill_hashes(set, data, clause->vert, clause->params->offset_vert);
    fill_hashes(set, data, clause->horiz, clause->params->offset_horiz);
    fill_hashes(set, data, clause->counts, clause->params->offset_count);
@@ -471,7 +530,7 @@ EnigmaticParams_p EnigmaticParamsAlloc(void)
    params->features = -1;
    params->anonymous = false;
    params->use_len = false;
-   params->use_eprover = false;
+   params->use_prios = false;
    params->count_var = -1;
    params->count_sym = -1;
    params->length_vert = -1;
@@ -482,7 +541,7 @@ EnigmaticParams_p EnigmaticParamsAlloc(void)
    params->offset_len = -1;
    params->offset_var = -1;
    params->offset_sym = -1;
-   params->offset_eprover = -1;
+   params->offset_prios = -1;
    params->offset_horiz = -1;
    params->offset_vert = -1;
    params->offset_count = -1;
@@ -501,7 +560,7 @@ EnigmaticParams_p EnigmaticParamsCopy(EnigmaticParams_p source)
    params->features = source->features;
    params->anonymous = source->anonymous;
    params->use_len = source->use_len;
-   params->use_eprover = source->use_eprover;
+   params->use_prios = source->use_prios;
    params->count_var = source->count_var;
    params->count_sym = source->count_sym;
    params->length_vert = source->length_vert;
@@ -512,7 +571,7 @@ EnigmaticParams_p EnigmaticParamsCopy(EnigmaticParams_p source)
    params->offset_len = source->offset_len;
    params->offset_var = source->offset_var;
    params->offset_sym = source->offset_sym;
-   params->offset_eprover = source->offset_eprover;
+   params->offset_prios = source->offset_prios;
    params->offset_horiz = source->offset_horiz;
    params->offset_vert = source->offset_vert;
    params->offset_count = source->offset_count;
@@ -753,6 +812,10 @@ void EnigmaticClauseReset(EnigmaticClause_p enigma)
       RESET_ARRAY(enigma->pred_hist, enigma->params->count_sym);
       RESET_ARRAY(enigma->pred_count, enigma->params->count_sym);
       RESET_ARRAY(enigma->pred_rat, enigma->params->count_sym);
+   }
+   if (enigma->params->use_prios)
+   {
+      RESET_ARRAY(enigma->prios, EFC_PRIOS);
    }
 }
 

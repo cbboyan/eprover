@@ -327,6 +327,14 @@ static void update_lit(EnigmaticClause_p enigma, EnigmaticInfo_p info, Eqn_p lit
    PStackReset(info->path);
 }
 
+static void update_prios(EnigmaticClause_p enigma, Clause_p clause)
+{
+   for (int i=0; i<EFC_PRIOS; i++)
+   {
+      enigma->prios[i] += ecb_prios[i](clause);
+   }
+}
+
 static void update_clause(EnigmaticClause_p enigma, EnigmaticInfo_p info, Clause_p clause)
 {
    info->var_distinct = 0;
@@ -340,6 +348,7 @@ static void update_clause(EnigmaticClause_p enigma, EnigmaticInfo_p info, Clause
    }
    enigma->depth = max_depth;
    info->var_offset += (2 * info->var_distinct);
+   update_prios(enigma, clause);
 }
 
 static void update_hist(long* hist, long count, NumTree_p node)
@@ -440,6 +449,13 @@ void EnigmaticClauseSet(EnigmaticClause_p enigma, ClauseSet_p set, EnigmaticInfo
    }
    enigma->avg_depth /= enigma->lits;
    update_hists(enigma, info);
+   if (enigma->params->use_prios) 
+   {
+      for (int i=0; i<EFC_PRIOS; i++)
+      {
+         enigma->prios[i] /= set->members; // average priorities
+      }
+   }
 }
 
 void EnigmaticTheory(EnigmaticVector_p vector, ClauseSet_p axioms, EnigmaticInfo_p info)
