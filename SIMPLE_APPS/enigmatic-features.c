@@ -121,31 +121,22 @@ static void process_problem(char* problem_file, EnigmaticVector_p vector, Enigma
    FormulaAndClauseSetParse(in, fset, wlset, info->bank, NULL, NULL);
    WFormula_p handle;
    Clause_p clause;
-   FormulaProperties props;
    for (handle=fset->anchor->succ; handle!=fset->anchor; handle=handle->succ)
    {
       bool is_goal = false;
       if (handle->is_clause) 
       {
-         props = FormulaQueryType(handle);
          clause = WFormClauseToClause(handle);
       }
       else
       {
          clause = EnigmaticFormulaToClause(handle, info);
-         props = ClauseQueryTPTPType(clause);
       }
+      FormulaProperties props = FormulaQueryType(handle);
       is_goal = ((props == CPTypeNegConjecture) ||
                  (props == CPTypeConjecture) ||
                  (props == CPTypeHypothesis));
-      if (is_goal) 
-      {
-         ClauseSetInsert(goal, clause);
-      }
-      else
-      {
-         ClauseSetInsert(theory, clause);
-      }
+      ClauseSetInsert(is_goal ? goal : theory, clause);
    }
    CheckInpTok(in, NoToken);
    DestroyScanner(in);
@@ -158,9 +149,9 @@ static void process_problem(char* problem_file, EnigmaticVector_p vector, Enigma
    ClauseSetInsertSet(problem, goal);
    EnigmaticProblem(vector, problem, info);
 
-   ClauseSetFreeClauses(problem);
    ClauseSetFree(theory);
    ClauseSetFree(goal);
+   ClauseSetFreeClauses(problem);
    ClauseSetFree(problem);
    ClauseSetFreeClauses(wlset);
    ClauseSetFree(wlset);
