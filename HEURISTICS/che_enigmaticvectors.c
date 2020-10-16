@@ -302,17 +302,19 @@ static void update_arity(EnigmaticClause_p enigma, EnigmaticInfo_p info, long* a
 
 static void update_arities(EnigmaticClause_p enigma, EnigmaticInfo_p info, Term_p term)
 {
-   if (TermIsVar(term) || (enigma->params->offset_arity < 0)) 
+   if (TermIsVar(term)) 
    {
-      return;
+      enigma->vars_occs++;
    }
-   if (SigIsPredicate(info->sig, term->f_code))
+   else if (SigIsPredicate(info->sig, term->f_code))
    {
-      update_arity(enigma, info, enigma->arity_pred_rat, term->f_code);
+      update_arity(enigma, info, enigma->arity_pred_occs, term->f_code);
+      enigma->preds_occs++;
    }
    else
    {
-      update_arity(enigma, info, enigma->arity_func_rat, term->f_code);
+      update_arity(enigma, info, enigma->arity_func_occs, term->f_code);
+      enigma->funcs_occs++;
    }
 }
 
@@ -418,11 +420,13 @@ static void update_hists(EnigmaticClause_p enigma, EnigmaticInfo_p info)
    NumTree_p node;
    PStack_p stack = NumTreeTraverseInit(info->occs);
    while ((node = NumTreeTraverseNext(stack)))
-   {
+   { 
       if (node->key < 0) 
       {
          update_hist(enigma->var_hist, enigma->params->count_var, node);
          vars++;
+         enigma->vars_count++;
+         if (node->val1.i_val == 1) { enigma->vars_unique++; } else { enigma->vars_shared++; }
       }
       else
       {
@@ -431,15 +435,18 @@ static void update_hists(EnigmaticClause_p enigma, EnigmaticInfo_p info)
             update_hist(enigma->pred_hist, enigma->params->count_sym, node);
             update_arity(enigma, info, enigma->arity_pred_hist, node->key);
             preds++;
+            enigma->preds_count++;
+            if (node->val1.i_val == 1) { enigma->preds_unique++; } else { enigma->preds_shared++; }
          }
          else
          {
             update_hist(enigma->func_hist, enigma->params->count_sym, node);
             update_arity(enigma, info, enigma->arity_func_hist, node->key);
             funcs++;
+            enigma->funcs_count++;
+            if (node->val1.i_val == 1) { enigma->funcs_unique++; } else { enigma->funcs_shared++; }
          }
       }
-
    }
    NumTreeTraverseExit(stack);
 
@@ -456,6 +463,13 @@ static void update_hists(EnigmaticClause_p enigma, EnigmaticInfo_p info)
 /*                         Exported Functions                          */
 /*---------------------------------------------------------------------*/
 
+Clause_p EnigmaticFormulaToClause(WFormula_p formula, EnigmaticInfo_p info)
+{
+   Eqn_p lits = EqnAlloc(formula->tformula, info->bank->false_term, info->bank, true);
+   Clause_p encode = ClauseAlloc(lits);
+   return encode;
+}
+
 void EnigmaticClause(EnigmaticClause_p enigma, Clause_p clause, EnigmaticInfo_p info)
 {
    EnigmaticInfoReset(info);
@@ -464,13 +478,6 @@ void EnigmaticClause(EnigmaticClause_p enigma, Clause_p clause, EnigmaticInfo_p 
    update_clause(enigma, info, clause);
    enigma->avg_lit_depth /= enigma->lits;
    update_hists(enigma, info);
-}
-
-Clause_p EnigmaticFormulaToClause(WFormula_p formula, EnigmaticInfo_p info)
-{
-   Eqn_p lits = EqnAlloc(formula->tformula, info->bank->false_term, info->bank, true);
-   Clause_p encode = ClauseAlloc(lits);
-   return encode;
 }
 
 void EnigmaticClauseSet(EnigmaticClause_p enigma, ClauseSet_p set, EnigmaticInfo_p info)

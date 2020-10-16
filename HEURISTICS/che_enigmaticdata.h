@@ -43,7 +43,7 @@ extern ClausePrioFun ecb_prios[];
 #define EDV_LENGTH          3
 
 /* Enigmatic Feature Count */
-#define EFC_LEN             13
+#define EFC_LEN             25
 #define EFC_VAR(params)     (3*(params->count_var))
 #define EFC_SYM(params)     (6*(params->count_sym))
 #define EFC_ARITY(params)   (4*(params->count_arity))
@@ -126,6 +126,19 @@ typedef struct enigmaticclausecell
    long neg_eqs;
    long pos_atoms;
    long neg_atoms;
+   long vars_count;
+   long vars_occs;
+   long vars_unique;
+   long vars_shared;
+   long preds_count;
+   long preds_occs;
+   long preds_unique;
+   long preds_shared;
+   long funcs_count;
+   long funcs_occs;
+   long funcs_unique;
+   long funcs_shared;
+
    // TODO:
    // number of function symbols (without repetitions)
    // number of predicate symbols
@@ -147,8 +160,8 @@ typedef struct enigmaticclausecell
    // arity statistics
    long* arity_func_hist;
    long* arity_pred_hist;
-   long* arity_func_rat;
-   long* arity_pred_rat;
+   long* arity_func_occs;
+   long* arity_pred_occs;
    // eprover prio/weights values
    float prios[EFC_PRIOS];
    // vertical features

@@ -44,7 +44,7 @@ EPROVER = eprover.o ../lib/CONTROL.a ../lib/HEURISTICS.a\
             ../lib/INOUT.a ../lib/BASICS.a  ../lib/CONTRIB.a
 
 eprover: $(EPROVER)
-	$(LD) -o eprover -L. $(EPROVER) $(LIBS) -lxgboost 
+	$(LD) -o eprover -L.. $(EPROVER) $(LIBS) -lxgboost 
 
 eprover-ho: eprover
 	mv eprover eprover-ho

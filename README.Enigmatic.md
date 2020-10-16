@@ -9,46 +9,128 @@ Old Style
 
 Instead of: VHSLCXAPh
 
-Blocks
-------
 
-Each block is a collection of specific features.  Possible values in an Enigma
-feature specifier are:
+Enigmatic quick start
+---------------------
+
+
+
+Enigmatic feature specifiers
+----------------------------
+
+Enigmatic vectors represent first-order clauses, and consist of several
+independent feature blocks.  Supported blocks are as follows.
    
-   `C`, `G`, `T`, `P`, `W`
+| letter | name       | meaning
+| ------ | ---------- | -----------------------------------------------
+| `C`    | clause     | clause features
+| `G`    | goal       | embedding of goal clauses features (TPTP types `negated_conjecture`, `conjecture`, `hypothesis`)
+| `T`    | theory     | embedding of theory clauses features (other TPTP types)
+| `P`    | problem    | embedding of E's problem features
+| `W`    | proofwatch | Proof watch features
 
-They stand for:
-
-* `C`: clause features
-* `G`: goal (conjecture) features
-* `T`: theory features
-* `P`: problem features
-* `W`: proof watch features
-
-Example Enigma feature specifiers:
+**Example.** To specify selected features, construct a _feature specifier_
+string, by separating block letters by `:`.
 
 * `C:G:P`
 * `C:T:P:W`
 
-Block arguments
----------------
+### Clause block arguments ###
 
-Blocks `C`, `G`, `T` take additional optional arguments to enable some
-features.  The block is then written as
+Clause blocks `C`, `G`, `T` take additional optional arguments to enable some
+features.  The block with all the features available is written as follows.
 
-   `C(l,c,d,v,h,x,s,e,a)`
+* `C(l,p,x,s,r,v,h,c,d,a)`
 
-Arguments correspond to:
+Letters correspond to specific feature blocks.
 
-* `l`: length statistics
-* `c`: symbol count statistics
-* `d`: symbol depth statistics
-* `v`: vertical features
-* `h`: horizontal features
-* `x`: variable features
-* `s`: symbol features
-* `e`: eprover priority/cef values
-* `a`: use anonymous feature names
+| letter | meaning                                    | size       | params
+| --- | --------------------------------------------- | ---------- | --------
+| `l` | length statistics                             | 25         | -
+| `p` | E's priority function values                  | 22         | -
+| `x` | variable histograms                           | 3\**count* | `c`
+| `s` | predicate/function symbol histograms          | 6\**count* | `c`
+| `r` | predicate/function symbol arities             | 4\**count* | `c`
+| `v` | syntax tree vertical walks of length *length* | *base*     | `b`,`l`
+| `h` | syntax tree horizontal walks                  | *base*     | `b`
+| `c` | positive/negative symbol counts               | *base*     | `b`
+| `d` | maximal positive/negative symbol depths       | *base*     | `b`
+| `a` | anonymize the symbol names                    | -          | -
+
+__Table 1__: Clause block arguments.
+
+### Parametric arguments ###
+
+Some block arguments are parametric and take optional parameter/value pairs.
+Parameters are of three types:
+
+| letter | name     | meaning                        | default
+| ------ | -------- | ------------------------------ | -------
+| `b`    | *base*   | hashing base                   | 1024
+| `c`    | *count*  | count of columns in histograms | 6
+| `l`    | *length* | length of vertical walks       | 3
+
+Allowed parameters for each feature block are in _Table 1_.
+Parameters are written as follows:
+
+* `C(x[c=10])`
+* `C(l,v[l=10;b=4096]):T(l,x[c=9])` 
+
+
+Enigmatic features
+------------------
+
+#### Length statistics (`l`) ####
+
+Various 25 numeric statistics about the clause:
+
+name | meaning
+---- | -------
+`len` | clause length
+`lits` | number of literals
+`pos` | .. of those positive 
+`neg` | .. of those negative
+`depth` | syntax tree depth
+`width` | syntax tree width (number of leaves)
+`avg_lit_depth` | average literal depth
+`avg_lit_width` | .. width 
+`avg_lit_len` | .. length
+`pos_eqs` | number of positive equalities
+`neg_eqs` | .. negative equalities
+`pos_atoms` | .. positive (non-equality) atoms
+`neg_atoms` | .. negative (non-equality) atoms
+`vars_count` |variable count
+`vars_occs` | number of variable occurrences
+`vars_unique` | uniquely appearing variables
+`vars_shared` | variables appearing more than once
+`preds_count` | predicate symbol count
+`preds_occs` | number of predicate symbol occurrences
+`preds_unique` | uniquely appearing predicate symbols
+`preds_shared` | predicate symbols appearing more than once
+`funcs_count` | function symbol count
+`funcs_occs` | number of function symbol occurrences
+`funcs_unique` | uniquely appearing function symbols
+`funcs_shared` | function symbols appearing more than once
+
+Offset of these values in the vector can be obtained from the Enigmatic feature
+map (viz `--output-map`).
+
+#### E's priority function values (`p`) ####
+
+Values from 22 selected E's clause priority functions.  For their names see the
+feature map (viz `--output-map`).
+
+#### Occurrence histograms (`x`,`s`) ####
+
+#### Arity histograms (`r`) ####
+
+#### Syntax tree walks (`v`,`h`)  ####
+
+#### Count/depth statistics (`c`,`d`)  ####
+
+
+
+### Block shortcuts ###
 
 When arguments are specified for block `C`, the same arguments are used for `G`
 and `T` blocks without arguments.
