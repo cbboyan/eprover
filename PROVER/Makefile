@@ -43,8 +43,11 @@ EPROVER = eprover.o ../lib/CONTROL.a ../lib/HEURISTICS.a\
             ../lib/CLAUSES.a ../lib/ORDERINGS.a ../lib/TERMS.a\
             ../lib/INOUT.a ../lib/BASICS.a  ../lib/CONTRIB.a
 
-$(EPROVER_BIN): $(EPROVER)
-	$(LD) -o $(EPROVER_BIN) $(EPROVER) $(LIBS)
+eprover: $(EPROVER)
+	$(LD) -o eprover -L. $(EPROVER) $(LIBS) -lxgboost 
+
+eprover-ho: eprover
+	mv eprover eprover-ho
 
 E_LTB_RUNNER = e_ltb_runner.o ../lib/CONTROL.a ../lib/HEURISTICS.a\
             ../lib/CLAUSES.a ../lib/ORDERINGS.a ../lib/TERMS.a\

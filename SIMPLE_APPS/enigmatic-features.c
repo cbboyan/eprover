@@ -39,6 +39,9 @@ typedef enum
    OPT_FREE_NUMBERS,
    OPT_PROBLEM,
    OPT_FEATURES,
+   OPT_PREFIX,
+   OPT_PREFIX_POS,
+   OPT_PREFIX_NEG
 }OptionCodes;
 
 
@@ -78,6 +81,18 @@ OptCell opts[] =
       'p', "problem",
       ReqArg, NULL,
       "TPTP problem file in CNF for goal/theory features."},
+   {OPT_PREFIX,
+      '\0', "prefix",
+      ReqArg, NULL,
+      "Prefix the clauses feature vectors with the provided string."},
+   {OPT_PREFIX_POS,
+      '\0', "prefix-pos",
+      NoArg, NULL,
+      "Same as --prefix=\"+1 \"."},
+   {OPT_PREFIX_NEG,
+      '\0', "prefix-neg",
+      NoArg, NULL,
+      "Same as --prefix=\"-0 \"."},
    {OPT_NOOPT,
       '\0', NULL,
       NoArg, NULL,
@@ -91,6 +106,7 @@ EnigmaticFeatures_p features;
 char* problem_file = NULL;
 ProblemType problemType = PROBLEM_FO;
 bool app_encode = false;
+char* prefix = "";
 
 /*---------------------------------------------------------------------*/
 /*                      Forward Declarations                           */
@@ -182,10 +198,11 @@ static void process_clauses(FILE* out, char* filename, EnigmaticVector_p vector,
       fprintf(out, "\n");
 
       EnigmaticClause(vector->clause, clause, info);
+      fprintf(out, prefix);
       PrintEnigmaticVector(GlobalOut, vector);
+      fprintf(out, "\n");
 
       ClauseFree(clause);
-      fprintf(out, "\n");
       EnigmaticClauseReset(vector->clause);
    }
 
@@ -282,6 +299,15 @@ CLState_p process_options(int argc, char* argv[])
          break;
       case OPT_PROBLEM:
          problem_file = arg;
+         break;
+      case OPT_PREFIX:
+         prefix = arg;
+         break;
+      case OPT_PREFIX_POS:
+         prefix = "+1 ";
+         break;
+      case OPT_PREFIX_NEG:
+         prefix = "-0 ";
          break;
       default:
          assert(false);

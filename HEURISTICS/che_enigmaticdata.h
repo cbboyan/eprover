@@ -43,9 +43,10 @@ extern ClausePrioFun ecb_prios[];
 #define EDV_LENGTH          3
 
 /* Enigmatic Feature Count */
-#define EFC_LEN             11
+#define EFC_LEN             13
 #define EFC_VAR(params)     (3*(params->count_var))
 #define EFC_SYM(params)     (6*(params->count_sym))
+#define EFC_ARITY(params)   (4*(params->count_arity))
 #define EFC_PRIOS           22
 #define EFC_VERT(params)    (params->base_vert)
 #define EFC_HORIZ(params)   (params->base_horiz)
@@ -71,6 +72,7 @@ typedef struct enigmaticparamscell
    bool use_prios;
    long count_var;
    long count_sym;
+   long count_arity;
    long length_vert;
    long base_vert;
    long base_horiz;
@@ -80,6 +82,7 @@ typedef struct enigmaticparamscell
    long offset_len;
    long offset_var;
    long offset_sym;
+   long offset_arity;
    long offset_prios;
    long offset_horiz;
    long offset_vert;
@@ -90,6 +93,7 @@ typedef struct enigmaticparamscell
 typedef struct enigmaticfeaturescell
 {
    DStr_p spec;
+   long count; 
 
    long offset_clause;
    long offset_goal;
@@ -113,12 +117,20 @@ typedef struct enigmaticclausecell
    long neg;
    long depth;
    long width;
-   float avg_depth; // rename to avg_lit_depth
-   //float avg_lit_len; avg_lit_width
+   float avg_lit_depth;
+   float avg_lit_len; 
+   float avg_lit_width;
    long pos_eqs;
    long neg_eqs;
    long pos_atoms;
    long neg_atoms;
+   // TODO:
+   // number of function symbols (without repetitions)
+   // number of predicate symbols
+   // number of variables 
+   // count of function occurrences
+   // count of predicate occurrences
+   // count of variable occurrences
    // variable statistics
    long* var_hist;
    long* var_count;
@@ -130,7 +142,13 @@ typedef struct enigmaticclausecell
    long* pred_count;
    float* func_rat;
    float* pred_rat;
+   // arity statistics
+   long* arity_func_hist;
+   long* arity_pred_hist;
+   float* arity_func_rat;
+   float* arity_pred_rat;
    // eprover prio/weights values
+   float prios[EFC_PRIOS];
    // vertical features
    NumTree_p vert;
    // horizontal features
@@ -140,7 +158,6 @@ typedef struct enigmaticclausecell
    // symbol depth statistic features
    NumTree_p depths;
 
-   float prios[EFC_PRIOS];
 
 } EnigmaticClauseCell, *EnigmaticClause_p;
 
@@ -155,7 +172,7 @@ typedef struct enigmaticvectorcell
    EnigmaticClause_p theory;
    // problem features
    float problem_features[EBS_PROBLEM];
-   // proof watch features
+   // TODO: proof watch features
 
 } EnigmaticVectorCell, *EnigmaticVector_p;
 

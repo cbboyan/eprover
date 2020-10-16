@@ -28,7 +28,9 @@ Changes
 /*                        Global Variables                             */
 /*---------------------------------------------------------------------*/
 
-#define DEPTH(info) (info->path->current - (info->pos ? 1 : 0))
+#define DEPTH(info) ((info)->path->current - ((info)->pos ? 1 : 0))
+#define ARITY_IDX(f_code)  (MIN(SigFindArity(info->sig,(f_code)), enigma->params->count_arity-1))
+
 
 /*---------------------------------------------------------------------*/
 /*                      Forward Declarations                           */
@@ -284,6 +286,30 @@ static void update_paths(EnigmaticClause_p enigma, EnigmaticInfo_p info, Term_p 
    update_depths(enigma, info, term);
 }
 
+static void update_prios(EnigmaticClause_p enigma, Clause_p clause)
+{
+   for (int i=0; i<EFC_PRIOS; i++)
+   {
+      enigma->prios[i] += ecb_prios[i](clause);
+   }
+}
+   
+static void update_arities(EnigmaticClause_p enigma, EnigmaticInfo_p info, Term_p term)
+{
+   if (TermIsVar(term)) 
+   {
+      return;
+   }
+   if (SigIsPredicate(info->sig, term->f_code))
+   {
+      enigma->arity_pred_rat[ARITY_IDX(term->f_code)] += 1;
+   }
+   else
+   {
+      enigma->arity_func_rat[ARITY_IDX(term->f_code)] += 1;
+   }
+}
+
 static void update_term(EnigmaticClause_p enigma, EnigmaticInfo_p info, Term_p term)
 {
    PStackPushInt(info->path, term->f_code);
@@ -300,6 +326,7 @@ static void update_term(EnigmaticClause_p enigma, EnigmaticInfo_p info, Term_p t
       }
    }
    enigma->len++;
+   update_arities(enigma, info, term);
    update_occurrences(enigma, info, term);
    update_paths(enigma, info, term);
    PStackPop(info->path);
@@ -327,14 +354,6 @@ static void update_lit(EnigmaticClause_p enigma, EnigmaticInfo_p info, Eqn_p lit
    PStackReset(info->path);
 }
 
-static void update_prios(EnigmaticClause_p enigma, Clause_p clause)
-{
-   for (int i=0; i<EFC_PRIOS; i++)
-   {
-      enigma->prios[i] += ecb_prios[i](clause);
-   }
-}
-
 static void update_clause(EnigmaticClause_p enigma, EnigmaticInfo_p info, Clause_p clause)
 {
    info->var_distinct = 0;
@@ -343,12 +362,14 @@ static void update_clause(EnigmaticClause_p enigma, EnigmaticInfo_p info, Clause
    {
       enigma->depth = 0;
       update_lit(enigma, info, lit);
-      enigma->avg_depth += enigma->depth; // temporarily the sum of literal depths
+      enigma->avg_lit_depth += enigma->depth; // temporarily the sum of literal depths
       max_depth = MAX(max_depth, enigma->depth);
    }
    enigma->depth = max_depth;
    info->var_offset += (2 * info->var_distinct);
    update_prios(enigma, clause);
+   enigma->avg_lit_width = enigma->width / enigma->lits;
+   enigma->avg_lit_len = enigma->len / enigma->lits;
 }
 
 static void update_hist(long* hist, long count, NumTree_p node)
@@ -402,11 +423,13 @@ static void update_hists(EnigmaticClause_p enigma, EnigmaticInfo_p info)
          if (SigIsPredicate(info->sig, node->key))
          {
             update_hist(enigma->pred_hist, enigma->params->count_sym, node);
+            enigma->arity_pred_hist[ARITY_IDX(node->key)]++;
             preds++;
          }
          else
          {
             update_hist(enigma->func_hist, enigma->params->count_sym, node);
+            enigma->arity_func_hist[ARITY_IDX(node->key)]++;
             funcs++;
          }
       }
@@ -433,7 +456,7 @@ void EnigmaticClause(EnigmaticClause_p enigma, Clause_p clause, EnigmaticInfo_p 
 
    info->var_offset = 0;
    update_clause(enigma, info, clause);
-   enigma->avg_depth /= enigma->lits;
+   enigma->avg_lit_depth /= enigma->lits;
    update_hists(enigma, info);
 }
 
@@ -454,7 +477,7 @@ void EnigmaticClauseSet(EnigmaticClause_p enigma, ClauseSet_p set, EnigmaticInfo
    {
       update_clause(enigma, info, clause);
    }
-   enigma->avg_depth /= enigma->lits;
+   enigma->avg_lit_depth /= enigma->lits;
    update_hists(enigma, info);
    if (enigma->params->use_prios) 
    {
