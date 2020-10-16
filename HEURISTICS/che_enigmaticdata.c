@@ -29,8 +29,6 @@ Changes
 
 #define INFO_SETTING(out,name,params,key) fprintf(out,"setting(\"%s:%s\", %ld).\n", name, #key, (long)params->key)
 
-#define RESET_ARRAY(array,len) for (i=0;i<len;i++) { array[i] = 0; }
-
 #define PRINT_INT(key,val) if (val) fprintf(out, "%ld:%ld ", key, val)
 #define PRINT_FLOAT(key,val) if (val) fprintf(out, "%ld:%.2f ", key, val)
 
@@ -423,16 +421,7 @@ static void names_clauses(FILE* out, char* name, EnigmaticParams_p params, long 
 
 static void fill_print(void* data, long key, float val)
 {
-   if ((!val) || (isnan(val))) { return; }
-   FILE* out = data;
-   if (ceilf(val) == val)
-   {
-      fprintf(out, "%ld:%ld ", key, (long)val);
-   }
-   else
-   {
-      fprintf(out, "%ld:%.2f ", key, val);
-   }
+   PrintKeyVal(data, key, val);
 }
 
 static void fill_lengths(FillFunc set, void* data, EnigmaticClause_p clause)
@@ -928,6 +917,7 @@ EnigmaticInfo_p EnigmaticInfoAlloc()
    info->name_cache = NULL;
    info->collect_hashes = false;
    info->hashes = NULL;
+   info->avgs = NULL;
    return info;
 }
 
@@ -963,6 +953,19 @@ void EnigmaticVectorFill(EnigmaticVector_p vector, FillFunc fun, void* data)
    fill_clause(fun, data, vector->goal);
    fill_clause(fun, data, vector->theory);
    fill_problem(fun, data, vector);
+}
+
+void PrintKeyVal(FILE* out, long key, float val)
+{
+   if ((!val) || (isnan(val))) { return; }
+   if (ceilf(val) == val)
+   {
+      fprintf(out, "%ld:%ld ", key, (long)val);
+   }
+   else
+   {
+      fprintf(out, "%ld:%.2f ", key, val);
+   }
 }
 
 void PrintEnigmaticVector(FILE* out, EnigmaticVector_p vector)

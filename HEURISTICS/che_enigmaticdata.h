@@ -63,6 +63,8 @@ extern ClausePrioFun ecb_prios[];
 #define ENIGMATIC_SKO       "?"
 #define ENIGMATIC_EQ        "="
 
+#define RESET_ARRAY(array,len) for (i=0;i<len;i++) { array[i] = 0; }
+
 typedef struct enigmaticparamscell
 {
    long features;
@@ -192,6 +194,7 @@ typedef struct enigmaticinfocell
    StrTree_p name_cache; // stores enigmatized symbol names (skolems & anonymous)
    bool collect_hashes;  // collect feature hash statistics in the below:
    StrTree_p hashes;     //   (hash map :: festure string -> feature hashed id)
+   float* avgs;          // computing the average vector
 } EnigmaticInfoCell, *EnigmaticInfo_p;
 
 typedef void (*FillFunc)(void*, long, float);
@@ -246,6 +249,7 @@ EnigmaticInfo_p EnigmaticInfoAlloc();
 void EnigmaticInfoReset(EnigmaticInfo_p info);
 void EnigmaticInfoFree(EnigmaticInfo_p junk);
 
+void PrintKeyVal(FILE* out, long key, float val);
 void PrintEnigmaticVector(FILE* out, EnigmaticVector_p vector);
 void PrintEnigmaticFeaturesMap(FILE* out, EnigmaticFeatures_p features);
 void PrintEnigmaticFeaturesInfo(FILE* out, EnigmaticFeatures_p features);

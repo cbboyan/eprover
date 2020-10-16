@@ -41,7 +41,8 @@ typedef enum
    OPT_FEATURES,
    OPT_PREFIX,
    OPT_PREFIX_POS,
-   OPT_PREFIX_NEG
+   OPT_PREFIX_NEG,
+   OPT_AVG,
 }OptionCodes;
 
 
@@ -93,6 +94,10 @@ OptCell opts[] =
       '\0', "prefix-neg",
       NoArg, NULL,
       "Same as --prefix=\"-0 \"."},
+   {OPT_AVG,
+      '\0', "avg",
+      NoArg, NULL,
+      "Compute one average vector and output it instead of the clause vectors."},
    {OPT_NOOPT,
       '\0', NULL,
       NoArg, NULL,
@@ -107,6 +112,7 @@ char* problem_file = NULL;
 ProblemType problemType = PROBLEM_FO;
 bool app_encode = false;
 char* prefix = "";
+bool compute_avg = false;
 
 /*---------------------------------------------------------------------*/
 /*                      Forward Declarations                           */
@@ -175,13 +181,20 @@ static void process_problem(char* problem_file, EnigmaticVector_p vector, Enigma
    FormulaSetFree(fset);
 }
 
+static void fill_avg_sum(void* data, long idx, float val)
+{
+   EnigmaticInfo_p info = data;
+   info->avgs[idx] += val;
+}
+
 static void process_clauses(FILE* out, char* filename, EnigmaticVector_p vector, EnigmaticInfo_p info)
 {
    Scanner_p in = CreateScanner(StreamTypeFile, filename, true, NULL, true);
    ScannerSetFormat(in, TSTPFormat);
    Clause_p clause;
    WFormula_p formula = NULL;
-   
+  
+   int count = 0;
    while (TestInpId(in, "input_formula|input_clause|fof|cnf|tff|tcf"))
    {
       if (TestInpId(in, "input_clause|cnf"))
@@ -194,16 +207,33 @@ static void process_clauses(FILE* out, char* filename, EnigmaticVector_p vector,
          clause = EnigmaticFormulaToClause(formula, info);
          WFormulaFree(formula);
       }
-      ClausePrint(out, clause, true);
-      fprintf(out, "\n");
-
       EnigmaticClause(vector->clause, clause, info);
-      fprintf(out, prefix);
-      PrintEnigmaticVector(GlobalOut, vector);
-      fprintf(out, "\n");
+      if (!compute_avg)
+      {
+         ClausePrint(out, clause, true);
+         fprintf(out, "\n");
 
+         fprintf(out, prefix);
+         PrintEnigmaticVector(GlobalOut, vector);
+         fprintf(out, "\n");
+      }
+      else
+      {
+         EnigmaticVectorFill(vector, fill_avg_sum, info);
+      }
+
+      count++;
       ClauseFree(clause);
       EnigmaticClauseReset(vector->clause);
+   }
+
+   if (compute_avg)
+   {
+      fprintf(out, prefix);
+      for (int i=0; i<features->count; i++)
+      {
+         PrintKeyVal(out, i, info->avgs[i] / count);
+      }
    }
 
    CheckInpTok(in, NoToken);
@@ -212,6 +242,7 @@ static void process_clauses(FILE* out, char* filename, EnigmaticVector_p vector,
 
 int main(int argc, char* argv[])
 {
+   int i;
    InitIO(argv[0]);
    CLState_p args = process_options(argc, argv);
    //SetMemoryLimit(2L*1024*MEGA);
@@ -224,6 +255,8 @@ int main(int argc, char* argv[])
    info->sig = state->signature;
    info->bank = state->terms;
    info->collect_hashes = true;
+   info->avgs = SizeMalloc(features->count*sizeof(float));
+   RESET_ARRAY(info->avgs, features->count);
 
    process_problem(problem_file, vector, info);
    process_clauses(GlobalOut, args->argv[0], vector, info);
@@ -238,6 +271,7 @@ int main(int argc, char* argv[])
  
    EnigmaticVectorFree(vector);
    EnigmaticFeaturesFree(features);
+   SizeFree(info->avgs, features->count*sizeof(float));
    EnigmaticInfoFree(info);
    ProofStateFree(state);
    CLStateFree(args);
@@ -309,6 +343,8 @@ CLState_p process_options(int argc, char* argv[])
       case OPT_PREFIX_NEG:
          prefix = "-0 ";
          break;
+      case OPT_AVG:
+         compute_avg = true;
       default:
          assert(false);
          break;
