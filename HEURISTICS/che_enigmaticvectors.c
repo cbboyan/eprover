@@ -40,6 +40,13 @@ Changes
 /*                         Internal Functions                          */
 /*---------------------------------------------------------------------*/
 
+static __inline__ bool is_goal(FormulaProperties props)
+{
+   return ((props == CPTypeNegConjecture) ||
+           (props == CPTypeConjecture) ||
+           (props == CPTypeHypothesis));
+}
+
 static int hist_cmp(const long* x, const long* y, long* hist)
 {
    return hist[(*y)-1] - hist[(*x)-1];
@@ -570,6 +577,70 @@ void EnigmaticProblem(EnigmaticVector_p vector, ClauseSet_p problem, EnigmaticIn
 
    SpecFeatureCellFree(spec);
    SpecLimitsCellFree(limits);
+}
+
+void EnigmaticInitProblem(EnigmaticVector_p vector, EnigmaticInfo_p info, 
+      FormulaSet_p f_axioms, ClauseSet_p axioms)
+{
+   Clause_p clause;
+   bool free_clauses;
+   ClauseSet_p theory = ClauseSetAlloc();
+   ClauseSet_p goal = ClauseSetAlloc();
+ 
+   // if FOF axioms are available, use them
+   if (f_axioms->members)
+   {
+      WFormula_p handle;
+      for (handle=f_axioms->anchor->succ; handle!=f_axioms->anchor; handle=handle->succ)
+      {
+         if (handle->is_clause) 
+         {
+            clause = WFormClauseToClause(handle);
+         }
+         else
+         {
+            clause = EnigmaticFormulaToClause(handle, info);
+         }
+         FormulaProperties props = FormulaQueryType(handle);
+         ClauseSetInsert(is_goal(props) ? goal : theory, clause);
+      }
+      free_clauses = true;
+   }
+   // else use CNF axioms
+   else
+   {
+      Clause_p anchor = axioms->anchor;
+      for (clause=anchor->succ; clause!=anchor; clause=clause->succ)
+      {
+         FormulaProperties props = ClauseQueryTPTPType(clause);
+         ClauseSetInsert(is_goal(props) ? goal : theory, clause);
+      }
+      free_clauses = false;
+   }
+   
+   EnigmaticGoal(vector, goal, info);
+   EnigmaticTheory(vector, theory, info);
+   
+   ClauseSet_p problem = ClauseSetAlloc();
+   ClauseSetInsertSet(problem, theory); // this moves(!) clauses
+   ClauseSetInsertSet(problem, goal);
+   EnigmaticProblem(vector, problem, info);
+
+   if (free_clauses) { ClauseSetFreeClauses(problem); }
+   ClauseSetFree(theory);
+   ClauseSetFree(goal);
+   ClauseSetFree(problem);
+}
+
+void EnigmaticInitEval(char* features_filename, EnigmaticInfo_p* info, 
+      EnigmaticVector_p* vector, ProofState_p proofstate)
+{
+   EnigmaticFeatures_p features = EnigmaticFeaturesLoad(features_filename);
+   *vector = EnigmaticVectorAlloc(features);
+   *info = EnigmaticInfoAlloc();
+   (*info)->sig = proofstate->signature;
+   (*info)->bank = proofstate->terms;
+   (*info)->collect_hashes = false;
 }
 
 /*---------------------------------------------------------------------*/

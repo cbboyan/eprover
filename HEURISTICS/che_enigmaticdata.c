@@ -750,6 +750,22 @@ EnigmaticFeatures_p EnigmaticFeaturesParse(char* spec)
    return features;
 }
 
+EnigmaticFeatures_p EnigmaticFeaturesLoad(char* filename)
+{
+   EnigmaticFeatures_p features;
+   Scanner_p in = CreateScanner(StreamTypeFile, filename, true, NULL, true);
+   ScannerSetFormat(in, TSTPFormat);
+   AcceptInpId(in, "features");
+   AcceptInpTok(in, OpenBracket);
+   CheckInpTok(in, String);
+   features = EnigmaticFeaturesParse(AktToken(in)->literal->string);
+   NextToken(in);
+   AcceptInpTok(in, CloseBracket);
+   AcceptInpTok(in, Fullstop);
+   DestroyScanner(in);
+   return features;
+}
+
 EnigmaticClause_p EnigmaticClauseAlloc(EnigmaticParams_p params)
 {
    EnigmaticClause_p enigma = EnigmaticClauseCellAlloc();
@@ -930,6 +946,10 @@ EnigmaticVector_p EnigmaticVectorAlloc(EnigmaticFeatures_p features)
 
 void EnigmaticVectorFree(EnigmaticVector_p junk)
 {
+   if (junk->features)
+   {
+      EnigmaticFeaturesFree(junk->features);
+   }
    if (junk->clause)
    {
       EnigmaticClauseFree(junk->clause);

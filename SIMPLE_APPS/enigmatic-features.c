@@ -132,49 +132,16 @@ static void process_problem(char* problem_file, EnigmaticVector_p vector, Enigma
       return;
    }
 
-   ClauseSet_p theory = ClauseSetAlloc();
-   ClauseSet_p goal = ClauseSetAlloc();
-
    Scanner_p in = CreateScanner(StreamTypeFile, problem_file, true, NULL, true);
    ScannerSetFormat(in, TSTPFormat);
    ClauseSet_p wlset = ClauseSetAlloc();
    FormulaSet_p fset = FormulaSetAlloc();
-   
    FormulaAndClauseSetParse(in, fset, wlset, info->bank, NULL, NULL);
-   WFormula_p handle;
-   Clause_p clause;
-   for (handle=fset->anchor->succ; handle!=fset->anchor; handle=handle->succ)
-   {
-      bool is_goal = false;
-      if (handle->is_clause) 
-      {
-         clause = WFormClauseToClause(handle);
-      }
-      else
-      {
-         clause = EnigmaticFormulaToClause(handle, info);
-      }
-      FormulaProperties props = FormulaQueryType(handle);
-      is_goal = ((props == CPTypeNegConjecture) ||
-                 (props == CPTypeConjecture) ||
-                 (props == CPTypeHypothesis));
-      ClauseSetInsert(is_goal ? goal : theory, clause);
-   }
    CheckInpTok(in, NoToken);
+
+   EnigmaticInitProblem(vector, info, fset, wlset);
+
    DestroyScanner(in);
-
-   EnigmaticGoal(vector, goal, info);
-   EnigmaticTheory(vector, theory, info);
-
-   ClauseSet_p problem = ClauseSetAlloc();
-   ClauseSetInsertSet(problem, theory); // this moves(!) clauses
-   ClauseSetInsertSet(problem, goal);
-   EnigmaticProblem(vector, problem, info);
-
-   ClauseSetFree(theory);
-   ClauseSetFree(goal);
-   ClauseSetFreeClauses(problem);
-   ClauseSetFree(problem);
    ClauseSetFreeClauses(wlset);
    ClauseSetFree(wlset);
    FormulaSetFreeFormulas(fset);
@@ -270,7 +237,6 @@ int main(int argc, char* argv[])
    }
  
    EnigmaticVectorFree(vector);
-   EnigmaticFeaturesFree(features);
    SizeFree(info->avgs, features->count*sizeof(float));
    EnigmaticInfoFree(info);
    ProofStateFree(state);

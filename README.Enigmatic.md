@@ -10,13 +10,12 @@ Old Style
 Instead of: VHSLCXAPh
 
 
-Enigmatic quick start
----------------------
+Enigmatic features quick start
+------------------------------
 
 
-
-Enigmatic feature specifiers
-----------------------------
+Basic feature specifiers
+------------------------
 
 Enigmatic vectors represent first-order clauses, and consist of several
 independent feature blocks.  Supported blocks are as follows.
@@ -29,7 +28,7 @@ independent feature blocks.  Supported blocks are as follows.
 | `P`    | problem    | embedding of E's problem features
 | `W`    | proofwatch | Proof watch features
 
-**Example.** To specify selected features, construct a _feature specifier_
+**Example 1**. To specify selected features, construct a _feature specifier_
 string, by separating block letters by `:`.
 
 * `C:G:P`
@@ -57,7 +56,13 @@ Letters correspond to specific feature blocks.
 | `d` | maximal positive/negative symbol depths       | *base*     | `b`
 | `a` | anonymize the symbol names                    | -          | -
 
-__Table 1__: Clause block arguments.
+__Table 1__. Clause block arguments.
+
+**Example 2**. Enigma feature specifiers with block arguments.
+
+* `C(l,c,v)`
+* `C(x,c,s):G(v,h,s):P`
+* `C(x,c,s):G:P`
 
 ### Parametric arguments ###
 
@@ -71,14 +76,29 @@ Parameters are of three types:
 | `l`    | *length* | length of vertical walks       | 3
 
 Allowed parameters for each feature block are in _Table 1_.
-Parameters are written as follows:
+
+**Example 3**. Parametric block arguments.
 
 * `C(x[c=10])`
 * `C(l,v[l=10;b=4096]):T(l,x[c=9])` 
 
+### Shortcuts ###
 
-Enigmatic features
-------------------
+1. When arguments are specified for block `C`, the same arguments
+are used for `G` and `T` blocks without arguments.
+
+* `C(v):G` is the same as `C(v):G(v)`
+* `C()` is the same as `C`
+
+2. Each setting of parameters `b`, `c`, or `l` updates its default
+value, and hence any consecutive (reading specifier from left to right) setting
+to the same value can be omitted.
+
+* `C(v[b=256],h):G(h)` is the same as `C(v[b=256],h[b=256]):G([b=256])`
+
+
+Advanced features specifiers
+----------------------------
 
 #### Length statistics (`l`) ####
 
@@ -173,11 +193,6 @@ Converted to a filename:
 
 * `C.v.d3.b256.h.b1024.G.x.c4.P`
 
-Notes:
-
-* Each setting of a parameter `b`, `c`, or `l` updates its default value, and
-  hence any consecutive setting to the same value can be omitted.
-* Thus, `C(v[b=256],h):G(h)` is the same as `C(v[b=256],h[b=256]):G([b=256])`
 
 
 Reasons

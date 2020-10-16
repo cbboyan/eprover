@@ -139,14 +139,6 @@ typedef struct enigmaticclausecell
    long funcs_unique;
    long funcs_shared;
 
-   // TODO:
-   // number of function symbols (without repetitions)
-   // number of predicate symbols
-   // number of variables 
-   // count of function occurrences
-   // count of predicate occurrences
-   // count of variable occurrences
-   // variable statistics
    long* var_hist;
    long* var_count;
    float* var_rat;
@@ -249,6 +241,7 @@ EnigmaticParams_p EnigmaticParamsCopy(EnigmaticParams_p source);
 EnigmaticFeatures_p EnigmaticFeaturesAlloc(void);
 void EnigmaticFeaturesFree(EnigmaticFeatures_p junk);
 EnigmaticFeatures_p EnigmaticFeaturesParse(char* spec);
+EnigmaticFeatures_p EnigmaticFeaturesLoad(char* filename);
 
 EnigmaticClause_p EnigmaticClauseAlloc(EnigmaticParams_p params);
 void EnigmaticClauseFree(EnigmaticClause_p junk);
@@ -261,6 +254,7 @@ void EnigmaticVectorFill(EnigmaticVector_p vector, FillFunc fun, void* data);
 EnigmaticInfo_p EnigmaticInfoAlloc();
 void EnigmaticInfoReset(EnigmaticInfo_p info);
 void EnigmaticInfoFree(EnigmaticInfo_p junk);
+
 
 void PrintKeyVal(FILE* out, long key, float val);
 void PrintEnigmaticVector(FILE* out, EnigmaticVector_p vector);

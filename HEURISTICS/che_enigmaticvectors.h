@@ -23,6 +23,8 @@ Changes
 
 #include <che_enigmaticdata.h>
 #include <ccl_clausesets.h>
+#include <ccl_formulasets.h>
+#include <ccl_proofstate.h>
 
 /*---------------------------------------------------------------------*/
 /*                    Data type declarations                           */
@@ -45,6 +47,12 @@ void EnigmaticTheory(EnigmaticVector_p vector, ClauseSet_p axioms, EnigmaticInfo
 void EnigmaticGoal(EnigmaticVector_p vector, ClauseSet_p goal, EnigmaticInfo_p info);
 
 void EnigmaticProblem(EnigmaticVector_p vector, ClauseSet_p problem, EnigmaticInfo_p info);
+
+void EnigmaticInitProblem(EnigmaticVector_p vector, EnigmaticInfo_p info, 
+      FormulaSet_p f_axioms, ClauseSet_p axioms);
+
+void EnigmaticInitEval(char* features_filename, EnigmaticInfo_p* info, 
+      EnigmaticVector_p* vector, ProofState_p proofstate);
 
 #endif
 
