@@ -472,8 +472,8 @@ static void fill_arities(FillFunc set, void* data, long offset, long len, Enigma
 {
    fill_array_int(set, data, clause->arity_pred_hist, len, offset);
    fill_array_int(set, data, clause->arity_func_hist, len, offset+1*len);
-   fill_array_float(set, data, clause->arity_pred_rat, len, offset+2*len);
-   fill_array_float(set, data, clause->arity_func_rat, len, offset+3*len);
+   fill_array_int(set, data, clause->arity_pred_rat, len, offset+2*len);
+   fill_array_int(set, data, clause->arity_func_rat, len, offset+3*len);
 }
 
 static void fill_hists(FillFunc set, void* data, EnigmaticClause_p clause)
@@ -763,8 +763,8 @@ EnigmaticClause_p EnigmaticClauseAlloc(EnigmaticParams_p params)
    {
       enigma->arity_func_hist = SizeMalloc(params->count_arity*sizeof(long));
       enigma->arity_pred_hist = SizeMalloc(params->count_arity*sizeof(long));
-      enigma->arity_func_rat = SizeMalloc(params->count_arity*sizeof(float));
-      enigma->arity_pred_rat = SizeMalloc(params->count_arity*sizeof(float));
+      enigma->arity_func_rat = SizeMalloc(params->count_arity*sizeof(long));
+      enigma->arity_pred_rat = SizeMalloc(params->count_arity*sizeof(long));
    }
 
    EnigmaticClauseReset(enigma);
@@ -792,8 +792,8 @@ void EnigmaticClauseFree(EnigmaticClause_p junk)
    {
       SizeFree(junk->arity_func_hist, junk->params->count_arity*sizeof(long));
       SizeFree(junk->arity_pred_hist, junk->params->count_arity*sizeof(long));
-      SizeFree(junk->arity_func_rat, junk->params->count_arity*sizeof(float));
-      SizeFree(junk->arity_pred_rat, junk->params->count_arity*sizeof(float));
+      SizeFree(junk->arity_func_rat, junk->params->count_arity*sizeof(long));
+      SizeFree(junk->arity_pred_rat, junk->params->count_arity*sizeof(long));
    }
    if (junk->vert) { NumTreeFree(junk->vert); }
    if (junk->horiz) { NumTreeFree(junk->horiz); }

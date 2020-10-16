@@ -293,20 +293,26 @@ static void update_prios(EnigmaticClause_p enigma, Clause_p clause)
       enigma->prios[i] += ecb_prios[i](clause);
    }
 }
-   
+
+static void update_arity(EnigmaticClause_p enigma, EnigmaticInfo_p info, long* arity, FunCode f_code)
+{
+   if (enigma->params->offset_arity < 0) { return; }
+   arity[ARITY_IDX(f_code)] += 1;
+}
+
 static void update_arities(EnigmaticClause_p enigma, EnigmaticInfo_p info, Term_p term)
 {
-   if (TermIsVar(term)) 
+   if (TermIsVar(term) || (enigma->params->offset_arity < 0)) 
    {
       return;
    }
    if (SigIsPredicate(info->sig, term->f_code))
    {
-      enigma->arity_pred_rat[ARITY_IDX(term->f_code)] += 1;
+      update_arity(enigma, info, enigma->arity_pred_rat, term->f_code);
    }
    else
    {
-      enigma->arity_func_rat[ARITY_IDX(term->f_code)] += 1;
+      update_arity(enigma, info, enigma->arity_func_rat, term->f_code);
    }
 }
 
@@ -423,13 +429,13 @@ static void update_hists(EnigmaticClause_p enigma, EnigmaticInfo_p info)
          if (SigIsPredicate(info->sig, node->key))
          {
             update_hist(enigma->pred_hist, enigma->params->count_sym, node);
-            enigma->arity_pred_hist[ARITY_IDX(node->key)]++;
+            update_arity(enigma, info, enigma->arity_pred_hist, node->key);
             preds++;
          }
          else
          {
             update_hist(enigma->func_hist, enigma->params->count_sym, node);
-            enigma->arity_func_hist[ARITY_IDX(node->key)]++;
+            update_arity(enigma, info, enigma->arity_func_hist, node->key);
             funcs++;
          }
       }

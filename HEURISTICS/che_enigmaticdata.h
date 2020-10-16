@@ -147,8 +147,8 @@ typedef struct enigmaticclausecell
    // arity statistics
    long* arity_func_hist;
    long* arity_pred_hist;
-   float* arity_func_rat;
-   float* arity_pred_rat;
+   long* arity_func_rat;
+   long* arity_pred_rat;
    // eprover prio/weights values
    float prios[EFC_PRIOS];
    // vertical features
