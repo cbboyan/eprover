@@ -257,10 +257,12 @@ void EnigmaticInfoFree(EnigmaticInfo_p junk);
 
 
 void PrintKeyVal(FILE* out, long key, float val);
+void PrintEscapedString(FILE* out, char* str);
+
 void PrintEnigmaticVector(FILE* out, EnigmaticVector_p vector);
 void PrintEnigmaticFeaturesMap(FILE* out, EnigmaticFeatures_p features);
 void PrintEnigmaticFeaturesInfo(FILE* out, EnigmaticFeatures_p features);
-void PrintEnigmaticHashes(FILE* out, EnigmaticInfo_p info);
+void PrintEnigmaticBuckets(FILE* out, EnigmaticInfo_p info);
 
 #endif
 

@@ -1025,6 +1025,28 @@ void PrintKeyVal(FILE* out, long key, float val)
    }
 }
 
+void PrintEscapedString(FILE* out, char* str)
+{
+   fprintf(out, "\"");
+   while (*str)
+   {
+      switch (*str)
+      {
+         case '"':
+            fprintf(out, "\\\"");
+            break;
+         case '\\':
+            fprintf(out, "\\\\");
+            break;
+         default:
+            fprintf(out, "%c", *str);
+            break;
+      }
+      str++;
+   }
+   fprintf(out, "\"");
+}
+
 void PrintEnigmaticVector(FILE* out, EnigmaticVector_p vector)
 {
    EnigmaticVectorFill(vector, fill_print, out);
@@ -1059,15 +1081,22 @@ void PrintEnigmaticFeaturesInfo(FILE* out, EnigmaticFeatures_p features)
    info_settings(out, "theory", features->theory);
 }
 
-void PrintEnigmaticHashes(FILE* out, EnigmaticInfo_p info)
+void PrintEnigmaticBuckets(FILE* out, EnigmaticInfo_p info)
 {
    if (!info->hashes) { return; }
    StrTree_p node;
    PStack_p stack = StrTreeTraverseInit(info->hashes);
-   while ((node = StrTreeTraverseNext(stack)))
+   fprintf(out, "{\n");
+   node = StrTreeTraverseNext(stack);
+   while (node)
    {
-      fprintf(out, "hash(%ld, \"%s\", %ld).\n", node->val1.i_val, node->key, node->val2.i_val);
+      fprintf(out, "\t");
+      PrintEscapedString(out, node->key);
+      fprintf(out, ": [%ld, %ld]", node->val1.i_val, node->val2.i_val);
+      node = StrTreeTraverseNext(stack);
+      fprintf(out, "%s\n", (node ? "," : ""));
    }
+   fprintf(out, "}\n");
    StrTreeTraverseExit(stack);
 }
 

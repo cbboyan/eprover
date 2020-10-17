@@ -41,10 +41,11 @@ include ../Makefile.services
 EPROVER = eprover.o ../lib/CONTROL.a ../lib/HEURISTICS.a\
             ../lib/LEARN.a\
             ../lib/CLAUSES.a ../lib/ORDERINGS.a ../lib/TERMS.a\
-            ../lib/INOUT.a ../lib/BASICS.a  ../lib/CONTRIB.a
+            ../lib/INOUT.a ../lib/BASICS.a  ../lib/CONTRIB.a\
+				../CONTRIB/libs/libxgboost.a ../CONTRIB/libs/librabit.a ../CONTRIB/libs/libdmlc.a
 
 eprover: $(EPROVER)
-	$(LD) -o eprover -L.. $(EPROVER) $(LIBS) -lxgboost 
+	$(LD) -o eprover $(EPROVER) $(LIBS) -lstdc++ -fopenmp
 
 eprover-ho: eprover
 	mv eprover eprover-ho

@@ -36,6 +36,7 @@ typedef enum
    OPT_VERBOSE,
    OPT_OUTPUT,
    OPT_OUTPUT_MAP,
+   OPT_OUTPUT_BUCKETS,
    OPT_FREE_NUMBERS,
    OPT_PROBLEM,
    OPT_FEATURES,
@@ -67,7 +68,11 @@ OptCell opts[] =
    {OPT_OUTPUT_MAP,
       'm', "output-map",
       ReqArg, NULL,
-      "Writes Enigma feature info mapping into the named file."},
+      "Writes Enigmatic feature info mapping into the named file."},
+   {OPT_OUTPUT_BUCKETS,
+      'b', "output-buckets",
+      ReqArg, NULL,
+      "Writes Enigmatic feature hashes (buckets info) into the named file."},
    {OPT_FREE_NUMBERS,
       '\0', "free-numbers",
       NoArg, NULL,
@@ -81,7 +86,7 @@ OptCell opts[] =
    {OPT_PROBLEM,
       'p', "problem",
       ReqArg, NULL,
-      "TPTP problem file in CNF for goal/theory features."},
+      "TPTP problem file goal/theory/problem features embedding."},
    {OPT_PREFIX,
       '\0', "prefix",
       ReqArg, NULL,
@@ -106,6 +111,7 @@ OptCell opts[] =
 
 char *outname = NULL;
 FILE* MapOut = NULL;
+FILE* BucketsOut = NULL;
 FunctionProperties free_symb_prop = FPIgnoreProps;
 EnigmaticFeatures_p features;
 char* problem_file = NULL;
@@ -221,9 +227,13 @@ int main(int argc, char* argv[])
    EnigmaticInfo_p info = EnigmaticInfoAlloc();
    info->sig = state->signature;
    info->bank = state->terms;
-   info->collect_hashes = true;
-   info->avgs = SizeMalloc(features->count*sizeof(float));
-   RESET_ARRAY(info->avgs, features->count);
+   info->collect_hashes = (BucketsOut != NULL);
+   info->avgs = NULL;
+   if (compute_avg)
+   {
+      info->avgs = SizeMalloc(features->count*sizeof(float));
+      RESET_ARRAY(info->avgs, features->count);
+   }
 
    process_problem(problem_file, vector, info);
    process_clauses(GlobalOut, args->argv[0], vector, info);
@@ -232,12 +242,19 @@ int main(int argc, char* argv[])
    {
       PrintEnigmaticFeaturesInfo(MapOut, features);
       PrintEnigmaticFeaturesMap(MapOut, features);
-      PrintEnigmaticHashes(MapOut, info);
       fclose(MapOut);
    }
+   if (BucketsOut)
+   {
+      PrintEnigmaticBuckets(BucketsOut, info);
+      fclose(BucketsOut);
+   }
  
+   if (compute_avg) 
+   {
+      SizeFree(info->avgs, features->count*sizeof(float));
+   }
    EnigmaticVectorFree(vector);
-   SizeFree(info->avgs, features->count*sizeof(float));
    EnigmaticInfoFree(info);
    ProofStateFree(state);
    CLStateFree(args);
@@ -291,6 +308,9 @@ CLState_p process_options(int argc, char* argv[])
       case OPT_OUTPUT_MAP:
          MapOut = fopen(arg, "w");
          break;
+      case OPT_OUTPUT_BUCKETS:
+         BucketsOut = fopen(arg, "w");
+         break;
       case OPT_FREE_NUMBERS:
          free_symb_prop = free_symb_prop|FPIsInteger|FPIsRational|FPIsFloat;
          break;
@@ -339,9 +359,9 @@ CLState_p process_options(int argc, char* argv[])
 void print_help(FILE* out)
 {
    fprintf(out, "\n\
-Usage: enigmatic-features [options] clauses.p\n\
+Usage: enigmatic-features [options] list.p\n\
 \n\
-Make ENIGMA features from TPTP cnf clauses.\n\
+Make ENIGMA features from TPTP cnf/fof/ttf/tcf clauses/formulas.\n\
 \n");
    PrintOptions(stdout, opts, NULL);
 }
