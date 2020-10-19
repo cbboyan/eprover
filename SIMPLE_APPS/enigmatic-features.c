@@ -43,7 +43,9 @@ typedef enum
    OPT_PREFIX,
    OPT_PREFIX_POS,
    OPT_PREFIX_NEG,
-   OPT_AVG,
+   OPT_JOIN_AVG,
+   OPT_JOIN_SUM,
+   OPT_JOIN_MAX,
 }OptionCodes;
 
 
@@ -99,10 +101,18 @@ OptCell opts[] =
       '\0', "prefix-neg",
       NoArg, NULL,
       "Same as --prefix=\"-0 \"."},
-   {OPT_AVG,
+   {OPT_JOIN_AVG,
       '\0', "avg",
       NoArg, NULL,
       "Compute one average vector and output it instead of the clause vectors."},
+   {OPT_JOIN_SUM,
+      '\0', "sum",
+      NoArg, NULL,
+      "Compute the sum of the vectors and output it instead of the clause vectors."},
+   {OPT_JOIN_MAX,
+      '\0', "max",
+      NoArg, NULL,
+      "Compute the maximum of the vectors and output it instead of the clause vectors."},
    {OPT_NOOPT,
       '\0', NULL,
       NoArg, NULL,
@@ -119,6 +129,9 @@ ProblemType problemType = PROBLEM_FO;
 bool app_encode = false;
 char* prefix = "";
 bool compute_avg = false;
+bool compute_max = false;
+bool compute_sum = false;
+int compute_joint = 0;
 
 /*---------------------------------------------------------------------*/
 /*                      Forward Declarations                           */
@@ -140,7 +153,7 @@ static void process_problem(char* problem_file, EnigmaticVector_p vector, Enigma
 
    Scanner_p in = CreateScanner(StreamTypeFile, problem_file, true, NULL, true);
    ScannerSetFormat(in, TSTPFormat);
-   ClauseSet_p wlset = ClauseSetAlloc();
+   ClauseSet_p wlset = ClauseSetAlloc(); // should stay empty all the time
    FormulaSet_p fset = FormulaSetAlloc();
    FormulaAndClauseSetParse(in, fset, wlset, info->bank, NULL, NULL);
    CheckInpTok(in, NoToken);
@@ -154,10 +167,16 @@ static void process_problem(char* problem_file, EnigmaticVector_p vector, Enigma
    FormulaSetFree(fset);
 }
 
-static void fill_avg_sum(void* data, long idx, float val)
+static void fill_sum(void* data, long idx, float val)
 {
    EnigmaticInfo_p info = data;
    info->avgs[idx] += val;
+}
+
+static void fill_max(void* data, long idx, float val)
+{
+   EnigmaticInfo_p info = data;
+   info->avgs[idx] = MAX(val, info->avgs[idx]);
 }
 
 static void process_clauses(FILE* out, char* filename, EnigmaticVector_p vector, EnigmaticInfo_p info)
@@ -181,10 +200,10 @@ static void process_clauses(FILE* out, char* filename, EnigmaticVector_p vector,
          WFormulaFree(formula);
       }
       EnigmaticClause(vector->clause, clause, info);
-      if (!compute_avg)
+      if (!compute_joint)
       {
-         ClausePrint(out, clause, true);
-         fprintf(out, "\n");
+         //ClausePrint(out, clause, true);
+         //fprintf(out, "\n");
 
          fprintf(out, prefix);
          PrintEnigmaticVector(GlobalOut, vector);
@@ -192,7 +211,14 @@ static void process_clauses(FILE* out, char* filename, EnigmaticVector_p vector,
       }
       else
       {
-         EnigmaticVectorFill(vector, fill_avg_sum, info);
+         if (compute_sum || compute_avg) 
+         {
+            EnigmaticVectorFill(vector, fill_sum, info);
+         }
+         else if (compute_max)
+         {
+            EnigmaticVectorFill(vector, fill_max, info);
+         }
       }
 
       count++;
@@ -200,13 +226,15 @@ static void process_clauses(FILE* out, char* filename, EnigmaticVector_p vector,
       EnigmaticClauseReset(vector->clause);
    }
 
-   if (compute_avg)
+   if (compute_joint)
    {
       fprintf(out, prefix);
+      int div = compute_avg ? count : 1;
       for (int i=0; i<features->count; i++)
       {
-         PrintKeyVal(out, i, info->avgs[i] / count);
+         PrintKeyVal(out, i, info->avgs[i] / div);
       }
+      fprintf(out, "\n");
    }
 
    CheckInpTok(in, NoToken);
@@ -229,7 +257,7 @@ int main(int argc, char* argv[])
    info->bank = state->terms;
    info->collect_hashes = (BucketsOut != NULL);
    info->avgs = NULL;
-   if (compute_avg)
+   if (compute_joint)
    {
       info->avgs = SizeMalloc(features->count*sizeof(float));
       RESET_ARRAY(info->avgs, features->count);
@@ -250,7 +278,7 @@ int main(int argc, char* argv[])
       fclose(BucketsOut);
    }
  
-   if (compute_avg) 
+   if (compute_joint) 
    {
       SizeFree(info->avgs, features->count*sizeof(float));
    }
@@ -329,8 +357,18 @@ CLState_p process_options(int argc, char* argv[])
       case OPT_PREFIX_NEG:
          prefix = "-0 ";
          break;
-      case OPT_AVG:
+      case OPT_JOIN_AVG:
          compute_avg = true;
+         compute_joint++;
+         break;
+      case OPT_JOIN_SUM:
+         compute_sum = true;
+         compute_joint++;
+         break;
+      case OPT_JOIN_MAX:
+         compute_max = true;
+         compute_joint++;
+         break;
       default:
          assert(false);
          break;
@@ -342,15 +380,21 @@ CLState_p process_options(int argc, char* argv[])
       print_help(stdout);
       exit(NO_ERROR);
    }
-
    if (!features)
    {
       Error("Please specify features using the --features option.", USAGE_ERROR);
    }
-
    if ((features->goal || features->theory || (features->offset_problem != -1)) && !problem_file)
    {
       Error("Please specify the problem file using the --problem option.", USAGE_ERROR);
+   }
+   if (features->offset_clause == -1)
+   {
+      Error("Clause features block 'C' is mandatory in the feature specifier!", USAGE_ERROR);
+   }
+   if (compute_joint > 1)
+   {
+      Error("Option --max, --avg, and --sum are mutually exclusive. Pleasu select just one of them.", USAGE_ERROR);
    }
    
    return state;

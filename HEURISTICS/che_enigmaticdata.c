@@ -1083,7 +1083,7 @@ void PrintEnigmaticFeaturesInfo(FILE* out, EnigmaticFeatures_p features)
 
 void PrintEnigmaticBuckets(FILE* out, EnigmaticInfo_p info)
 {
-   if (!info->hashes) { return; }
+   if (!info->hashes) { fprintf(out, "{}\n"); return; }
    StrTree_p node;
    PStack_p stack = StrTreeTraverseInit(info->hashes);
    fprintf(out, "{\n");
