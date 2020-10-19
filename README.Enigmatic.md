@@ -7,13 +7,13 @@ Enigmatic Features: Quick Start
 1. To convert a list of clauses/formulas `list.p` to vectors run:
 
 ```
-enigmatic-features --free-numbers --features="C(l,p,x,s,r,v,g,c,d,a)" list.p
+enigmatic-features --free-numbers --features="C(l,p,x,s,r,v,h,c,d,a)" list.p
 ```
 
 2. To embed problem features of `problem.p` in the vectors run:
 
 ```
-enigmatic-features --free-numbers --problem=problem.p --features="C(l,p,x,s,r,v,g,c,d,a):G:T:P" list.p
+enigmatic-features --free-numbers --problem=problem.p --features="C(l,p,x,s,r,v,h,c,d,a):G:T:P" list.p
 ```
 
 3. Supported TPTP roles in clauses and problem file are `cnf`, `fof`, `ttf`, and `tcf`.
