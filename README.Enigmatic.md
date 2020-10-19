@@ -1,22 +1,36 @@
-Design
-======
+Enigmatic Features
+==================
 
-An _Enigma feature specifier_ describes features used to represent a clause.
-It is a string consisting of blocks separated by ":".
+Enigmatic Features: Quick Start
+-------------------------------
 
-Old Style
----------
+1. To convert a list of clauses/formulas `list.p` to vectors run:
 
-Instead of: VHSLCXAPh
+```
+enigmatic-features --free-numbers --features="C(l,p,x,s,r,v,g,c,d,a)" list.p
+```
 
+2. To embed problem features of `problem.p` in the vectors run:
 
-Enigmatic features quick start
-------------------------------
+```
+enigmatic-features --free-numbers --problem=problem.p --features="C(l,p,x,s,r,v,g,c,d,a):G:T:P" list.p
+```
 
+3. Supported TPTP roles in clauses and problem file are `cnf`, `fof`, `ttf`, and `tcf`.
 
-Basic feature specifiers
+4. To print feature map use `--output-map=enigma.map`
+
+5. To print hashing buckets use `--output-buckets=buckets.json`
+
+6. To merge the vectors into one use `--avg`, `--sum`, or `--max`.
+
+7. To prefix vectors with class use `--prefix-pos`, `--prefix-neg`, or `--prefix=str`.
+
+Basic Feature Specifiers
 ------------------------
 
+An _Enigma feature specifier_ (`--features` option) describes features used to
+represent a clause.  It is a string consisting of blocks separated by ":".
 Enigmatic vectors represent first-order clauses, and consist of several
 independent feature blocks.  Supported blocks are as follows.
    
@@ -34,7 +48,7 @@ string, by separating block letters by `:`.
 * `C:G:P`
 * `C:T:P:W`
 
-### Clause block arguments ###
+### Clause Block Arguments ###
 
 Clause blocks `C`, `G`, `T` take additional optional arguments to enable some
 features.  The block with all the features available is written as follows.
@@ -64,7 +78,7 @@ __Table 1__. Clause block arguments.
 * `C(x,c,s):G(v,h,s):P`
 * `C(x,c,s):G:P`
 
-### Parametric arguments ###
+### Parametric Arguments ###
 
 Some block arguments are parametric and take optional parameter/value pairs.
 Parameters are of three types:
@@ -88,7 +102,7 @@ Allowed parameters for each feature block are in _Table 1_.
 are used for `G` and `T` blocks without arguments.
 
 * `C(v):G` is the same as `C(v):G(v)`
-* `C()` is the same as `C`
+* `C()` and `C` are the same as `C(l)`
 
 2. Each setting of parameters `b`, `c`, or `l` updates its default
 value, and hence any consecutive (reading specifier from left to right) setting
@@ -96,8 +110,7 @@ to the same value can be omitted.
 
 * `C(v[b=256],h):G(h)` is the same as `C(v[b=256],h[b=256]):G([b=256])`
 
-
-Advanced features specifiers
+Advanced Features Specifiers
 ----------------------------
 
 #### Length statistics (`l`) ####
@@ -135,78 +148,43 @@ name | meaning
 Offset of these values in the vector can be obtained from the Enigmatic feature
 map (viz `--output-map`).
 
-#### E's priority function values (`p`) ####
+#### E's Priority Function Values (`p`) ####
 
 Values from 22 selected E's clause priority functions.  For their names see the
 feature map (viz `--output-map`).
 
-#### Occurrence histograms (`x`,`s`) ####
+#### Occurrence Histograms (`x`,`s`) ####
 
-#### Arity histograms (`r`) ####
+Compute occurrence histograms for variables (`x`) or function/predicate symbols
+(`s`).  Symbol histograms are computed separately for predicate and function
+symbols.  Hence there are up to 3 histogram blocks (variable, predicates,
+functions).  Each of the blocks contains 3 histograms represented by `count`
+numbers in the vector.  The three histograms are for occurrences, counts, and
+ratios.
 
-#### Syntax tree walks (`v`,`h`)  ####
+#### Arity Histograms (`r`) ####
 
-#### Count/depth statistics (`c`,`d`)  ####
+Histogram for count of symbols by arity, and for occurrences of symbols by
+arity.  Separate histograms for predicate and function symbols.  Hence 4
+histograms of the size `count`.
 
+#### Syntax Tree Walks (`v`,`h`)  ####
 
+Vertical or horizontal syntax tree walks.  Hashing base can specified.
+For vertical walks additionally the length of the walks can be specified using
+the `length` parameter (`l`).  Use `v[l=0]` for walks of the infinite length.
 
-### Block shortcuts ###
+#### Count/Depth Statistics (`c`,`d`)  ####
 
-When arguments are specified for block `C`, the same arguments are used for `G`
-and `T` blocks without arguments.
-
-Example Enigma feature specifiers:
-
-* `C(l,c,v)`
-* `C(x,c,s):G(v,h,s):P`
-* `C(x,c,s):G:P`
-
-Notes:
-
-* `C()` is the same as `C`
-* `C(v):G` is the same as `C(v):G(v)`
-
-Parametric arguments
---------------------
-
-Some block arguments are parametric and take optional parameter/value pairs.
-Allowed parameters are:
-
-* `b`: hash base (default: 1024)
-* `c`: count of variables/symbols in histograms (default: 6)
-* `l`: length of vertical walks (default: 3)
-
-Values are natural numbers.  Pairs are written as `parameter=value`, possibly
-separated by `;` and enclosed between `[` and `]`:
-
-Examples of parametric arguments:
-
-* `x[c=6]`: variable statistics with histograms of size 6
-* `v[l=3;b=256]`: vertical walks of length 3 hashed to 256 buckets
-
-Example parametric specifiers:
-
-* `C(v[l=3;b=256]):G`
-* `C(v[l=3;b=256],h[b=1024]):G(x[c=4]):P`
-
-Converted to a filename:
-
-* `C.v.d3.b256.h.b1024.G.x.c4.P`
-
-
-
-Reasons
-=======
-
-* make the vectors more parametric, and allow to make more complementary models
-* allow easy adding of new features
-* debug memory leaks and merge the code with Stephan's repo
+Symbol counts and depths hashed into specific range.
 
 Developers
 ==========
 
 General
 -------
+
+TODO
 
 Extending feature vectors
 -------------------------
