@@ -70,11 +70,11 @@ OptCell opts[] =
    {OPT_OUTPUT_MAP,
       'm', "output-map",
       ReqArg, NULL,
-      "Writes Enigmatic feature info mapping into the named file."},
+      "Write Enigmatic feature info mapping into the named file."},
    {OPT_OUTPUT_BUCKETS,
       'b', "output-buckets",
       ReqArg, NULL,
-      "Writes Enigmatic feature hashes (buckets info) into the named file."},
+      "Append Enigmatic feature hashes (buckets info) into the named file."},
    {OPT_FREE_NUMBERS,
       '\0', "free-numbers",
       NoArg, NULL,
@@ -337,7 +337,7 @@ CLState_p process_options(int argc, char* argv[])
          MapOut = fopen(arg, "w");
          break;
       case OPT_OUTPUT_BUCKETS:
-         BucketsOut = fopen(arg, "w");
+         BucketsOut = fopen(arg, "a");
          break;
       case OPT_FREE_NUMBERS:
          free_symb_prop = free_symb_prop|FPIsInteger|FPIsRational|FPIsFloat;
@@ -374,7 +374,14 @@ CLState_p process_options(int argc, char* argv[])
          break;
       }
    }
-   
+
+   if ((state->argc == 0) && features)
+   {
+      PrintEnigmaticFeaturesInfo(MapOut ? MapOut : GlobalOut, features);
+      PrintEnigmaticFeaturesMap(MapOut ? MapOut : GlobalOut, features);
+      if (MapOut) { fclose(MapOut); }
+      exit(NO_ERROR);
+   }
    if (state->argc != 1)
    {
       print_help(stdout);

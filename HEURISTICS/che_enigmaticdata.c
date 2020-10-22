@@ -231,7 +231,7 @@ static void parse_vert(
                   USAGE_ERROR, *spec);
             break;
          }
-         parse_maybe(spec, ';');
+         parse_maybe(spec, ':');
       }
       parse_expect(spec, ']');
    }
@@ -370,8 +370,8 @@ static void info_settings(FILE* out, char* name, EnigmaticParams_p params)
    INFO_SETTING(out, name, params, count_sym);
    INFO_SETTING(out, name, params, count_arity);
    INFO_SETTING(out, name, params, length_vert);
-   INFO_SETTING(out, name, params, base_vert);
    INFO_SETTING(out, name, params, base_horiz);
+   INFO_SETTING(out, name, params, base_vert);
    INFO_SETTING(out, name, params, base_count);
    INFO_SETTING(out, name, params, base_depth);
 }
@@ -509,7 +509,7 @@ static void fill_hists(FillFunc set, void* data, EnigmaticClause_p clause)
    fill_hist(set, data, clause->params->offset_sym, clause->params->count_sym,
       clause->pred_hist, clause->pred_count, clause->pred_rat);
    // function symbols
-   fill_hist(set, data, clause->params->offset_sym+clause->params->count_sym, clause->params->count_sym,
+   fill_hist(set, data, clause->params->offset_sym+(3*clause->params->count_sym), clause->params->count_sym,
       clause->func_hist, clause->func_count, clause->func_rat);
    // arity histograms
    fill_arities(set, data, clause->params->offset_arity, clause->params->count_arity, clause);
@@ -546,8 +546,8 @@ static void fill_clause(FillFunc set, void* data, EnigmaticClause_p clause)
    fill_lengths(set, data, clause);
    fill_hists(set, data, clause);
    fill_prios(set, data, clause);
-   fill_hashes(set, data, clause->vert, clause->params->offset_vert);
    fill_hashes(set, data, clause->horiz, clause->params->offset_horiz);
+   fill_hashes(set, data, clause->vert, clause->params->offset_vert);
    fill_hashes(set, data, clause->counts, clause->params->offset_count);
    fill_hashes(set, data, clause->depths, clause->params->offset_depth);
 }
@@ -578,8 +578,8 @@ EnigmaticParams_p EnigmaticParamsAlloc(void)
    params->count_sym = -1;
    params->count_arity = -1;
    params->length_vert = -1;
-   params->base_vert = -1;
    params->base_horiz = -1;
+   params->base_vert = -1;
    params->base_count = -1;
    params->base_depth = -1;
    params->offset_len = -1;
@@ -610,8 +610,8 @@ EnigmaticParams_p EnigmaticParamsCopy(EnigmaticParams_p source)
    params->count_sym = source->count_sym;
    params->count_arity = source->count_arity;
    params->length_vert = source->length_vert;
-   params->base_vert = source->base_vert;
    params->base_horiz = source->base_horiz;
+   params->base_vert = source->base_vert;
    params->base_count = source->base_count;
    params->base_depth = source->base_depth;
    params->offset_len = source->offset_len;
@@ -779,8 +779,8 @@ EnigmaticClause_p EnigmaticClauseAlloc(EnigmaticParams_p params)
    enigma->pred_count = NULL;
    enigma->func_rat = NULL;
    enigma->pred_rat = NULL;
-   enigma->vert = NULL;
    enigma->horiz = NULL;
+   enigma->vert = NULL;
    enigma->counts = NULL;
    enigma->depths = NULL;
 
@@ -835,8 +835,8 @@ void EnigmaticClauseFree(EnigmaticClause_p junk)
       SizeFree(junk->arity_func_occs, junk->params->count_arity*sizeof(long));
       SizeFree(junk->arity_pred_occs, junk->params->count_arity*sizeof(long));
    }
-   if (junk->vert) { NumTreeFree(junk->vert); }
    if (junk->horiz) { NumTreeFree(junk->horiz); }
+   if (junk->vert) { NumTreeFree(junk->vert); }
    if (junk->counts) { NumTreeFree(junk->counts); }
    if (junk->depths) { NumTreeFree(junk->depths); }
    EnigmaticClauseCellFree(junk);
@@ -870,15 +870,15 @@ void EnigmaticClauseReset(EnigmaticClause_p enigma)
    enigma->funcs_unique = 0;
    enigma->funcs_shared = 0;
 
-   if (enigma->vert)
-   {
-      NumTreeFree(enigma->vert);
-      enigma->vert = NULL;
-   }
    if (enigma->horiz)
    {
       NumTreeFree(enigma->horiz);
       enigma->horiz = NULL;
+   }
+   if (enigma->vert)
+   {
+      NumTreeFree(enigma->vert);
+      enigma->vert = NULL;
    }
    if (enigma->counts)
    {
