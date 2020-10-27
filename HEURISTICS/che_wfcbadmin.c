@@ -76,7 +76,7 @@ char* WeightFunParseFunNames[]=
    "ConjectureTreeDistanceWeight",
    "ConjectureTermPrefixWeight",
    "ConjectureStrucDistanceWeight",
-   "EnigmaticWeightXgb",
+   "EnigmaticXgb",
    NULL
 };
 

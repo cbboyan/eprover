@@ -758,7 +758,11 @@ EnigmaticFeatures_p EnigmaticFeaturesLoad(char* filename)
    AcceptInpId(in, "features");
    AcceptInpTok(in, OpenBracket);
    CheckInpTok(in, String);
-   features = EnigmaticFeaturesParse(AktToken(in)->literal->string);
+   // strip '"'
+   char* str = DStrView(AktToken(in)->literal);
+   str[strlen(str)-1] = '\0';
+   str = &str[1];
+   features = EnigmaticFeaturesParse(str);
    NextToken(in);
    AcceptInpTok(in, CloseBracket);
    AcceptInpTok(in, Fullstop);

@@ -583,7 +583,6 @@ void EnigmaticInitProblem(EnigmaticVector_p vector, EnigmaticInfo_p info,
       FormulaSet_p f_axioms, ClauseSet_p axioms)
 {
    Clause_p clause;
-   bool free_clauses;
    ClauseSet_p theory = ClauseSetAlloc();
    ClauseSet_p goal = ClauseSetAlloc();
  
@@ -604,7 +603,6 @@ void EnigmaticInitProblem(EnigmaticVector_p vector, EnigmaticInfo_p info,
          FormulaProperties props = FormulaQueryType(handle);
          ClauseSetInsert(is_goal(props) ? goal : theory, clause);
       }
-      free_clauses = true;
    }
    // else use CNF axioms
    else
@@ -613,9 +611,9 @@ void EnigmaticInitProblem(EnigmaticVector_p vector, EnigmaticInfo_p info,
       for (clause=anchor->succ; clause!=anchor; clause=clause->succ)
       {
          FormulaProperties props = ClauseQueryTPTPType(clause);
-         ClauseSetInsert(is_goal(props) ? goal : theory, clause);
+         Clause_p copy = ClauseCopy(clause, clause->literals->bank);
+         ClauseSetInsert(is_goal(props) ? goal : theory, copy);
       }
-      free_clauses = false;
    }
    
    EnigmaticGoal(vector, goal, info);
@@ -626,7 +624,7 @@ void EnigmaticInitProblem(EnigmaticVector_p vector, EnigmaticInfo_p info,
    ClauseSetInsertSet(problem, goal);
    EnigmaticProblem(vector, problem, info);
 
-   if (free_clauses) { ClauseSetFreeClauses(problem); }
+   ClauseSetFreeClauses(problem); 
    ClauseSetFree(theory);
    ClauseSetFree(goal);
    ClauseSetFree(problem);
