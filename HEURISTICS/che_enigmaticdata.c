@@ -1007,6 +1007,56 @@ void EnigmaticInfoFree(EnigmaticInfo_p junk)
    }
    EnigmaticInfoCellFree(junk);
 }
+void EnigmaticWeightParse(Scanner_p in, char** model_filename, 
+   char** features_filename, int* binary_weights, double* threshold)
+{
+   char* d_prefix = ParseFilename(in);
+   char* d_prfx;
+   if (d_prefix[0] == '"') 
+   {
+      d_prefix[strlen(d_prefix)-1] = '\0';
+      d_prfx = &d_prefix[1];
+   }
+   else 
+   {
+      d_prfx = d_prefix;
+   }
+   AcceptInpTok(in, Comma);
+   *binary_weights = ParseInt(in);
+   AcceptInpTok(in, Comma);
+   *threshold = ParseFloat(in);
+   AcceptInpTok(in, CloseBracket);
+
+   char* d_enigma = getenv("ENIGMATIC_ROOT");
+   if (!d_enigma) 
+   {
+      d_enigma = ".";
+   }
+
+   DStr_p f_model = DStrAlloc();
+   DStrAppendStr(f_model, d_enigma);
+   DStrAppendStr(f_model, "/");
+   DStrAppendStr(f_model, d_prfx);
+   DStrAppendStr(f_model, "/");
+   DStrAppendStr(f_model, "model.xgb");
+   *model_filename = SecureStrdup(DStrView(f_model));
+   DStrFree(f_model);
+
+   DStr_p f_featmap = DStrAlloc();
+   DStrAppendStr(f_featmap, d_enigma);
+   DStrAppendStr(f_featmap, "/");
+   DStrAppendStr(f_featmap, d_prfx);
+   DStrAppendStr(f_featmap, "/");
+   DStrAppendStr(f_featmap, "enigma.map");
+   *features_filename = SecureStrdup(DStrView(f_featmap));
+   DStrFree(f_featmap);
+  
+   free(d_prefix);
+
+
+
+
+}
 
 void EnigmaticVectorFill(EnigmaticVector_p vector, FillFunc fun, void* data)
 {

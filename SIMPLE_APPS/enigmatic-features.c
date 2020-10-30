@@ -288,11 +288,11 @@ int main(int argc, char* argv[])
    CLStateFree(args);
    ExitIO();
 
-#ifdef CLB_MEMORY_DEBUG
-   RegMemCleanUp();
-   MemFlushFreeList();
-   MemDebugPrintStats(stdout);
-#endif
+//#ifdef CLB_MEMORY_DEBUG
+//   RegMemCleanUp();
+//   MemFlushFreeList();
+//   MemDebugPrintStats(stdout);
+//#endif
 
    return 0;
 }

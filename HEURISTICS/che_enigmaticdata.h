@@ -63,7 +63,11 @@ extern ClausePrioFun ecb_prios[];
 #define ENIGMATIC_SKO       "?"
 #define ENIGMATIC_EQ        "="
 
-#define RESET_ARRAY(array,len) for (i=0;i<len;i++) { array[i] = 0; }
+/* Enigmatic weigths */
+#define EW_POS 1.0
+#define EW_NEG 10.0
+
+#define RESET_ARRAY(array,len) for (i=0;i<(len);i++) { (array)[i] = 0; }
 
 typedef struct enigmaticparamscell
 {
@@ -255,6 +259,8 @@ EnigmaticInfo_p EnigmaticInfoAlloc();
 void EnigmaticInfoReset(EnigmaticInfo_p info);
 void EnigmaticInfoFree(EnigmaticInfo_p junk);
 
+void EnigmaticWeightParse(Scanner_p in, char** model_filename, 
+   char** features_filename, int* binary_weights, double* threshold);
 
 void PrintKeyVal(FILE* out, long key, float val);
 void PrintEscapedString(FILE* out, char* str);
