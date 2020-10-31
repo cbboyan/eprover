@@ -641,21 +641,21 @@ void EnigmaticInitEval(char* features_filename, EnigmaticInfo_p* info,
    (*info)->collect_hashes = false;
 }
 
-/*
-double EnigmaticPredict(
-   Clause_p clause, 
-   EnigmaticVector_p vector, 
-   EnigmaticInfo_p info,
-   FillFunc fill,
-   PredictFunc predict,
-   void* data)
+void EnigmaticInit(EnigmaticModel_p model, ProofState_p proofstate)
 {
-   EnigmaticClauseReset(vector->clause);
-   EnigmaticClause(vector->clause, clause, info);
-   EnigmaticVectorFill(vector, fill, data);
-   return predict(data);
+   EnigmaticInitEval(
+      model->features_filename, 
+      &model->info, 
+      &model->vector, 
+      proofstate
+   );
+   EnigmaticInitProblem(
+      model->vector, 
+      model->info, 
+      proofstate->f_axioms, 
+      proofstate->axioms
+   );
 }
-*/
 
 double EnigmaticWeight(double pred, int binary_weights, double threshold)
 {

@@ -36,21 +36,16 @@ typedef struct enigmaticweightxgbparamcell
    OCB_p        ocb;
    ProofState_p proofstate;
 
-   char* model_filename;
-   char* features_filename;
-   int binary_weights;
-   double threshold;
-
-   BoosterHandle xgboost_model;
-   EnigmaticVector_p vector;
-   EnigmaticInfo_p info;
+   EnigmaticModel_p model1;
+   EnigmaticModel_p model2;
 
    unsigned int* xgb_indices;
    float* xgb_data;
    int xgb_count;
+   long xgb_size;
    
    void   (*init_fun)(struct enigmaticweightxgbparamcell*);
-}EnigmaticWeightXgbParamCell, *EnigmaticWeightXgbParam_p;
+} EnigmaticWeightXgbParamCell, *EnigmaticWeightXgbParam_p;
 
 /*---------------------------------------------------------------------*/
 /*                Exported Functions and Variables                     */
@@ -73,10 +68,8 @@ WFCB_p EnigmaticWeightXgbInit(
    ClausePrioFun prio_fun, 
    OCB_p ocb,
    ProofState_p proofstate,
-   char* model_filename,
-   char* features_filename,
-   int binary_weights,
-   double threshold);
+   EnigmaticModel_p model1,
+   EnigmaticModel_p model2);
 
 double EnigmaticWeightXgbCompute(void* data, Clause_p clause);
 

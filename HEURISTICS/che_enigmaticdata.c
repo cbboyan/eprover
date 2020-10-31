@@ -1007,14 +1007,46 @@ void EnigmaticInfoFree(EnigmaticInfo_p junk)
    }
    EnigmaticInfoCellFree(junk);
 }
-void EnigmaticWeightParse(Scanner_p in, char** model_filename, 
-   char** features_filename, int* binary_weights, double* threshold, char* model_name)
+
+EnigmaticModel_p EnigmaticModelAlloc(void)
 {
+   EnigmaticModel_p model = EnigmaticModelCellAlloc();
+   model->handle = NULL;
+   model->info = NULL;
+   model->vector = NULL;
+   return model;
+}
+
+void EnigmaticModelFree(EnigmaticModel_p junk)
+{
+   if (junk->model_filename)
+   {
+      FREE(junk->model_filename);
+   }
+   if (junk->features_filename)
+   {
+      FREE(junk->features_filename);
+   }
+   if (junk->vector)
+   {
+      EnigmaticVectorFree(junk->vector);
+   }
+   if (junk->info)
+   {
+      EnigmaticInfoFree(junk->info);
+   }
+   EnigmaticModelCellFree(junk);
+}
+
+EnigmaticModel_p EnigmaticWeightParse(Scanner_p in, char* model_name)
+{
+   EnigmaticModel_p model = EnigmaticModelAlloc();
    char* d_prefix = ParseFilename(in);
    char* d_prfx;
+   int len_prefix = strlen(d_prefix);
    if (d_prefix[0] == '"') 
    {
-      d_prefix[strlen(d_prefix)-1] = '\0';
+      d_prefix[len_prefix-1] = '\0';
       d_prfx = &d_prefix[1];
    }
    else 
@@ -1022,9 +1054,9 @@ void EnigmaticWeightParse(Scanner_p in, char** model_filename,
       d_prfx = d_prefix;
    }
    AcceptInpTok(in, Comma);
-   *binary_weights = ParseInt(in);
+   model->binary_weights = ParseInt(in);
    AcceptInpTok(in, Comma);
-   *threshold = ParseFloat(in);
+   model->threshold = ParseFloat(in);
    AcceptInpTok(in, CloseBracket);
 
    char* d_enigma = getenv("ENIGMATIC_ROOT");
@@ -1039,7 +1071,7 @@ void EnigmaticWeightParse(Scanner_p in, char** model_filename,
    DStrAppendStr(f_model, d_prfx);
    DStrAppendStr(f_model, "/");
    DStrAppendStr(f_model, model_name);
-   *model_filename = SecureStrdup(DStrView(f_model));
+   model->model_filename = SecureStrdup(DStrView(f_model));
    DStrFree(f_model);
 
    DStr_p f_featmap = DStrAlloc();
@@ -1048,10 +1080,12 @@ void EnigmaticWeightParse(Scanner_p in, char** model_filename,
    DStrAppendStr(f_featmap, d_prfx);
    DStrAppendStr(f_featmap, "/");
    DStrAppendStr(f_featmap, "enigma.map");
-   *features_filename = SecureStrdup(DStrView(f_featmap));
+   model->features_filename = SecureStrdup(DStrView(f_featmap));
    DStrFree(f_featmap);
-  
-   free(d_prefix);
+ 
+   FREE(d_prefix);
+
+   return model;
 }
 
 void EnigmaticVectorFill(EnigmaticVector_p vector, FillFunc fun, void* data)

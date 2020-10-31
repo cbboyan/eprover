@@ -206,6 +206,17 @@ typedef struct enigmaticinfocell
    float* avgs;          // computing the average vector
 } EnigmaticInfoCell, *EnigmaticInfo_p;
 
+typedef struct enigmaticmodelcell
+{
+   char* model_filename;
+   char* features_filename;
+   int binary_weights;
+   double threshold;
+   void* handle;
+   EnigmaticInfo_p info;
+   EnigmaticVector_p vector;
+} EnigmaticModelCell, *EnigmaticModel_p;
+
 typedef void (*FillFunc)(void*, long, float);
 
 typedef double (*PredictFunc)(void*);
@@ -240,6 +251,11 @@ typedef double (*PredictFunc)(void*);
 #define EnigmaticInfoCellFree(junk) \
         SizeFree(junk, sizeof(EnigmaticInfoCell))
 
+#define EnigmaticModelCellAlloc() (EnigmaticModelCell*) \
+        SizeMalloc(sizeof(EnigmaticModelCell))
+#define EnigmaticModelCellFree(junk) \
+        SizeFree(junk, sizeof(EnigmaticModelCell))
+
 EnigmaticParams_p EnigmaticParamsAlloc(void);
 void EnigmaticParamsFree(EnigmaticParams_p junk);
 EnigmaticParams_p EnigmaticParamsCopy(EnigmaticParams_p source);
@@ -261,9 +277,10 @@ EnigmaticInfo_p EnigmaticInfoAlloc();
 void EnigmaticInfoReset(EnigmaticInfo_p info);
 void EnigmaticInfoFree(EnigmaticInfo_p junk);
 
-void EnigmaticWeightParse(Scanner_p in, char** model_filename, 
-   char** features_filename, int* binary_weights, double* threshold, 
-   char* model_name);
+EnigmaticModel_p EnigmaticModelAlloc(void);
+void EnigmaticModelFree(EnigmaticModel_p junk);
+
+EnigmaticModel_p EnigmaticWeightParse(Scanner_p in, char* model_name);
 
 void PrintKeyVal(FILE* out, long key, float val);
 void PrintEscapedString(FILE* out, char* str);
