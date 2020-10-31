@@ -178,7 +178,7 @@ WFCB_p EnigmaticWeightXgbParse(
    prio_fun = ParsePrioFun(in);
    AcceptInpTok(in, Comma);
 
-   EnigmaticWeightParse(in, &model_filename, &features_filename, &binary_weights, &threshold);
+   EnigmaticWeightParse(in, &model_filename, &features_filename, &binary_weights, &threshold, "model.xgb");
 
    return EnigmaticWeightXgbInit(
       prio_fun, 
@@ -219,13 +219,19 @@ WFCB_p EnigmaticWeightXgbInit(
 
 double EnigmaticWeightXgbCompute(void* data, Clause_p clause)
 {
-   EnigmaticWeightXgbParam_p local;
-   double res = 1.0;
+   EnigmaticWeightXgbParam_p local = data;
+   double pred, res;
 
-   local = data;
    local->init_fun(data);
    local->xgb_count = 0;
-   
+   //pred = EnigmaticPredict(clause, local->vector, local->info, xgb_fill, xgb_predict, data);
+   EnigmaticClauseReset(local->vector->clause);
+   EnigmaticClause(local->vector->clause, clause, local->info);
+   EnigmaticVectorFill(local->vector, xgb_fill, data);
+   pred = xgb_predict(data);
+   res = EnigmaticWeight(pred, local->binary_weights, local->threshold);
+
+   /*
    EnigmaticClause(local->vector->clause, clause, local->info);
    EnigmaticVectorFill(local->vector, xgb_fill, local);
    EnigmaticClauseReset(local->vector->clause);
@@ -240,6 +246,7 @@ double EnigmaticWeightXgbCompute(void* data, Clause_p clause)
    {
       res = 1 + ((EW_POS - pred) * EW_NEG);
    }
+   */
 
    if (OutputLevel>=1) 
    {

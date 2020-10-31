@@ -641,6 +641,37 @@ void EnigmaticInitEval(char* features_filename, EnigmaticInfo_p* info,
    (*info)->collect_hashes = false;
 }
 
+/*
+double EnigmaticPredict(
+   Clause_p clause, 
+   EnigmaticVector_p vector, 
+   EnigmaticInfo_p info,
+   FillFunc fill,
+   PredictFunc predict,
+   void* data)
+{
+   EnigmaticClauseReset(vector->clause);
+   EnigmaticClause(vector->clause, clause, info);
+   EnigmaticVectorFill(vector, fill, data);
+   return predict(data);
+}
+*/
+
+double EnigmaticWeight(double pred, int binary_weights, double threshold)
+{
+   double res;
+   if (binary_weights)
+   {
+      res = (pred <= threshold) ? EW_NEG : EW_POS; 
+   }
+   else
+   {
+      res = 1 + ((EW_POS - pred) * EW_NEG);
+   }
+   return res;
+}
+
+
 /*---------------------------------------------------------------------*/
 /*                        End of File                                  */
 /*---------------------------------------------------------------------*/

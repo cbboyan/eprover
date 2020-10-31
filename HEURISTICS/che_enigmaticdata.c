@@ -1008,7 +1008,7 @@ void EnigmaticInfoFree(EnigmaticInfo_p junk)
    EnigmaticInfoCellFree(junk);
 }
 void EnigmaticWeightParse(Scanner_p in, char** model_filename, 
-   char** features_filename, int* binary_weights, double* threshold)
+   char** features_filename, int* binary_weights, double* threshold, char* model_name)
 {
    char* d_prefix = ParseFilename(in);
    char* d_prfx;
@@ -1038,7 +1038,7 @@ void EnigmaticWeightParse(Scanner_p in, char** model_filename,
    DStrAppendStr(f_model, "/");
    DStrAppendStr(f_model, d_prfx);
    DStrAppendStr(f_model, "/");
-   DStrAppendStr(f_model, "model.xgb");
+   DStrAppendStr(f_model, model_name);
    *model_filename = SecureStrdup(DStrView(f_model));
    DStrFree(f_model);
 
@@ -1052,10 +1052,6 @@ void EnigmaticWeightParse(Scanner_p in, char** model_filename,
    DStrFree(f_featmap);
   
    free(d_prefix);
-
-
-
-
 }
 
 void EnigmaticVectorFill(EnigmaticVector_p vector, FillFunc fun, void* data)

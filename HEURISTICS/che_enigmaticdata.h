@@ -208,6 +208,8 @@ typedef struct enigmaticinfocell
 
 typedef void (*FillFunc)(void*, long, float);
 
+typedef double (*PredictFunc)(void*);
+
 /*---------------------------------------------------------------------*/
 /*                Exported Functions and Variables                     */
 /*---------------------------------------------------------------------*/
@@ -260,7 +262,8 @@ void EnigmaticInfoReset(EnigmaticInfo_p info);
 void EnigmaticInfoFree(EnigmaticInfo_p junk);
 
 void EnigmaticWeightParse(Scanner_p in, char** model_filename, 
-   char** features_filename, int* binary_weights, double* threshold);
+   char** features_filename, int* binary_weights, double* threshold, 
+   char* model_name);
 
 void PrintKeyVal(FILE* out, long key, float val);
 void PrintEscapedString(FILE* out, char* str);
