@@ -45,7 +45,7 @@ static void lgb_load(EnigmaticModel_p model)
    LGB(LGBM_BoosterCreateFromModelfile(
       model->model_filename, 
       &iters, 
-      model->handle
+      &model->handle
    ));
 }
 
@@ -56,23 +56,28 @@ static void lgb_init(EnigmaticWeightLgbParam_p data)
       return;
    }
 
-   lgb_load(data->model1);
+   data->load_fun(data->model1);
    EnigmaticInit(data->model1, data->proofstate);
    data->lgb_size = data->model1->vector->features->count;
-
+   if (data->model2)
+   {
+      data->load_fun(data->model2);
+      EnigmaticInit(data->model2, data->proofstate);
+      data->lgb_size = MAX(data->lgb_size, data->model2->vector->features->count);
+   }
    data->lgb_indices = SizeMalloc(data->lgb_size*sizeof(int32_t));
    data->lgb_data = SizeMalloc(data->lgb_size*sizeof(float));
    
-   fprintf(GlobalOut, "# ENIGMATIC: LightGBM model1 '%s' loaded with %ld features '%s'\n",
+   fprintf(GlobalOut, "# ENIGMATIC: LightGBM model #1 '%s' loaded with %ld features '%s'\n",
       data->model1->model_filename, 
       data->model1->vector->features->count, 
       DStrView(data->model1->vector->features->spec)
    );
    if (data->model2)
    {
-      fprintf(GlobalOut, "# ENIGMATIC: LightGBM model2 '%s' loaded with %ld features '%s'\n",
+      fprintf(GlobalOut, "# ENIGMATIC: LightGBM model #2 '%s' loaded with %ld features '%s'\n",
          data->model2->model_filename, 
-         data->model1->vector->features->count, 
+         data->model2->vector->features->count, 
          DStrView(data->model1->vector->features->spec)
       );
    }
@@ -88,12 +93,12 @@ static void lgb_fill(void* data, long idx, float val)
    local->lgb_count++;
 }
 
-static double lgb_predict(void* data)
+static double lgb_predict(void* data, EnigmaticModel_p model)
 {
    EnigmaticWeightLgbParam_p local = data;
 
    int64_t lgb_nelem = local->lgb_count;
-   int64_t lgb_num_col = local->model1->vector->features->count;
+   int64_t lgb_num_col = model->vector->features->count;
    int64_t lgb_nindptr = 2;
    static int32_t lgb_indptr[2];
    lgb_indptr[0] = 0;
@@ -102,7 +107,7 @@ static double lgb_predict(void* data)
    int64_t out_len = 0L;
    double pred[2];
    LGB(LGBM_BoosterPredictForCSRSingleRow(
-      local->model1->handle, 
+      model->handle, 
       lgb_indptr, 
       C_API_DTYPE_INT32,
       local->lgb_indices, 
@@ -134,6 +139,9 @@ EnigmaticWeightLgbParam_p EnigmaticWeightLgbParamAlloc(void)
    res->model2 = NULL;
    res->lgb_indices = NULL;
    res->lgb_data = NULL;
+   res->fill_fun = lgb_fill;
+   res->predict_fun = lgb_predict;
+   res->load_fun = lgb_load;
 
    return res;
 }
@@ -142,7 +150,7 @@ void EnigmaticWeightLgbParamFree(EnigmaticWeightLgbParam_p junk)
 {
    if (junk->lgb_indices)
    {
-      SizeFree(junk->lgb_indices, junk->lgb_size*sizeof(unsigned int));
+      SizeFree(junk->lgb_indices, junk->lgb_size*sizeof(int32_t));
    }
    if (junk->lgb_data)
    {
@@ -173,20 +181,31 @@ WFCB_p EnigmaticWeightLgbParse(
    OCB_p ocb, 
    ProofState_p state)
 {   
+   EnigmaticModel_p model1;
+   EnigmaticModel_p model2 = NULL;
    ClausePrioFun prio_fun;
 
    AcceptInpTok(in, OpenBracket);
    prio_fun = ParsePrioFun(in);
    AcceptInpTok(in, Comma);
-
-   EnigmaticModel_p model1 = EnigmaticWeightParse(in, "model.lgb");
+   model1 = EnigmaticWeightParse(in, "model.lgb");
+   if (TestInpTok(in, Comma))
+   {
+      if (!model1->binary_weights) 
+      {
+         Error("ENIGMATIC: In the two-phases evaluation, the first model must have binary weights (1)!", USAGE_ERROR);
+      }
+      NextToken(in);
+      model2 = EnigmaticWeightParse(in, "model.lgb");
+   }
+   AcceptInpTok(in, CloseBracket);
 
    return EnigmaticWeightLgbInit(
       prio_fun, 
       ocb,
       state,
       model1,
-      NULL);
+      model2);
 }
 
 WFCB_p EnigmaticWeightLgbInit(
@@ -210,18 +229,36 @@ WFCB_p EnigmaticWeightLgbInit(
       data);
 }
 
+double EnigmaticPredictLgb(Clause_p clause, EnigmaticWeightLgbParam_p local, EnigmaticModel_p model)
+{
+   if (!model)
+   {
+      model = local->model1;
+   }
+   local->lgb_count = 0;
+   return EnigmaticPredict(clause, model, local, local->fill_fun, local->predict_fun);
+}
+
 double EnigmaticWeightLgbCompute(void* data, Clause_p clause)
 {
    EnigmaticWeightLgbParam_p local = data;
    double pred, res;
 
    local->init_fun(data);
-   local->lgb_count = 0;
-   EnigmaticClauseReset(local->model1->vector->clause);
-   EnigmaticClause(local->model1->vector->clause, clause, local->model1->info);
-   EnigmaticVectorFill(local->model1->vector, lgb_fill, data);
-   pred = lgb_predict(data);
+   pred = EnigmaticPredictLgb(clause, local, local->model1);
    res = EnigmaticWeight(pred, local->model1->binary_weights, local->model1->threshold);
+   if (local->model2)
+   {
+      if (res == EW_POS)
+      {
+         pred = EnigmaticPredictLgb(clause, local, local->model2);
+         res = EnigmaticWeight(pred, local->model2->binary_weights, local->model2->threshold);
+      }
+      else
+      {
+         res = EW_WORST;
+      }
+   }
 
    if (OutputLevel>=1) 
    {

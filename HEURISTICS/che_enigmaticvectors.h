@@ -56,6 +56,9 @@ void EnigmaticInitEval(char* features_filename, EnigmaticInfo_p* info,
 
 void EnigmaticInit(EnigmaticModel_p model, ProofState_p proofstate);
 
+double EnigmaticPredict(Clause_p clause, EnigmaticModel_p model, void* data,
+   FillFunc fill_func, PredictFunc predict_func);
+
 double EnigmaticWeight(double pred, int binary_weights, double threshold);
 
 #endif

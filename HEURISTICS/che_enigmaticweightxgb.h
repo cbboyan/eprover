@@ -44,6 +44,9 @@ typedef struct enigmaticweightxgbparamcell
    int xgb_count;
    long xgb_size;
    
+   FillFunc fill_fun;
+   PredictFunc predict_fun;
+   LoadFunc load_fun;
    void   (*init_fun)(struct enigmaticweightxgbparamcell*);
 } EnigmaticWeightXgbParamCell, *EnigmaticWeightXgbParam_p;
 
@@ -70,6 +73,8 @@ WFCB_p EnigmaticWeightXgbInit(
    ProofState_p proofstate,
    EnigmaticModel_p model1,
    EnigmaticModel_p model2);
+
+double EnigmaticPredictXgb(Clause_p clause, EnigmaticWeightXgbParam_p local, EnigmaticModel_p model);
 
 double EnigmaticWeightXgbCompute(void* data, Clause_p clause);
 

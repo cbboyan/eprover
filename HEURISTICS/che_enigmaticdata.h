@@ -66,6 +66,7 @@ extern ClausePrioFun ecb_prios[];
 /* Enigmatic weigths */
 #define EW_POS 1.0
 #define EW_NEG 10.0
+#define EW_WORST 100.0
 
 #define RESET_ARRAY(array,len) for (i=0;i<(len);i++) { (array)[i] = 0; }
 
@@ -219,7 +220,9 @@ typedef struct enigmaticmodelcell
 
 typedef void (*FillFunc)(void*, long, float);
 
-typedef double (*PredictFunc)(void*);
+typedef double (*PredictFunc)(void*, struct enigmaticmodelcell*);
+
+typedef void (*LoadFunc)(struct enigmaticmodelcell*);
 
 /*---------------------------------------------------------------------*/
 /*                Exported Functions and Variables                     */
@@ -279,7 +282,7 @@ void EnigmaticInfoFree(EnigmaticInfo_p junk);
 
 EnigmaticModel_p EnigmaticModelAlloc(void);
 void EnigmaticModelFree(EnigmaticModel_p junk);
-
+EnigmaticModel_p EnigmaticModelCreate(char* d_prefix, char* model_name);
 EnigmaticModel_p EnigmaticWeightParse(Scanner_p in, char* model_name);
 
 void PrintKeyVal(FILE* out, long key, float val);

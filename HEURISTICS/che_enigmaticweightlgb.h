@@ -43,7 +43,10 @@ typedef struct enigmaticweightlgbparamcell
    float* lgb_data;
    int lgb_count;
    long lgb_size;
-   
+
+   FillFunc fill_fun;
+   PredictFunc predict_fun;
+   LoadFunc load_fun;
    void   (*init_fun)(struct enigmaticweightlgbparamcell*);
 } EnigmaticWeightLgbParamCell, *EnigmaticWeightLgbParam_p;
 
@@ -70,6 +73,8 @@ WFCB_p EnigmaticWeightLgbInit(
    ProofState_p proofstate,
    EnigmaticModel_p model1,
    EnigmaticModel_p model2);
+
+double EnigmaticPredictLgb(Clause_p clause, EnigmaticWeightLgbParam_p local, EnigmaticModel_p model);
 
 double EnigmaticWeightLgbCompute(void* data, Clause_p clause);
 

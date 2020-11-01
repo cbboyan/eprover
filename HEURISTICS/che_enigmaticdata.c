@@ -1038,10 +1038,9 @@ void EnigmaticModelFree(EnigmaticModel_p junk)
    EnigmaticModelCellFree(junk);
 }
 
-EnigmaticModel_p EnigmaticWeightParse(Scanner_p in, char* model_name)
+EnigmaticModel_p EnigmaticModelCreate(char* d_prefix, char* model_name)
 {
    EnigmaticModel_p model = EnigmaticModelAlloc();
-   char* d_prefix = ParseFilename(in);
    char* d_prfx;
    int len_prefix = strlen(d_prefix);
    if (d_prefix[0] == '"') 
@@ -1053,11 +1052,6 @@ EnigmaticModel_p EnigmaticWeightParse(Scanner_p in, char* model_name)
    {
       d_prfx = d_prefix;
    }
-   AcceptInpTok(in, Comma);
-   model->binary_weights = ParseInt(in);
-   AcceptInpTok(in, Comma);
-   model->threshold = ParseFloat(in);
-   AcceptInpTok(in, CloseBracket);
 
    char* d_enigma = getenv("ENIGMATIC_ROOT");
    if (!d_enigma) 
@@ -1083,8 +1077,18 @@ EnigmaticModel_p EnigmaticWeightParse(Scanner_p in, char* model_name)
    model->features_filename = SecureStrdup(DStrView(f_featmap));
    DStrFree(f_featmap);
  
-   FREE(d_prefix);
+   return model;
+}
 
+EnigmaticModel_p EnigmaticWeightParse(Scanner_p in, char* model_name)
+{
+   char* d_prefix = ParseFilename(in);
+   EnigmaticModel_p model = EnigmaticModelCreate(d_prefix, model_name);
+   AcceptInpTok(in, Comma);
+   model->binary_weights = ParseInt(in);
+   AcceptInpTok(in, Comma);
+   model->threshold = ParseFloat(in);
+   FREE(d_prefix);
    return model;
 }
 

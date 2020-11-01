@@ -41,10 +41,6 @@ Changes
 
 static void xgb_load(EnigmaticModel_p model)
 {
-   int major, minor, patch;
-   XGBoostVersion(&major, &minor, &patch);
-   fprintf(GlobalOut, "# ENIGMATIC: Using XGBoost version %d.%d.%d\n", major, minor, patch);
-
    XGB(XGBoosterCreate(NULL, 0, &model->handle));
    XGB(XGBoosterLoadModel(
       model->handle, 
@@ -59,21 +55,30 @@ static void xgb_init(EnigmaticWeightXgbParam_p data)
       return;
    }
 
-   xgb_load(data->model1);
+   int major, minor, patch;
+   XGBoostVersion(&major, &minor, &patch);
+   fprintf(GlobalOut, "# ENIGMATIC: Using XGBoost version %d.%d.%d\n", major, minor, patch);
+
+   data->load_fun(data->model1);
    EnigmaticInit(data->model1, data->proofstate);
    data->xgb_size = data->model1->vector->features->count;
-
+   if (data->model2)
+   {
+      data->load_fun(data->model2);
+      EnigmaticInit(data->model2, data->proofstate);
+      data->xgb_size = MAX(data->xgb_size, data->model2->vector->features->count);
+   }
    data->xgb_indices = SizeMalloc(data->xgb_size*sizeof(unsigned int));
    data->xgb_data = SizeMalloc(data->xgb_size*sizeof(float));
    
-   fprintf(GlobalOut, "# ENIGMATIC: XGBoost model1 '%s' loaded with %ld features '%s'\n",
+   fprintf(GlobalOut, "# ENIGMATIC: XGBoost model #1 '%s' loaded with %ld features '%s'\n",
       data->model1->model_filename, 
       data->model1->vector->features->count, 
       DStrView(data->model1->vector->features->spec)
    );
    if (data->model2)
    {
-      fprintf(GlobalOut, "# ENIGMATIC: XGBoost model2 '%s' loaded with %ld features '%s'\n",
+      fprintf(GlobalOut, "# ENIGMATIC: XGBoost model #2 '%s' loaded with %ld features '%s'\n",
          data->model2->model_filename, 
          data->model2->vector->features->count, 
          DStrView(data->model2->vector->features->spec)
@@ -91,12 +96,12 @@ static void xgb_fill(void* data, long idx, float val)
    local->xgb_count++;
 }
 
-static double xgb_predict(void* data)
+static double xgb_predict(void* data, EnigmaticModel_p model)
 {
    EnigmaticWeightXgbParam_p local = data;
    
    size_t xgb_nelem = local->xgb_count;
-   size_t xgb_num_col = local->model1->vector->features->count;
+   size_t xgb_num_col = model->vector->features->count;
    size_t xgb_nindptr = 2;
    static bst_ulong xgb_indptr[2];
    xgb_indptr[0] = 0L;
@@ -115,7 +120,7 @@ static double xgb_predict(void* data)
    bst_ulong out_len = 0L;
    const float* pred;
    XGB(XGBoosterPredict(
-      (BoosterHandle)local->model1->handle, 
+      (BoosterHandle)model->handle, 
       xgb_matrix, 
       0, 
       0, 
@@ -141,6 +146,9 @@ EnigmaticWeightXgbParam_p EnigmaticWeightXgbParamAlloc(void)
    res->model2 = NULL;
    res->xgb_indices = NULL;
    res->xgb_data = NULL;
+   res->fill_fun = xgb_fill;
+   res->predict_fun = xgb_predict;
+   res->load_fun = xgb_load;
 
    return res;
 }
@@ -180,20 +188,31 @@ WFCB_p EnigmaticWeightXgbParse(
    OCB_p ocb, 
    ProofState_p state)
 {   
+   EnigmaticModel_p model1;
+   EnigmaticModel_p model2 = NULL;
    ClausePrioFun prio_fun;
 
    AcceptInpTok(in, OpenBracket);
    prio_fun = ParsePrioFun(in);
    AcceptInpTok(in, Comma);
-
-   EnigmaticModel_p model1 = EnigmaticWeightParse(in, "model.xgb");
+   model1 = EnigmaticWeightParse(in, "model.xgb");
+   if (TestInpTok(in, Comma))
+   {
+      if (!model1->binary_weights) 
+      {
+         Error("ENIGMATIC: In the two-phases evaluation, the first model must have binary weights (1)!", USAGE_ERROR);
+      }
+      NextToken(in);
+      model2 = EnigmaticWeightParse(in, "model.xgb");
+   }
+   AcceptInpTok(in, CloseBracket);
 
    return EnigmaticWeightXgbInit(
       prio_fun, 
       ocb,
       state,
       model1,
-      NULL);
+      model2);
 }
 
 WFCB_p EnigmaticWeightXgbInit(
@@ -217,18 +236,36 @@ WFCB_p EnigmaticWeightXgbInit(
       data);
 }
 
+double EnigmaticPredictXgb(Clause_p clause, EnigmaticWeightXgbParam_p local, EnigmaticModel_p model)
+{
+   if (!model)
+   {
+      model = local->model1;
+   }
+   local->xgb_count = 0;
+   return EnigmaticPredict(clause, model, local, local->fill_fun, local->predict_fun);
+}
+
 double EnigmaticWeightXgbCompute(void* data, Clause_p clause)
 {
    EnigmaticWeightXgbParam_p local = data;
    double pred, res;
 
    local->init_fun(data);
-   local->xgb_count = 0;
-   EnigmaticClauseReset(local->model1->vector->clause);
-   EnigmaticClause(local->model1->vector->clause, clause, local->model1->info);
-   EnigmaticVectorFill(local->model1->vector, xgb_fill, data);
-   pred = xgb_predict(data);
+   pred = EnigmaticPredictXgb(clause, local, local->model1);
    res = EnigmaticWeight(pred, local->model1->binary_weights, local->model1->threshold);
+   if (local->model2)
+   {
+      if (res == EW_POS)
+      {
+         pred = EnigmaticPredictXgb(clause, local, local->model2);
+         res = EnigmaticWeight(pred, local->model2->binary_weights, local->model2->threshold);
+      }
+      else
+      {
+         res = EW_WORST;
+      }
+   }
 
    if (OutputLevel>=1) 
    {
