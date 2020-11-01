@@ -745,7 +745,7 @@ EnigmaticFeatures_p EnigmaticFeaturesParse(char* spec)
       features->offset_proofwatch = idx;
       // idx += ??? // watchlist size is unknown
    }
-   features->count = idx;
+   features->count = idx + 1; // plus one for terminator feature
 
    return features;
 }
@@ -1092,12 +1092,13 @@ EnigmaticModel_p EnigmaticWeightParse(Scanner_p in, char* model_name)
    return model;
 }
 
-void EnigmaticVectorFill(EnigmaticVector_p vector, FillFunc fun, void* data)
+void EnigmaticVectorFill(EnigmaticVector_p vector, FillFunc set, void* data)
 {
-   fill_clause(fun, data, vector->clause);
-   fill_clause(fun, data, vector->goal);
-   fill_clause(fun, data, vector->theory);
-   fill_problem(fun, data, vector);
+   fill_clause(set, data, vector->clause);
+   fill_clause(set, data, vector->goal);
+   fill_clause(set, data, vector->theory);
+   fill_problem(set, data, vector);
+   set(data, vector->features->count-1, 23); // terminator feature
 }
 
 void PrintKeyVal(FILE* out, long key, float val)
