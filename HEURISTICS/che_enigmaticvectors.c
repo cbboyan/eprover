@@ -670,16 +670,23 @@ double EnigmaticPredict(
    return predict_func(data, model);
 }
 
-double EnigmaticWeight(double pred, int binary_weights, double threshold)
+double EnigmaticWeight(double pred, int weight_type, double threshold)
 {
-   double res;
-   if (binary_weights)
+   double res = 0;
+   switch (weight_type)
    {
-      res = (pred <= threshold) ? EW_NEG : EW_POS; 
-   }
-   else
-   {
+   case 0:
       res = 1 + ((EW_POS - pred) * EW_NEG);
+      break;
+   case 1:
+      res = (pred <= threshold) ? EW_NEG : EW_POS; 
+      break;
+   case 2:
+      res = 2.0 - (pred / (1 + fabs(pred)));
+      break;
+   default:
+      Error("ENIGMATIC: Unknown prediction-to-weight function type '%d' (expected 0,1,2).", OTHER_ERROR);
+      break;
    }
    return res;
 }

@@ -2227,6 +2227,9 @@ CLState_p process_options(int argc, char* argv[])
       case OPT_PREINSTANTIATE_INDUCTION:
             h_parms->preinstantiate_induction = CLStateGetBoolArg(handle, arg);
             break;
+      case OPT_DELAYED_EVAL:
+            DelayedEvalSize = CLStateGetIntArg(handle, arg);
+            break;
       default:
             assert(false && "Unknown option");
             break;

@@ -127,6 +127,7 @@ Clause_p clause_copy_meta(Clause_p clause)
    handle->proof_size  = clause->proof_size;
    handle->pred        = NULL;
    handle->succ        = NULL;
+   handle->ext_weight  = clause->ext_weight;
 
    return handle;
 }
@@ -269,6 +270,7 @@ Clause_p EmptyClauseAlloc(void)
    handle->set         = NULL;
    handle->pred        = NULL;
    handle->succ        = NULL;
+   handle->ext_weight  = 0.0;
 
    return handle;
 }

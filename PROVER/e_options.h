@@ -235,6 +235,7 @@ typedef enum
    OPT_CNF_TIMEOUT_PORTION,
    OPT_PREINSTANTIATE_INDUCTION,
    OPT_SERIALIZE_SCHEDULE,
+   OPT_DELAYED_EVAL,
    OPT_DUMMY
 }OptionCodes;
 
@@ -1739,7 +1740,11 @@ OptCell opts[] =
     '\0', "pred-elim-ignore-conj-syms", ReqArg, NULL,
      "Disable eliminating symbols that occur in the conjecture."},
 
-
+   {OPT_DELAYED_EVAL,
+    '\0', "delayed-eval-cache",
+    ReqArg, NULL,
+    "Delay evaluation and further processing of generated clauses until "
+    "they reach the count specified as an argument (if possible)."},
 
    {OPT_NOOPT,
     '\0', NULL,

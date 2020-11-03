@@ -151,6 +151,7 @@ typedef struct clause_cell
    long                  weight;      /* ClauseStandardWeight()
                                          precomputed at some points in
                                          the program */
+   double                ext_weight;  /* External weight (for TensorFlow) */
    Eval_p                evaluations; /* List of evaluations */
    ClauseInfo_p          info;        /* Currently about source in
                                          input, NULL for derived clauses */

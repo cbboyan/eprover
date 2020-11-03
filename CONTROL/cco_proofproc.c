@@ -32,6 +32,7 @@
 PERF_CTR_DEFINE(ParamodTimer);
 PERF_CTR_DEFINE(BWRWTimer);
 
+long DelayedEvalSize = 0;
 
 /*---------------------------------------------------------------------*/
 /*                      Forward Declarations                           */
@@ -626,6 +627,20 @@ void eval_clause_set(ProofState_p state, ProofControl_p control)
    Clause_p handle;
    assert(state);
    assert(control);
+
+   if (DelayedEvalSize)
+   {
+      // keep collecting new clauses in delayed_store.
+      ClauseSetInsertSet(state->delayed_store, state->eval_store);
+      // once enought clauses are collected ..
+      if (state->delayed_store->members >= DelayedEvalSize || 
+          ClauseSetEmpty(state->unprocessed)) // (or out of unprocessed)
+      {
+         // .. notify registered callbacks & put clauses back to eval_store
+         ProofStateDelayedEvalCall(state, state->delayed_store);
+         ClauseSetInsertSet(state->eval_store, state->delayed_store);
+      }
+   }
 
    for(handle = state->eval_store->anchor->succ;
        handle != state->eval_store->anchor;
@@ -1620,6 +1635,7 @@ Clause_p ProcessClause(ProofState_p state, ProofControl_p control,
    check_ac_status(state, control, pclause->clause);
 
    document_processing(pclause->clause);
+   ProofStateClauseProcessedCall(state, pclause->clause);
    state->proc_non_trivial_count++;
 
    resclause = replacing_inferences(state, control, pclause);
@@ -1794,6 +1810,22 @@ Clause_p Saturate(ProofState_p state, ProofControl_p control, long
             break;
          }
       }
+      if (DelayedEvalSize && ClauseSetEmpty(state->unprocessed))
+      {
+         if (OutputLevel == 1)
+         {
+            fprintf(GlobalOut, "# Out of unprocessed: forcing evaluation of delayed clauses\n");
+         }
+         Clause_p handle;
+         eval_clause_set(state, control);
+         while((handle = ClauseSetExtractFirst(state->eval_store)))
+         {
+            ClauseDelProp(handle, CPIsOriented);
+            DocClauseQuoteDefault(6, handle, "eval");
+            ClauseSetInsert(state->unprocessed, handle);
+         }
+      }
+
    }
    return unsatisfiable;
 }

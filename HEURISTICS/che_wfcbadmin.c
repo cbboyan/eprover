@@ -78,6 +78,7 @@ char* WeightFunParseFunNames[]=
    "ConjectureStrucDistanceWeight",
    "EnigmaticXgb",
    "EnigmaticLgb",
+   "EnigmaticTfs",
    NULL
 };
 
@@ -130,6 +131,7 @@ static WeightFunParseFun parse_fun_array[]=
    ConjectureStrucDistanceWeightParse,
    EnigmaticWeightXgbParse,
    EnigmaticWeightLgbParse,
+   EnigmaticWeightTfsParse,
    (WeightFunParseFun)NULL
 };
 

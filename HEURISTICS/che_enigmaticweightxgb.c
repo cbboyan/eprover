@@ -198,7 +198,7 @@ WFCB_p EnigmaticWeightXgbParse(
    model1 = EnigmaticWeightParse(in, "model.xgb");
    if (TestInpTok(in, Comma))
    {
-      if (!model1->binary_weights) 
+      if (!model1->weight_type) 
       {
          Error("ENIGMATIC: In the two-phases evaluation, the first model must have binary weights (1)!", USAGE_ERROR);
       }
@@ -253,13 +253,13 @@ double EnigmaticWeightXgbCompute(void* data, Clause_p clause)
 
    local->init_fun(data);
    pred = EnigmaticPredictXgb(clause, local, local->model1);
-   res = EnigmaticWeight(pred, local->model1->binary_weights, local->model1->threshold);
+   res = EnigmaticWeight(pred, local->model1->weight_type, local->model1->threshold);
    if (local->model2)
    {
       if (res == EW_POS)
       {
          pred = EnigmaticPredictXgb(clause, local, local->model2);
-         res = EnigmaticWeight(pred, local->model2->binary_weights, local->model2->threshold);
+         res = EnigmaticWeight(pred, local->model2->weight_type, local->model2->threshold);
       }
       else
       {

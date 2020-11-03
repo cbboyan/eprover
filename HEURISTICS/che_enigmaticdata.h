@@ -211,7 +211,7 @@ typedef struct enigmaticmodelcell
 {
    char* model_filename;
    char* features_filename;
-   int binary_weights;
+   int weight_type;
    double threshold;
    void* handle;
    EnigmaticInfo_p info;

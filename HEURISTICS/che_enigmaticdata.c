@@ -1085,7 +1085,7 @@ EnigmaticModel_p EnigmaticWeightParse(Scanner_p in, char* model_name)
    char* d_prefix = ParseFilename(in);
    EnigmaticModel_p model = EnigmaticModelCreate(d_prefix, model_name);
    AcceptInpTok(in, Comma);
-   model->binary_weights = ParseInt(in);
+   model->weight_type = ParseInt(in);
    AcceptInpTok(in, Comma);
    model->threshold = ParseFloat(in);
    FREE(d_prefix);
