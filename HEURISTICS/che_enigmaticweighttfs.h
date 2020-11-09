@@ -29,6 +29,7 @@ Changes
 #include <ccl_relevance.h>
 #include <che_refinedweight.h>
 #include <che_enigmatictensors.h>
+#include <che_enigmaticweightlgb.h>
 
 /*---------------------------------------------------------------------*/
 /*                    Data type declarations                           */
@@ -43,16 +44,17 @@ typedef struct enigmaticweighttfparamcell
 
    char* server_ip;
    uint16_t server_port;
-   long binary_weights;
    long context_size;
-   double len_mult;
+   int weight_type;
+   double threshold;
 
    bool inited;
 
-   void   (*init_fun)(struct enigmaticweighttfparamcell*);
+   void (*init_fun)(struct enigmaticweighttfparamcell*);
 
    EnigmaticTensors_p tensors;
    EnigmaticSocket_p sock; // socket data
+   EnigmaticWeightLgbParam_p lgb;
 
 }EnigmaticWeightTfsParamCell, *EnigmaticWeightTfsParam_p;
 
@@ -79,9 +81,10 @@ WFCB_p EnigmaticWeightTfsInit(
    ProofState_p proofstate,
    char* server_ip,
    int server_port,
-   long binary_weights,
    long context_size,
-   double len_mult);
+   int weight_type,
+   double threshold,
+   EnigmaticWeightLgbParam_p lgb);
 
 double EnigmaticWeightTfsCompute(void* data, Clause_p clause);
 

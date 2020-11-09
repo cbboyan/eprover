@@ -35,8 +35,10 @@ Changes
 
 #define ETF_TENSOR_SIZE (10*1024*1024)
 #define SOCKET_BUF_SIZE 1024
-#define INDEXSETSIZE ( 128 * 64 )  // 2 ** 18 booleans because we use uint32_t
+#define INDEX_EDGES_SIZE (128*64) // 2^18 booleans because we use uint32_t
 
+#define FNV_PRIME_32 16777619
+#define FNV_OFFSET_32 2166136261U
 
 //#define DEBUG_ETF
 #define DEBUG_ETF_SERVER
@@ -44,9 +46,8 @@ Changes
 typedef struct inthash
 {
    long   entries;
-   NumTree_p store[INDEXSETSIZE];
-}IntHashCell, *IntHash_p;
-
+   NumTree_p store[INDEX_EDGES_SIZE];
+} IntHashCell, *IntHash_p;
 
 typedef struct enigmaticsocketcell
 {
@@ -75,8 +76,6 @@ typedef struct enigmatictensorsparamcell
    PStack_p cedges;
    IntHash_p tedges_set;
    IntHash_p cedges_set;
-//   uint32_t tedges_set[INDEXSETSIZE];
-//   uint32_t cedges_set[INDEXSETSIZE];
 
    // context
    long context_cnt;
@@ -93,10 +92,6 @@ typedef struct enigmatictensorsparamcell
    PStack_p conj_cedges;
    IntHash_p conj_tedges_set;
    IntHash_p conj_cedges_set;
-//   uint32_t conj_tedges_set[INDEXSETSIZE];
-//   uint32_t conj_cedges_set[INDEXSETSIZE];
-
-
    
    int n_is;
    int n_i1;
@@ -136,20 +131,26 @@ typedef struct enigmatictensorsparamcell
 /*                Exported Functions and Variables                     */
 /*---------------------------------------------------------------------*/
 
-#define EnigmaticTensorsCellAlloc() (EnigmaticTensorsCell*) \
-        SizeMalloc(sizeof(EnigmaticTensorsCell))
-#define EnigmaticTensorsCellFree(junk) \
-        SizeFree(junk, sizeof(EnigmaticTensorsCell))
-
 #define IntHashCellAlloc() (IntHashCell*) \
         SizeMalloc(sizeof(IntHashCell))
 #define IntHashCellFree(junk) \
         SizeFree(junk, sizeof(IntHashCell))
 
+#define EnigmaticTensorsCellAlloc() (EnigmaticTensorsCell*) \
+        SizeMalloc(sizeof(EnigmaticTensorsCell))
+#define EnigmaticTensorsCellFree(junk) \
+        SizeFree(junk, sizeof(EnigmaticTensorsCell))
+
 #define EnigmaticSocketCellAlloc() (EnigmaticSocketCell*) \
         SizeMalloc(sizeof(EnigmaticSocketCell))
 #define EnigmaticSocketCellFree(junk) \
         SizeFree(junk, sizeof(EnigmaticSocketCell))
+
+IntHash_p IntHashAlloc(void);
+void IntHashReset(IntHash_p store, bool free_items);
+void IntHashFree(IntHash_p junk);
+bool IntHashInsert(IntHash_p store, uint32_t hash, long key);
+NumTree_p IntHashFind(IntHash_p store, uint32_t hash, long key);
 
 EnigmaticTensors_p EnigmaticTensorsAlloc(void);
 void              EnigmaticTensorsFree(EnigmaticTensors_p junk);
@@ -168,14 +169,6 @@ void EnigmaticTensorsDump(FILE* out, EnigmaticTensors_p tensors);
 void EnigmaticSocketSend(EnigmaticSocket_p sock, EnigmaticTensors_p tensors);
 
 float* EnigmaticSocketRecv(EnigmaticSocket_p sock, int expected);
-
-IntHash_p IntHashAlloc(void);
-
-void IntHashInit(IntHash_p store);
-
-void IntHashFree(IntHash_p junk);
-
-void IntHashExit(IntHash_p store);
 
 
 #endif

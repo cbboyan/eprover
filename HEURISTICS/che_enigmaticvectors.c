@@ -383,6 +383,7 @@ static void update_clause(EnigmaticClause_p enigma, EnigmaticInfo_p info, Clause
    enigma->depth = max_depth;
    info->var_offset += (2 * info->var_distinct);
    update_prios(enigma, clause);
+   if (enigma->lits == 0) { enigma->lits = 1; } // empty clause handling
    enigma->avg_lit_width = enigma->width / enigma->lits;
    enigma->avg_lit_len = enigma->len / enigma->lits;
 }
@@ -611,7 +612,7 @@ void EnigmaticInitProblem(EnigmaticVector_p vector, EnigmaticInfo_p info,
       for (clause=anchor->succ; clause!=anchor; clause=clause->succ)
       {
          FormulaProperties props = ClauseQueryTPTPType(clause);
-         Clause_p copy = ClauseCopy(clause, clause->literals->bank);
+         Clause_p copy = ClauseCopy(clause, info->bank);
          ClauseSetInsert(is_goal(props) ? goal : theory, copy);
       }
    }

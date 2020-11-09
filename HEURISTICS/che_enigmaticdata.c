@@ -665,33 +665,60 @@ void EnigmaticFeaturesFree(EnigmaticFeatures_p junk)
 EnigmaticFeatures_p EnigmaticFeaturesParse(char* spec)
 {
    EnigmaticFeatures_p features = EnigmaticFeaturesAlloc();
+   EnigmaticParams_p defaults = NULL;
    features->spec = DStrAlloc();
    DStrAppendStr(features->spec, spec);
+
+   if (spec[0] != 'C')
+   {
+      Error("ENIGMATIC: Feature specifier must start with 'C'.", OTHER_ERROR);
+   }
 
    while (*spec)
    {
       switch (*spec)
       {
          case 'C': 
+            if (features->offset_clause == 0) { Error("ENIGMATIC: Multiple '%c' blocks are not allowed.", OTHER_ERROR, *spec); }
             parse_expect(&spec, 'C');
             features->offset_clause = 0;
             features->clause = parse_block(&spec); 
+            if (!features->clause)
+            {
+               features->clause = EnigmaticParamsAlloc();
+               features->clause->use_len = true;
+            }
+            defaults = features->clause;
             break;
          case 'G': 
+            if (features->offset_goal == 0) { Error("ENIGMATIC: Multiple '%c' blocks are not allowed.", OTHER_ERROR, *spec); }
             parse_expect(&spec, 'G');
             features->offset_goal = 0;
             features->goal = parse_block(&spec); 
+            if ((!features->goal) && (defaults)) 
+            { 
+               features->goal = EnigmaticParamsCopy(defaults); 
+            }
+            defaults = features->goal;
             break;
          case 'T': 
+            if (features->offset_theory == 0) { Error("ENIGMATIC: Multiple '%c' blocks are not allowed.", OTHER_ERROR, *spec); }
             parse_expect(&spec, 'T');
-            features->theory = parse_block(&spec); 
             features->offset_theory = 0;
+            features->theory = parse_block(&spec); 
+            if ((!features->theory) && (defaults)) 
+            { 
+               features->theory = EnigmaticParamsCopy(defaults); 
+            }
+            defaults = features->theory;
             break;
          case 'P':
+            if (features->offset_problem == 0) { Error("ENIGMATIC: Multiple '%c' blocks are not allowed.", OTHER_ERROR, *spec); }
             parse_expect(&spec, 'P');
             features->offset_problem = 0;
             break;
          case 'W':
+            if (features->offset_proofwatch == 0) { Error("ENIGMATIC: Multiple '%c' blocks are not allowed.", OTHER_ERROR, *spec); }
             parse_expect(&spec, 'W');
             features->offset_proofwatch = 0;
             break;
@@ -701,21 +728,6 @@ EnigmaticFeatures_p EnigmaticFeaturesParse(char* spec)
             break;
       }
       parse_maybe(&spec, ':');
-   }
-
-   // set defaults if not specified
-   if (!features->clause)
-   {
-      features->clause = EnigmaticParamsAlloc();
-      features->clause->use_len = true;
-   }
-   if ((features->offset_goal == 0) && (!features->goal))
-   {
-      features->goal = EnigmaticParamsCopy(features->clause);
-   }
-   if ((features->offset_theory == 0) && (!features->theory))
-   {
-      features->theory = EnigmaticParamsCopy(features->clause);
    }
 
    // update offsets

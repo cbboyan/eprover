@@ -146,7 +146,22 @@ static Clause_p clause_fresh_copy(Clause_p clause, EnigmaticTensors_p data)
    return clause1;
 }
 
-/* Replaced by the indexed version below */
+static uint32_t fnv32_hash(long j, long k, long l, long m,long n)
+{
+    uint32_t hash = FNV_OFFSET_32;
+    // xor next byte into
+    hash = (((((((((hash ^ j) * FNV_PRIME_32) ^ k) * FNV_PRIME_32) ^ l) * 
+           FNV_PRIME_32) ^ m) * FNV_PRIME_32) ^ n) * FNV_PRIME_32; 
+    return hash;
+} 
+
+static uint32_t fnv32_edge(long j, long k, long l, long m,long n)
+{
+    return fnv32_hash(j,k,l,m,m) % INDEX_EDGES_SIZE;
+} 
+
+/* Complete but slow full check. */
+/* Replaced by the indexed version below. */
 /* static bool edge_term_check(long i, long j, long k, long l, long b, */
 /*    PStack_p edges) */
 /* { */
@@ -166,109 +181,23 @@ static Clause_p clause_fresh_copy(Clause_p clause, EnigmaticTensors_p data)
 /*    return false; */
 /* } */
 
-#define FNV_PRIME_32 16777619
-#define FNV_OFFSET_32 2166136261U
-
-static uint32_t FNV32i(long j, long k, long l, long m,long n)
-{
-    uint32_t hash = FNV_OFFSET_32;
-    hash = (((((((((hash ^ j) * FNV_PRIME_32) ^ k) * FNV_PRIME_32) ^ l) * FNV_PRIME_32) ^ m) * FNV_PRIME_32) ^ n) * FNV_PRIME_32; // xor next byte into
-//    return hash % (1<<18);
-    return hash % INDEXSETSIZE;
-} 
-
-static uint32_t FNV32long(long j, long k, long l, long m,long n)
-{
-    uint32_t hash = FNV_OFFSET_32;
-    hash = (((((((((hash ^ j) * FNV_PRIME_32) ^ k) * FNV_PRIME_32) ^ l) * FNV_PRIME_32) ^ m) * FNV_PRIME_32) ^ n) * FNV_PRIME_32; // xor next byte into
-    return hash;
-} 
-
-
-void IntHashInit(IntHash_p store)
-{
-   int i;
-   store->entries = 0;
-   for(i=0; i<INDEXSETSIZE; i++)
-   {
-      store->store[i] = NULL;
-   }
-}
-
-IntHash_p IntHashAlloc(void)
-{
-   IntHash_p store;
-
-   store = IntHashCellAlloc();
-   IntHashInit(store);
-   return store;
-}
-
-void IntHashExit(IntHash_p store)
-{
-   int i;
-
-   for(i=0; i<INDEXSETSIZE; i++)
-   {
-      if(store->store[i])
-      {
-	 NumTreeFree(store->store[i]);
-	 store->store[i] = NULL;
-      }
-   }
-}
-
-void IntHashFree(IntHash_p junk)
-{
-   IntHashExit(junk);
-   IntHashCellFree(junk);
-}
-
-
-bool  IntHashInsert(IntHash_p store, uint32_t hash, long key) // , IntOrP val1, IntOrP val2)
-{
-   bool ret;
-   IntOrP dummy;
-
-   dummy.i_val = 0;
-   ret = NumTreeStore(&(store->store[hash]), key, dummy, dummy); // , val1, val2);
-//   ret = TermTreeInsert(&(store->store[TermCellHash(term)]), term);
-    if(!ret)
-    {
-       store->entries++;
-    }
-    return ret;
-}
-
-NumTree_p  IntHashFind(IntHash_p store, uint32_t hash, long key) //, IntOrP val1, IntOrP val2)
-{
-//   return TermTreeFind(&(store->store[TermCellHash(term)]), term);
-   NumTree_p entry = NumTreeFind(&(store->store[hash]), key);
-   return entry;
-//   if(entry) {res = entry->val1.p_val;}
-   
-}
-
 static bool edge_term_check(uint32_t hash, uint32_t key, EnigmaticTensors_p data)
 {
-   return IntHashFind(data->conj_tedges_set, hash, key) || IntHashFind(data->tedges_set, hash, key);
+   return IntHashFind(data->conj_tedges_set, hash, key) || 
+          IntHashFind(data->tedges_set, hash, key);
 }
 
 static void edge_term(long i, long j, long k, long l, long b,
       EnigmaticTensors_p data)
 {
-   uint32_t hash = FNV32i(i, j, k, l, b);
-   uint32_t key = FNV32long(j, i, k, l, b); // the swapped i and j is
-					    // not an error here - we
-					    // want different hashes
-					    // to minimize conflicts -
-					    // even then they may
-					    // happen rarely 
-   
-   if ( edge_term_check(hash, key, data) )
-//      edge_term_check_fast(hash, data) )
-      /* edge_term_check(i, j, k, l, b, data->conj_tedges) || */
-      /*  edge_term_check(i, j, k, l, b, data->tedges)) */
+   uint32_t hash = fnv32_edge(i, j, k, l, b);
+   uint32_t edge_key = fnv32_hash(j, i, k, l, b); 
+   /*
+   the swapped i and j is not an error here - we want different hashes to
+   minimize conflicts - even then they may happen rarely 
+   */
+
+   if (edge_term_check(hash, edge_key, data))
    {
       return;
    }
@@ -282,12 +211,12 @@ static void edge_term(long i, long j, long k, long l, long b,
    if (data->conj_mode)
    {
       PStackPushP(data->conj_tedges, edge);
-      IntHashInsert(data->conj_tedges_set, hash, key); //, 0, 0)
+      IntHashInsert(data->conj_tedges_set, hash, edge_key);
    }
    else
    {
       PStackPushP(data->tedges, edge);
-      IntHashInsert(data->tedges_set, hash, key); //, 0, 0)
+      IntHashInsert(data->tedges_set, hash, edge_key);
    }
 }
 
@@ -670,9 +599,153 @@ static void tensor_fill_query(
       prob_segments_data[1+i] = 1;
    }
 }
+
+static void socket_flush(EnigmaticSocket_p sock)
+{
+   int ret =  send(sock->fd, sock->buf, sock->cur, MSG_NOSIGNAL);
+   if (ret < 0)
+   {
+      perror("eprover: ENIGMATIC");
+      Error("ENIGMATIC: Sending data to Tensorflow server via a socket failed (%d).", OTHER_ERROR, ret);
+   }
+   sock->bytes_cnt += sock->cur;
+   sock->cur = 0;
+}
+
+static void socket_finish(EnigmaticSocket_p sock)
+{
+   sock->buf[sock->cur] = '\0';
+   sock->cur++;
+   socket_flush(sock);
+#ifdef DEBUG_ETF_SERVER
+   fprintf(GlobalOut, "#TF#SERVER: Sent %d bytes to the TF server.\n", sock->bytes_cnt);
+#endif
+   sock->bytes_cnt = 0;
+}
+
+static void socket_str(EnigmaticSocket_p sock, char* str)
+{
+   // NOTE: make sure the string is not longer than the buffer size!
+   int len = strlen(str);
+   if (sock->cur + len >= SOCKET_BUF_SIZE)
+   {
+      socket_flush(sock);
+   }
+   strncpy(&sock->buf[sock->cur], str, len+1);
+   sock->cur += len;
+}
+
+static void socket_vector_int32(EnigmaticSocket_p sock, int size, char* id, int32_t* values)
+{
+   char str[128];
+   socket_str(sock, "\"");
+   socket_str(sock, id);
+   socket_str(sock, "\":[");
+   for (int i=0; i<size; i++)
+   {
+      sprintf(str, "%d%s", values[i], (i<size-1) ? "," : "");
+      socket_str(sock, str);
+   }
+   socket_str(sock, "]");
+}
+
+static void socket_vector_float(EnigmaticSocket_p sock, int size, char* id, float* values)
+{
+   char str[128];
+   socket_str(sock, "\"");
+   socket_str(sock, id);
+   socket_str(sock, "\":[");
+   for (int i=0; i<size; i++)
+   {
+      sprintf(str, "%.01f%s", values[i], (i<size-1) ? "," : "");
+      socket_str(sock, str);
+   }
+   socket_str(sock, "]");
+}
+
+static void socket_matrix(EnigmaticSocket_p sock, int dimx, int dimy, char* id, int32_t* values)
+{
+   socket_vector_int32(sock, dimx*dimy, id, values);
+}
+
+static void dump_vector_int32(FILE* out, int size, char* id, int32_t* values)
+{
+   fprintf(out, "   \"%s\": [", id);
+   for (int i=0; i<size; i++)
+   {
+      fprintf(out, "%d%s", values[i], (i<size-1) ? ", " : "");
+   }
+   fprintf(out, "],\n");
+}
+
+static void dump_vector_float(FILE* out, int size, char* id, float* values)
+{
+   fprintf(out, "   \"%s\": [", id);
+   for (int i=0; i<size; i++)
+   {
+      fprintf(out, "%.01f%s", values[i], (i<size-1) ? ", " : "");
+   }
+   fprintf(out, "],\n");
+}
+
+static void dump_matrix(FILE* out, int dimx, int dimy, char* id, int32_t* values)
+{
+   fprintf(out, "   \"%s\": [", id);
+   int size = dimx*dimy;
+   for (int i=0; i<size; i++)
+   {
+      fprintf(out, "%d%s", values[i], (i<size-1) ? ", " : "");
+   }
+   fprintf(out, "],\n");
+}
+
 /*---------------------------------------------------------------------*/
 /*                         Exported Functions                          */
 /*---------------------------------------------------------------------*/
+
+void IntHashReset(IntHash_p store, bool free_items)
+{
+   for (int i=0; i<INDEX_EDGES_SIZE; i++)
+   {
+      if (free_items && store->store[i])
+      {
+         NumTreeFree(store->store[i]);
+      }
+      store->store[i] = NULL;
+   }
+   store->entries = 0;
+}
+
+IntHash_p IntHashAlloc(void)
+{
+   IntHash_p store;
+
+   store = IntHashCellAlloc();
+   IntHashReset(store, false);
+   return store;
+}
+
+void IntHashFree(IntHash_p junk)
+{
+   IntHashReset(junk, true);
+   IntHashCellFree(junk);
+}
+
+bool IntHashInsert(IntHash_p store, uint32_t hash, long key)
+{
+   bool ret;
+   ret = NumTreeStore(&(store->store[hash]), key, (IntOrP)0L, (IntOrP)0L);
+   if (!ret)
+   {
+      store->entries++;
+   }
+   return ret;
+}
+
+NumTree_p IntHashFind(IntHash_p store, uint32_t hash, long key)
+{
+   return NumTreeFind(&(store->store[hash]), key);
+}
 
 EnigmaticSocket_p EnigmaticSocketAlloc(void)
 {
@@ -689,7 +762,7 @@ void EnigmaticSocketFree(EnigmaticSocket_p junk)
 {
    if (junk->evals)
    {
-      SizeFree(junk->evals, junk->evals_size);
+      FREE(junk->evals);
    }
    EnigmaticSocketCellFree(junk);
 }
@@ -707,10 +780,6 @@ EnigmaticTensors_p EnigmaticTensorsAlloc(void)
    res->cedges = PStackAlloc();
    res->tedges_set = IntHashAlloc();
    res->cedges_set = IntHashAlloc();
-//   TermCellStoreInit(&(handle->term_store));
-
-//   memset(res->tedges_set, 0, sizeof res->tedges_set);
-//   memset(res->cedges_set, 0, sizeof res->cedges_set);
    
    res->context_cnt = 0;
    
@@ -722,8 +791,6 @@ EnigmaticTensors_p EnigmaticTensorsAlloc(void)
    res->conj_fresh_c = 0;
    res->conj_tedges = PStackAlloc();
    res->conj_cedges = PStackAlloc();
-//   memset(res->conj_tedges_set, 0, sizeof res->conj_tedges_set);
-//   memset(res->conj_cedges_set, 0, sizeof res->conj_cedges_set);
    res->conj_tedges_set = IntHashAlloc();
    res->conj_cedges_set = IntHashAlloc();
    
@@ -748,7 +815,6 @@ void EnigmaticTensorsFree(EnigmaticTensors_p junk)
    IntHashFree(junk->conj_tedges_set);
    IntHashFree(junk->conj_cedges_set);
 
-
    if (junk->terms)
    {
       NumTreeFree(junk->terms);
@@ -772,6 +838,7 @@ void EnigmaticTensorsFree(EnigmaticTensors_p junk)
 
    if (junk->tmp_bank)
    {
+      junk->tmp_bank->sig = NULL;
       TBFree(junk->tmp_bank);
       junk->tmp_bank = NULL;
    }
@@ -794,11 +861,8 @@ void EnigmaticTensorsReset(EnigmaticTensors_p data)
 
    free_edges(data->cedges);
    free_edges(data->tedges);
-   // memset(res->tedges_set, 0, sizeof res->tedges_set);
-   //memset(res->cedges_set, 0, sizeof res->cedges_set);
-   IntHashExit(data->tedges_set);
-   IntHashExit(data->cedges_set);
-
+   IntHashReset(data->tedges_set, true);
+   IntHashReset(data->cedges_set, true);
 
    data->fresh_t = data->conj_fresh_t;
    data->fresh_s = data->conj_fresh_s;
@@ -899,105 +963,6 @@ void EnigmaticTensorsFill(EnigmaticTensors_p data)
    
    tensor_fill_query(data->labels, data->prob_segments_lens, 
       data->prob_segments_data, data);
-}
-
-static void socket_flush(EnigmaticSocket_p sock)
-{
-   int ret =  send(sock->fd, sock->buf, sock->cur, MSG_NOSIGNAL);
-   if (ret < 0)
-   {
-      perror("eprover: ENIGMATIC");
-      Error("ENIGMATIC: Sending data to Tensorflow server via a socket failed (%d).", OTHER_ERROR, ret);
-   }
-   sock->bytes_cnt += sock->cur;
-   sock->cur = 0;
-}
-
-static void socket_finish(EnigmaticSocket_p sock)
-{
-   sock->buf[sock->cur] = '\0';
-   sock->cur++;
-   socket_flush(sock);
-#ifdef DEBUG_ETF_SERVER
-   fprintf(GlobalOut, "#TF#SERVER: Sent %d bytes to the TF server.\n", sock->bytes_cnt);
-#endif
-   sock->bytes_cnt = 0;
-}
-
-static void socket_str(EnigmaticSocket_p sock, char* str)
-{
-   // NOTE: make sure the string is not longer than the buffer size!
-   int len = strlen(str);
-   if (sock->cur + len >= SOCKET_BUF_SIZE)
-   {
-      socket_flush(sock);
-   }
-   strncpy(&sock->buf[sock->cur], str, len+1);
-   sock->cur += len;
-}
-
-static void socket_vector_int32(EnigmaticSocket_p sock, int size, char* id, int32_t* values)
-{
-   char str[128];
-   socket_str(sock, "\"");
-   socket_str(sock, id);
-   socket_str(sock, "\":[");
-   for (int i=0; i<size; i++)
-   {
-      sprintf(str, "%d%s", values[i], (i<size-1) ? "," : "");
-      socket_str(sock, str);
-   }
-   socket_str(sock, "]");
-}
-
-static void socket_vector_float(EnigmaticSocket_p sock, int size, char* id, float* values)
-{
-   char str[128];
-   socket_str(sock, "\"");
-   socket_str(sock, id);
-   socket_str(sock, "\":[");
-   for (int i=0; i<size; i++)
-   {
-      sprintf(str, "%.01f%s", values[i], (i<size-1) ? "," : "");
-      socket_str(sock, str);
-   }
-   socket_str(sock, "]");
-}
-
-static void socket_matrix(EnigmaticSocket_p sock, int dimx, int dimy, char* id, int32_t* values)
-{
-   socket_vector_int32(sock, dimx*dimy, id, values);
-}
-
-static void dump_vector_int32(FILE* out, int size, char* id, int32_t* values)
-{
-   fprintf(out, "   \"%s\": [", id);
-   for (int i=0; i<size; i++)
-   {
-      fprintf(out, "%d%s", values[i], (i<size-1) ? ", " : "");
-   }
-   fprintf(out, "],\n");
-}
-
-static void dump_vector_float(FILE* out, int size, char* id, float* values)
-{
-   fprintf(out, "   \"%s\": [", id);
-   for (int i=0; i<size; i++)
-   {
-      fprintf(out, "%.01f%s", values[i], (i<size-1) ? ", " : "");
-   }
-   fprintf(out, "],\n");
-}
-
-static void dump_matrix(FILE* out, int dimx, int dimy, char* id, int32_t* values)
-{
-   fprintf(out, "   \"%s\": [", id);
-   int size = dimx*dimy;
-   for (int i=0; i<size; i++)
-   {
-      fprintf(out, "%d%s", values[i], (i<size-1) ? ", " : "");
-   }
-   fprintf(out, "],\n");
 }
 
 void EnigmaticTensorsDump(FILE* out, EnigmaticTensors_p tensors)

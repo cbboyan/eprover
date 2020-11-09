@@ -633,10 +633,16 @@ void eval_clause_set(ProofState_p state, ProofControl_p control)
       // keep collecting new clauses in delayed_store.
       ClauseSetInsertSet(state->delayed_store, state->eval_store);
       // once enought clauses are collected ..
-      if (state->delayed_store->members >= DelayedEvalSize || 
-          ClauseSetEmpty(state->unprocessed)) // (or out of unprocessed)
+      bool force = ClauseSetEmpty(state->unprocessed);
+      // (or out of unprocessed)
+      if (force || state->delayed_store->members >= DelayedEvalSize)
       {
          // .. notify registered callbacks & put clauses back to eval_store
+         if (force && (OutputLevel >= 1))
+         {
+            fprintf(GlobalOut, "#Out of unprocessed: forcing evaluation of %ld delayed clauses\n",
+               state->delayed_store->members);
+         }
          ProofStateDelayedEvalCall(state, state->delayed_store);
          ClauseSetInsertSet(state->eval_store, state->delayed_store);
       }
@@ -1812,10 +1818,6 @@ Clause_p Saturate(ProofState_p state, ProofControl_p control, long
       }
       if (DelayedEvalSize && ClauseSetEmpty(state->unprocessed))
       {
-         if (OutputLevel == 1)
-         {
-            fprintf(GlobalOut, "# Out of unprocessed: forcing evaluation of delayed clauses\n");
-         }
          Clause_p handle;
          eval_clause_set(state, control);
          while((handle = ClauseSetExtractFirst(state->eval_store)))

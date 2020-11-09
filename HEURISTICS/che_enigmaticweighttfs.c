@@ -178,55 +178,92 @@ static void tfs_init(EnigmaticWeightTfsParam_p data)
 
    fprintf(GlobalOut, "# ENIGMATIC: Connected to the TF server '%s:%d'.\n", 
       data->server_ip, data->server_port);
+      
+   if (data->lgb)
+   {
+      data->lgb->load_fun(data->lgb->model1);
+      fprintf(GlobalOut, "# ENIGMATIC: LightGBM model '%s' loaded with %ld features '%s'\n",
+         data->lgb->model1->model_filename, 
+         data->lgb->model1->vector->features->count, 
+         DStrView(data->lgb->model1->vector->features->spec)
+      );
+   }
 
    data->inited = true;
 }
 
-static void tfs_eval(ClauseSet_p set, void* data)
+static float* tfs_eval_call(EnigmaticWeightTfsParam_p local)
+{
+#ifdef DEBUG_ETF
+   debug_symbols(local);
+   debug_terms(local);
+   debug_edges(local);
+#endif
+   EnigmaticTensorsFill(local->tensors);
+   EnigmaticSocketSend(local->sock, local->tensors);
+   int n_q = local->tensors->fresh_c - local->tensors->conj_fresh_c + local->tensors->context_cnt;
+   return EnigmaticSocketRecv(local->sock, n_q);
+}
+
+static void tfs_eval_gnn(EnigmaticWeightTfsParam_p local, ClauseSet_p set)
 {
    Clause_p handle, handle0;
-   EnigmaticWeightTfsParam_p local = data;
-   local->init_fun(local);
-   int break_size = (ClauseSetCardinality(set)<=DelayedEvalSize*1.5) ? 0 : DelayedEvalSize;
+   long total = ClauseSetCardinality(set);
+   int break_size = (total <= DelayedEvalSize*1.5) ? 0 : DelayedEvalSize;
 
    int done = 0; // how many done from set
    handle0 = set->anchor->succ; // beg of unevaled part in set
-   while (done < ClauseSetCardinality(set))
+   while (done < total)
    {
       int size = 0;
-      EnigmaticTensorsReset(local->tensors);
+      int skipped = 0;
       for (handle=handle0; handle!=set->anchor; handle=handle->succ)
       {
+         if (handle->ext_weight == NAN) { skipped++; continue; } // skip evaluated
          EnigmaticTensorsUpdateClause(handle, local->tensors);
          size++;
          if (break_size && (size >= break_size)) { break; }
       }
 
-#ifdef DEBUG_ETF
-      debug_symbols(local);
-      debug_terms(local);
-      debug_edges(local);
-#endif
-
-      EnigmaticTensorsFill(local->tensors);
-      EnigmaticSocketSend(local->sock, local->tensors);
-      int n_q = local->tensors->fresh_c - local->tensors->conj_fresh_c + local->tensors->context_cnt;
-      float* evals = EnigmaticSocketRecv(local->sock, n_q);
+      float* evals = tfs_eval_call(local);
 
       int idx = local->tensors->context_cnt;
-      int size1 = 0;
+      size = 0;
       for (handle=handle0; handle!=set->anchor; handle=handle->succ)
       {
+         if (handle->ext_weight == NAN) { continue; } // skip evaluated
          handle->ext_weight = evals[idx++];
-         size1++;
-         if (break_size && (size1 >= break_size)) { break; }
+         size++;
+         if (break_size && (size >= break_size)) { break; }
       }
-      assert(size==size1);
 
-      EnigmaticTensorsReset(local->tensors);
-      done += size;
+      done += size + skipped;
       handle0 = handle;
+      EnigmaticTensorsReset(local->tensors);
    }
+}
+
+static void tfs_eval_lgb(EnigmaticWeightTfsParam_p local, ClauseSet_p set)
+{
+   Clause_p handle;
+   EnigmaticModel_p model = local->lgb->model1;
+   for (handle=set->anchor->succ; handle!=set->anchor; handle=handle->succ)
+   {
+      double pred = EnigmaticPredictLgb(handle, local->lgb, model);
+      double res = EnigmaticWeight(pred, model->weight_type, model->threshold);
+      handle->ext_weight = (res == EW_POS) ? 0.0 : NAN;
+   }
+}
+
+static void tfs_eval(ClauseSet_p set, void* data)
+{
+   EnigmaticWeightTfsParam_p local = data;
+   local->init_fun(local);
+   if (local->lgb)
+   {
+      tfs_eval_lgb(local, set);
+   }
+   tfs_eval_gnn(local, set);
 }
 
 static void tfs_processed(Clause_p clause, void* data)
@@ -264,6 +301,7 @@ EnigmaticWeightTfsParam_p EnigmaticWeightTfsParamAlloc(void)
    res->inited = false;
    res->tensors = EnigmaticTensorsAlloc();
    res->sock = EnigmaticSocketAlloc();
+   res->lgb = NULL;
 
    return res;
 }
@@ -274,6 +312,10 @@ void EnigmaticWeightTfsParamFree(EnigmaticWeightTfsParam_p junk)
    EnigmaticSocketFree(junk->sock);
    EnigmaticTensorsFree(junk->tensors);
    junk->tensors = NULL;
+   if (junk->lgb)
+   {
+      EnigmaticWeightLgbParamFree(junk->lgb);
+   }
    EnigmaticWeightTfsParamCellFree(junk);
 }
  
@@ -283,7 +325,7 @@ WFCB_p EnigmaticWeightTfsParse(
    ProofState_p state)
 {   
    ClausePrioFun prio_fun;
-   double len_mult;
+   EnigmaticWeightLgbParam_p lgb = NULL;
 
    AcceptInpTok(in, OpenBracket);
    prio_fun = ParsePrioFun(in);
@@ -292,11 +334,25 @@ WFCB_p EnigmaticWeightTfsParse(
    AcceptInpTok(in, Comma);
    long server_port = ParseInt(in);
    AcceptInpTok(in, Comma);
-   long binary_weights = ParseInt(in);
-   AcceptInpTok(in, Comma);
    long context_size = ParseInt(in);
    AcceptInpTok(in, Comma);
-   len_mult = ParseFloat(in);
+   int weight_type = ParseInt(in);
+   AcceptInpTok(in, Comma);
+   double threshold = ParseFloat(in);
+   if (TestInpTok(in, Comma))
+   {
+      NextToken(in);
+      EnigmaticModel_p model = EnigmaticWeightParse(in, "model.lgb");
+      lgb = EnigmaticWeightLgbParamAlloc();
+      lgb->model1 = model;
+      lgb->lgb_size = model->vector->features->count;
+      lgb->lgb_indices = SizeMalloc(lgb->lgb_size*sizeof(int32_t));
+      lgb->lgb_data = SizeMalloc(lgb->lgb_size*sizeof(float));
+      if (model->weight_type != 1) 
+      {
+         Error("ENIGMATIC: In the two-phases evaluation, the LightGBM model must have binary weight type (1)!", USAGE_ERROR);
+      }
+   }
    AcceptInpTok(in, CloseBracket);
 
    return EnigmaticWeightTfsInit(
@@ -305,9 +361,10 @@ WFCB_p EnigmaticWeightTfsParse(
       state,
       server_ip,
       server_port,
-      binary_weights,
       context_size,
-      len_mult);
+      weight_type,
+      threshold,
+      lgb);
 }
 
 WFCB_p EnigmaticWeightTfsInit(
@@ -316,21 +373,27 @@ WFCB_p EnigmaticWeightTfsInit(
    ProofState_p proofstate,
    char* server_ip,
    int server_port,
-   long binary_weights,
    long context_size,
-   double len_mult)
+   int weight_type,
+   double threshold,
+   EnigmaticWeightLgbParam_p lgb)
 {
    EnigmaticWeightTfsParam_p data = EnigmaticWeightTfsParamAlloc();
+
+   if (!DelayedEvalSize)
+   {
+      Error("ENIGMATIC: You must use --delayed-eval-cache with EnigmaticTfs weight function.", OTHER_ERROR);
+   }
 
    data->init_fun   = tfs_init;
    data->ocb        = ocb;
    data->proofstate = proofstate;
    
-   data->binary_weights = binary_weights;
-   data->context_size = context_size;
-   data->len_mult = len_mult;
    data->server_ip = server_ip;
    data->server_port = server_port;
+   data->context_size = context_size;
+   data->weight_type = weight_type;
+   data->threshold = threshold;
 
    ProofStateDelayedEvalRegister(proofstate, tfs_eval, data);
    ProofStateClauseProcessedRegister(proofstate, tfs_processed, data);
@@ -353,16 +416,20 @@ double EnigmaticWeightTfsCompute(void* data, Clause_p clause)
       // default weight for unevaluated (initial) clauses
       weight = ClauseWeight(clause,1,1,1,1,1,1,true);
    }
-   else
+   else if (clause->ext_weight == NAN)
    {
-      weight = EnigmaticWeight(clause->ext_weight, local->binary_weights, 0.0);
+      weight = EW_WORST + ClauseWeight(clause,1,1,1,1,1,1,true);
+   }
+   else
+   { 
+      weight = EnigmaticWeight(clause->ext_weight, local->weight_type, local->threshold);
    }
 
-#if defined(DEBUG_ETF)
+//#if defined(DEBUG_ETF)
    fprintf(GlobalOut, "#TF#EVAL# %+.5f(%.1f)= ", weight, clause->ext_weight);
    ClausePrint(GlobalOut, clause, true);
    fprintf(GlobalOut, "\n");
-#endif
+//#endif
 
    return weight;
 }

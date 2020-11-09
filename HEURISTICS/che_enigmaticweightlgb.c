@@ -191,9 +191,9 @@ WFCB_p EnigmaticWeightLgbParse(
    model1 = EnigmaticWeightParse(in, "model.lgb");
    if (TestInpTok(in, Comma))
    {
-      if (!model1->weight_type) 
+      if (model1->weight_type != 1) 
       {
-         Error("ENIGMATIC: In the two-phases evaluation, the first model must have binary weights (1)!", USAGE_ERROR);
+         Error("ENIGMATIC: In the two-phases evaluation, the first model must have binary weight type (1)!", USAGE_ERROR);
       }
       NextToken(in);
       model2 = EnigmaticWeightParse(in, "model.lgb");

@@ -213,7 +213,7 @@ typedef struct enigmaticmodelcell
    char* features_filename;
    int weight_type;
    double threshold;
-   void* handle;
+   void* handle; // TODO: rename to booster
    EnigmaticInfo_p info;
    EnigmaticVector_p vector;
 } EnigmaticModelCell, *EnigmaticModel_p;
