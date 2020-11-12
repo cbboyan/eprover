@@ -182,6 +182,10 @@ static void tfs_init(EnigmaticWeightTfsParam_p data)
    if (data->lgb)
    {
       data->lgb->load_fun(data->lgb->model1);
+      EnigmaticInit(data->lgb->model1, data->proofstate);
+      data->lgb->lgb_size = data->lgb->model1->vector->features->count;
+      data->lgb->lgb_indices = SizeMalloc(data->lgb->lgb_size*sizeof(int32_t));
+      data->lgb->lgb_data = SizeMalloc(data->lgb->lgb_size*sizeof(float));
       fprintf(GlobalOut, "# ENIGMATIC: LightGBM model '%s' loaded with %ld features '%s'\n",
          data->lgb->model1->model_filename, 
          data->lgb->model1->vector->features->count, 
@@ -219,11 +223,12 @@ static void tfs_eval_gnn(EnigmaticWeightTfsParam_p local, ClauseSet_p set)
       int skipped = 0;
       for (handle=handle0; handle!=set->anchor; handle=handle->succ)
       {
-         if (handle->ext_weight == NAN) { skipped++; continue; } // skip evaluated
+         if (isnan(handle->ext_weight)) { skipped++; continue; } // skip evaluated
          EnigmaticTensorsUpdateClause(handle, local->tensors);
          size++;
          if (break_size && (size >= break_size)) { break; }
       }
+      fprintf(GlobalOut, "#TF#SERVER: Lgb model filter skipped %d clauses\n", skipped);
 
       float* evals = tfs_eval_call(local);
 
@@ -231,7 +236,7 @@ static void tfs_eval_gnn(EnigmaticWeightTfsParam_p local, ClauseSet_p set)
       size = 0;
       for (handle=handle0; handle!=set->anchor; handle=handle->succ)
       {
-         if (handle->ext_weight == NAN) { continue; } // skip evaluated
+         if (isnan(handle->ext_weight)) { continue; } // skip evaluated
          handle->ext_weight = evals[idx++];
          size++;
          if (break_size && (size >= break_size)) { break; }
@@ -252,6 +257,13 @@ static void tfs_eval_lgb(EnigmaticWeightTfsParam_p local, ClauseSet_p set)
       double pred = EnigmaticPredictLgb(handle, local->lgb, model);
       double res = EnigmaticWeight(pred, model->weight_type, model->threshold);
       handle->ext_weight = (res == EW_POS) ? 0.0 : NAN;
+      if (OutputLevel >= 1)
+      {
+         fprintf(GlobalOut, "#LGB#EVAL: %f=", pred);
+         ClausePrint(GlobalOut, handle, true);
+         fprintf(GlobalOut, "\n");
+      }
+
    }
 }
 
@@ -324,6 +336,10 @@ WFCB_p EnigmaticWeightTfsParse(
    OCB_p ocb, 
    ProofState_p state)
 {   
+   /* EnigmaticTfs(prio_fun, server_ip, server_port, context_size, weight_type, threshold
+    *    [, lgb_model_dir, lgb_weight_type, lgb_threshold])
+   */
+
    ClausePrioFun prio_fun;
    EnigmaticWeightLgbParam_p lgb = NULL;
 
@@ -345,9 +361,6 @@ WFCB_p EnigmaticWeightTfsParse(
       EnigmaticModel_p model = EnigmaticWeightParse(in, "model.lgb");
       lgb = EnigmaticWeightLgbParamAlloc();
       lgb->model1 = model;
-      lgb->lgb_size = model->vector->features->count;
-      lgb->lgb_indices = SizeMalloc(lgb->lgb_size*sizeof(int32_t));
-      lgb->lgb_data = SizeMalloc(lgb->lgb_size*sizeof(float));
       if (model->weight_type != 1) 
       {
          Error("ENIGMATIC: In the two-phases evaluation, the LightGBM model must have binary weight type (1)!", USAGE_ERROR);
@@ -394,6 +407,7 @@ WFCB_p EnigmaticWeightTfsInit(
    data->context_size = context_size;
    data->weight_type = weight_type;
    data->threshold = threshold;
+   data->lgb = lgb;
 
    ProofStateDelayedEvalRegister(proofstate, tfs_eval, data);
    ProofStateClauseProcessedRegister(proofstate, tfs_processed, data);
@@ -416,7 +430,7 @@ double EnigmaticWeightTfsCompute(void* data, Clause_p clause)
       // default weight for unevaluated (initial) clauses
       weight = ClauseWeight(clause,1,1,1,1,1,1,true);
    }
-   else if (clause->ext_weight == NAN)
+   else if (isnan(clause->ext_weight))
    {
       weight = EW_WORST + ClauseWeight(clause,1,1,1,1,1,1,true);
    }
@@ -425,11 +439,11 @@ double EnigmaticWeightTfsCompute(void* data, Clause_p clause)
       weight = EnigmaticWeight(clause->ext_weight, local->weight_type, local->threshold);
    }
 
-//#if defined(DEBUG_ETF)
+#if defined(DEBUG_ETF)
    fprintf(GlobalOut, "#TF#EVAL# %+.5f(%.1f)= ", weight, clause->ext_weight);
    ClausePrint(GlobalOut, clause, true);
    fprintf(GlobalOut, "\n");
-//#endif
+#endif
 
    return weight;
 }

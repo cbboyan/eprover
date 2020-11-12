@@ -52,6 +52,7 @@ extern ClausePrioFun ecb_prios[];
 #define EFC_HORIZ(params)   (params->base_horiz)
 #define EFC_COUNT(params)   (params->base_count)
 #define EFC_DEPTH(params)   (params->base_depth)
+#define EFC_UNIFIED(params) (MAX(MAX((params->base_vert),(params->base_horiz)),MAX((params->base_count),(params->base_depth))))
 
 /* Enigmatic Block Size */
 #define EBS_PROBLEM         43
@@ -74,8 +75,10 @@ typedef struct enigmaticparamscell
 {
    long features;
    bool anonymous;
+   bool unified_hashing;
 
    bool use_len;
+   bool use_minimal;
    bool use_prios;
    long count_var;
    long count_sym;
@@ -95,6 +98,7 @@ typedef struct enigmaticparamscell
    long offset_vert;
    long offset_count;
    long offset_depth;
+   long offset_unified;
 } EnigmaticParamsCell, *EnigmaticParams_p;
 
 typedef struct enigmaticfeaturescell
@@ -169,6 +173,8 @@ typedef struct enigmaticclausecell
    NumTree_p counts;
    // symbol depth statistic features
    NumTree_p depths;
+   // unified clause hash map
+   NumTree_p unified;
 
 
 } EnigmaticClauseCell, *EnigmaticClause_p;

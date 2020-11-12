@@ -29,6 +29,7 @@ Changes
 
 #define INFO_SETTING(out,name,params,key) fprintf(out,"setting(\"%s:%s\", %ld).\n", name, #key, (long)params->key)
 
+
 #define PRINT_INT(key,val) if (val) fprintf(out, "%ld:%ld ", key, val)
 #define PRINT_FLOAT(key,val) if (val) fprintf(out, "%ld:%.2f ", key, val)
 
@@ -273,6 +274,7 @@ static EnigmaticParams_p parse_block(char** spec)
          case 'l': params->use_len = true; break;
          case 'p': params->use_prios = true; break;
          case 'a': params->anonymous = true; break;
+         case 'u': params->unified_hashing = true; break;
          case 'x': parse_one(spec, 'c', &params->count_var, &default_count); break;
          case 's': parse_one(spec, 'c', &params->count_sym, &default_count); break;
          case 'r': parse_one(spec, 'c', &params->count_arity, &default_count); break;
@@ -304,6 +306,18 @@ static void params_offset(bool cond, long* offset, long len, long* cur)
    }
 }
 
+static void params_offset_set(bool cond, long* offset, long cur)
+{
+   if (cond)
+   {
+      *offset = cur;
+   }
+   else
+   {
+      *offset = -1;
+   }
+}
+
 static long params_offsets(EnigmaticParams_p params, long start)
 {
    long cur = start;
@@ -313,10 +327,22 @@ static long params_offsets(EnigmaticParams_p params, long start)
    params_offset(params->count_sym != -1, &params->offset_sym, EFC_SYM(params), &cur);
    params_offset(params->count_arity != -1, &params->offset_arity, EFC_ARITY(params), &cur);
    params_offset(params->use_prios, &params->offset_prios, EFC_PRIOS, &cur);
-   params_offset(params->base_horiz != -1, &params->offset_horiz, EFC_HORIZ(params), &cur);
-   params_offset(params->base_vert != -1, &params->offset_vert, EFC_VERT(params), &cur);
-   params_offset(params->base_count != -1, &params->offset_count, EFC_COUNT(params), &cur);
-   params_offset(params->base_depth != -1, &params->offset_depth, EFC_DEPTH(params), &cur);
+   if (!params->unified_hashing)
+   {
+      params_offset(params->base_horiz != -1, &params->offset_horiz, EFC_HORIZ(params), &cur);
+      params_offset(params->base_vert  != -1, &params->offset_vert,  EFC_VERT(params),  &cur);
+      params_offset(params->base_count != -1, &params->offset_count, EFC_COUNT(params), &cur);
+      params_offset(params->base_depth != -1, &params->offset_depth, EFC_DEPTH(params), &cur);
+   }
+   else
+   {
+      long base = EFC_UNIFIED(params);
+      params_offset_set(params->base_horiz != -1, &params->offset_horiz, cur);
+      params_offset_set(params->base_vert  != -1, &params->offset_vert,  cur);
+      params_offset_set(params->base_count != -1, &params->offset_count, cur);
+      params_offset_set(params->base_depth != -1, &params->offset_depth, cur);
+      params_offset(base != -1, &params->offset_unified, base, &cur);
+   }
 
    params->features = cur - start;
 
@@ -354,6 +380,7 @@ static void info_suboffsets(FILE* out, char* name, EnigmaticParams_p params)
    info_offset(out, name, "vert", params->offset_vert);
    info_offset(out, name, "count", params->offset_count);
    info_offset(out, name, "depth", params->offset_depth);
+   info_offset(out, name, "unified", params->offset_unified);
 }
 
 static void info_settings(FILE* out, char* name, EnigmaticParams_p params)
@@ -364,6 +391,7 @@ static void info_settings(FILE* out, char* name, EnigmaticParams_p params)
    }
    INFO_SETTING(out, name, params, features);
    INFO_SETTING(out, name, params, anonymous);
+   INFO_SETTING(out, name, params, unified_hashing);
    INFO_SETTING(out, name, params, use_len);
    INFO_SETTING(out, name, params, use_prios);
    INFO_SETTING(out, name, params, count_var);
@@ -429,6 +457,7 @@ static void names_clauses(FILE* out, char* name, EnigmaticParams_p params, long 
    names_range(out, name, "vert", params->offset_vert, EFC_VERT(params), 0); 
    names_range(out, name, "count", params->offset_count, EFC_COUNT(params), 0); 
    names_range(out, name, "depth", params->offset_depth, EFC_DEPTH(params), 0); 
+   names_range(out, name, "unified", params->offset_unified, EFC_UNIFIED(params), 0); 
 }
 
 static void fill_print(void* data, long key, float val)
@@ -546,10 +575,17 @@ static void fill_clause(FillFunc set, void* data, EnigmaticClause_p clause)
    fill_lengths(set, data, clause);
    fill_hists(set, data, clause);
    fill_prios(set, data, clause);
-   fill_hashes(set, data, clause->horiz, clause->params->offset_horiz);
-   fill_hashes(set, data, clause->vert, clause->params->offset_vert);
-   fill_hashes(set, data, clause->counts, clause->params->offset_count);
-   fill_hashes(set, data, clause->depths, clause->params->offset_depth);
+   if (!clause->params->unified_hashing)
+   {
+      fill_hashes(set, data, clause->horiz, clause->params->offset_horiz);
+      fill_hashes(set, data, clause->vert, clause->params->offset_vert);
+      fill_hashes(set, data, clause->counts, clause->params->offset_count);
+      fill_hashes(set, data, clause->depths, clause->params->offset_depth);
+   }
+   else
+   {
+      fill_hashes(set, data, clause->unified, clause->params->offset_unified);
+   }
 }
 
 static void fill_problem(FillFunc set, void* data, EnigmaticVector_p vector)
@@ -572,6 +608,7 @@ EnigmaticParams_p EnigmaticParamsAlloc(void)
    EnigmaticParams_p params = EnigmaticParamsCellAlloc();
    params->features = -1;
    params->anonymous = false;
+   params->unified_hashing = false;
    params->use_len = false;
    params->use_prios = false;
    params->count_var = -1;
@@ -591,6 +628,7 @@ EnigmaticParams_p EnigmaticParamsAlloc(void)
    params->offset_vert = -1;
    params->offset_count = -1;
    params->offset_depth = -1;
+   params->offset_unified = -1;
    return params;
 }
 
@@ -604,6 +642,7 @@ EnigmaticParams_p EnigmaticParamsCopy(EnigmaticParams_p source)
    EnigmaticParams_p params = EnigmaticParamsCellAlloc();
    params->features = source->features;
    params->anonymous = source->anonymous;
+   params->unified_hashing = source->unified_hashing;
    params->use_len = source->use_len;
    params->use_prios = source->use_prios;
    params->count_var = source->count_var;
@@ -623,6 +662,7 @@ EnigmaticParams_p EnigmaticParamsCopy(EnigmaticParams_p source)
    params->offset_vert = source->offset_vert;
    params->offset_count = source->offset_count;
    params->offset_depth = source->offset_depth;
+   params->offset_unified = source->offset_unified;
    return params;
 }
 
@@ -799,6 +839,7 @@ EnigmaticClause_p EnigmaticClauseAlloc(EnigmaticParams_p params)
    enigma->vert = NULL;
    enigma->counts = NULL;
    enigma->depths = NULL;
+   enigma->unified = NULL;
 
    if (params->count_var > 0)
    {
@@ -855,6 +896,7 @@ void EnigmaticClauseFree(EnigmaticClause_p junk)
    if (junk->vert) { NumTreeFree(junk->vert); }
    if (junk->counts) { NumTreeFree(junk->counts); }
    if (junk->depths) { NumTreeFree(junk->depths); }
+   if (junk->unified) { NumTreeFree(junk->unified); }
    EnigmaticClauseCellFree(junk);
 }
 
@@ -905,6 +947,11 @@ void EnigmaticClauseReset(EnigmaticClause_p enigma)
    {
       NumTreeFree(enigma->depths);
       enigma->depths = NULL;
+   }
+   if (enigma->unified)
+   {
+      NumTreeFree(enigma->unified);
+      enigma->unified = NULL;
    }
    int i;
    if (enigma->params->count_var > 0)

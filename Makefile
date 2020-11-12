@@ -237,4 +237,8 @@ benchpress-quick:
 	@echo "run provers on example problems..."
 	benchpress run -j $(J) -c benchpress.sexp --task eprover-quick-test --progress
 
+deploy:
+	scp PROVER/eprover cluster:~/atp/bin/eprover-current
+	scp SIMPLE_APPS/enigmatic-features cluster:~/atp/bin/enigmatic-features-current
+
 .PHONY: benchpress
