@@ -262,14 +262,15 @@ double EnigmaticWeightLgbCompute(void* data, Clause_p clause)
 
    if (OutputLevel>=1) 
    {
-      fprintf(GlobalOut, "=%.2f (val=%.3f,vlen=%d) : ", res, pred, local->lgb_count);
-      ClausePrint(GlobalOut, clause, true);
-      fprintf(GlobalOut, "\n");
       if (OutputLevel>=2)
       {
+         fprintf(GlobalOut, "+? ");
          PrintEnigmaticVector(GlobalOut, local->model1->vector);
          fprintf(GlobalOut, "\n");
       }
+      fprintf(GlobalOut, "=%.2f (val=%.3f,vlen=%d) : ", res, pred, local->lgb_count);
+      ClausePrint(GlobalOut, clause, true);
+      fprintf(GlobalOut, "\n");
    }
    
    return res;
