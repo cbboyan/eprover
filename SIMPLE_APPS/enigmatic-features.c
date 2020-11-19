@@ -337,7 +337,7 @@ CLState_p process_options(int argc, char* argv[])
          MapOut = fopen(arg, "w");
          break;
       case OPT_OUTPUT_BUCKETS:
-         BucketsOut = fopen(arg, "a");
+         BucketsOut = fopen(arg, "w");
          break;
       case OPT_FREE_NUMBERS:
          free_symb_prop = free_symb_prop|FPIsInteger|FPIsRational|FPIsFloat;
