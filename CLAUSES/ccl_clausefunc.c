@@ -636,10 +636,59 @@ void PStackClausePrint(FILE* out, PStack_p stack, char* extra)
    PStackPointer i;
    Clause_p clause;
 
+   PStackPointer j, sp;
+   DerivationCode op;
+   Clause_p parent;
+
    for(i=0; i<PStackGetSP(stack); i++)
    {
       clause = PStackElementP(stack, i);
       ClausePrint(out, clause, true);
+
+      // Prints out the parents for a clause
+      if(ProofObjectRecordsParentClauses)
+            {
+              sp = PStackGetSP(clause->derivation);
+              j = 0;
+              if (sp > 0)
+              {
+                op = PStackElementInt(clause->derivation, j);
+                j++;
+
+                if(DCOpHasCnfArg1(op))
+                {
+                   parent = PStackElementP(clause->derivation, j);
+
+                   fprintf(out, " #parent1 ");
+                   ClausePrint(out, parent, true);
+                   fprintf(out, " ");
+
+                }
+                if(DCOpHasArg1(op))
+                {
+                   j++;
+                }
+
+                if(DCOpHasCnfArg2(op))
+                {
+                   parent = PStackElementP(clause->derivation, j);
+
+                   fprintf(out, " #parent2 ");
+                   ClausePrint(out, parent, true);
+                   fprintf(out, " ");
+                }
+                if(DCOpHasArg2(op))
+                {
+                   j++;
+                }
+              }
+              else
+              {
+                fprintf(out, " #sp == 0 ");
+              }
+            }
+
+
       if(extra)
       {
          fprintf(out, "%s", extra);

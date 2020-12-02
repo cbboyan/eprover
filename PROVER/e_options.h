@@ -58,6 +58,7 @@ typedef enum
    OPT_FORCE_DERIV,
    OPT_RECORD_GIVEN_CLAUSES,
    OPT_TRAINING,
+   OPT_RECORD_PARENT_CLAUSES,
    OPT_PCL_COMPRESSED,
    OPT_PCL_COMPACT,
    OPT_PCL_SHELL_LEVEL,
@@ -349,6 +350,13 @@ OptCell opts[] =
     " Implies --record-gcs. The argument is a binary or of the desired "
     "processing. Bit zero prints positive exampels. Bit 1 prints negative "
     "examples. Additional selectors will be added later."},
+
+   {OPT_RECORD_PARENT_CLAUSES,
+    '\0', "record-parent-clauses",
+    NoArg, NULL,
+    "Record and print two parent clauses (if they exist) for each selected "
+    "given clause, i.e. training example. "
+    "Will be printed with training examples (if the option is set)."},
 
    {OPT_PCL_COMPRESSED,
     '\0', "pcl-terms-compressed",
