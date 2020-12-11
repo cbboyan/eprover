@@ -616,9 +616,6 @@ long ClauseSetDeleteOrphans(ClauseSet_p set)
 }
 
 
-
-
-
 /*-----------------------------------------------------------------------
 //
 // Function: PStackClausePrint()
@@ -640,17 +637,23 @@ void PStackClausePrint(FILE* out, PStack_p stack, char* extra)
    DerivationCode op;
    Clause_p parent;
 
+   long res = 0;
+
    for(i=0; i<PStackGetSP(stack); i++)
    {
       clause = PStackElementP(stack, i);
       ClausePrint(out, clause, true);
 
       // Prints out the parents for a clause
+      // I wonder why DCCnfAddArg is used above but not in DerivStackExtractParents
+      // I also wonder if this will work elsewhere in E...
       if(ProofObjectRecordsParentClauses)
             {
               sp = PStackGetSP(clause->derivation);
               j = 0;
-              if (sp > 0)
+              res = 0;
+
+              while (j < sp)
               {
                 op = PStackElementInt(clause->derivation, j);
                 j++;
@@ -658,35 +661,29 @@ void PStackClausePrint(FILE* out, PStack_p stack, char* extra)
                 if(DCOpHasCnfArg1(op))
                 {
                    parent = PStackElementP(clause->derivation, j);
+                   j++; res++;
 
-                   fprintf(out, " #parent1 ");
+                   fprintf(out, " #parent%ld ", res);
                    ClausePrint(out, parent, true);
                    fprintf(out, " ");
 
                 }
-                if(DCOpHasArg1(op))
-                {
-                   j++;
-                }
-
                 if(DCOpHasCnfArg2(op))
                 {
                    parent = PStackElementP(clause->derivation, j);
+                   j++; res++;
 
-                   fprintf(out, " #parent2 ");
+                   fprintf(out, " #parent%ld ", res);
                    ClausePrint(out, parent, true);
                    fprintf(out, " ");
                 }
-                if(DCOpHasArg2(op))
-                {
-                   j++;
-                }
               }
-              else
+              if (sp == 0)
               {
                 fprintf(out, " #sp == 0 ");
               }
             }
+
 
 
       if(extra)
