@@ -859,7 +859,7 @@ long HCBAddWFCB(HCB_p hcb, WFCB_p wfcb, long steps)
 //
 // Function: HCBClauseEvaluate()
 //
-//   Giben a HCB-Block, add evaluations to the given clause.
+//   Given a HCB-Block, add evaluations to the given clause.
 //
 // Global Variables: -
 //

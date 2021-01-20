@@ -59,6 +59,7 @@ typedef enum
    OPT_RECORD_GIVEN_CLAUSES,
    OPT_TRAINING,
    OPT_RECORD_PARENT_CLAUSES,
+   OPT_FILTER_GENERATED_CLAUSES,
    OPT_PCL_COMPRESSED,
    OPT_PCL_COMPACT,
    OPT_PCL_SHELL_LEVEL,
@@ -357,6 +358,13 @@ OptCell opts[] =
     "Record and print two parent clauses (if they exist) for each selected "
     "given clause, i.e. training example. "
     "Will be printed with training examples (if the option is set)."},
+
+   {OPT_FILTER_GENERATED_CLAUSES,
+    '\0', "filter-generated-clauses",
+	ReqArg, NULL,
+	  "Filter mating of given clauses with processed clauses based on the "
+      "supplied (LightGBM) model directory.  The directory structure is: "
+   	  "Enigma/your/own/directory/structure. "},
 
    {OPT_PCL_COMPRESSED,
     '\0', "pcl-terms-compressed",

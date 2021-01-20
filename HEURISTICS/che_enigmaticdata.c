@@ -675,6 +675,7 @@ EnigmaticFeatures_p EnigmaticFeaturesAlloc(void)
    features->offset_theory = -1;
    features->offset_problem = -1;
    features->offset_proofwatch = -1;
+   //features->offset_parent_clause = -1;
    features->clause = NULL;
    features->goal = NULL;
    features->theory = NULL;
@@ -797,6 +798,11 @@ EnigmaticFeatures_p EnigmaticFeaturesParse(char* spec)
       features->offset_proofwatch = idx;
       // idx += ??? // watchlist size is unknown
    }
+   //if (features->offset_parent_clause == 0)
+   //{
+   //   features->offset_parent_clause = idx;
+   //   idx += params_offsets(features->clause, idx); // Maybe the same as for the clause features, based on their parameters?
+   //}
    features->count = idx + 1; // plus one for terminator feature
 
    return features;
@@ -1207,6 +1213,7 @@ void PrintEnigmaticFeaturesMap(FILE* out, EnigmaticFeatures_p features)
    names_clauses(out, "theory", features->theory, features->offset_theory);
    names_array(out, "problem", features->offset_problem, efn_problem, EBS_PROBLEM);
    //names_proofwatch(out, offset_proofwatch);
+   //names_clauses(out, "parent clause", features->clause, features->offset_parent_clause);
 }
 
 void PrintEnigmaticFeaturesInfo(FILE* out, EnigmaticFeatures_p features)
@@ -1219,6 +1226,7 @@ void PrintEnigmaticFeaturesInfo(FILE* out, EnigmaticFeatures_p features)
    info_offset(out, "theory", NULL, features->offset_theory);
    info_offset(out, "problem", NULL, features->offset_problem);
    info_offset(out, "proofwatch", NULL, features->offset_proofwatch);
+   //info_offset(out, "parent clause", NULL, features->offset_parent_clause)
    
    info_suboffsets(out, "clause", features->clause);
    info_suboffsets(out, "goal", features->goal);

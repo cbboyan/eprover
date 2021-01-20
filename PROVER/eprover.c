@@ -58,6 +58,8 @@ char              *outname = NULL;
 char              *watchlist_filename = NULL;
 char              *parse_strategy_filename = NULL;
 char              *print_strategy = NULL;
+char              *enigmaceo_filename = NULL;
+
 HeuristicParms_p  h_parms;
 FVIndexParms_p    fvi_parms;
 bool              print_sat = false,
@@ -1246,6 +1248,9 @@ CLState_p process_options(int argc, char* argv[])
             PrintProofObject = MAX(1, PrintProofObject);
             ProofObjectRecordsGCSelection = true;
             ProofObjectRecordsParentClauses = true;
+      case OPT_FILTER_GENERATED_CLAUSES:
+	  	    enigmaceo_filename = arg;
+	  	    break;
       case OPT_PCL_COMPRESSED:
             pcl_full_terms = false;
             break;
