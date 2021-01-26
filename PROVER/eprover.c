@@ -826,6 +826,25 @@ int main(int argc, char* argv[])
 
    ProofStateInit(proofstate, proofcontrol);
    //printf("Alive (2)!\n");
+   //ProofStateInitWatchlist(proofstate, proofcontrol->ocb);
+
+   if (enigmaceo_filename)
+   {
+	   EnigmaticModel_p model = EnigmaticModelCreate(enigmaceo_filename, "model.lgb");
+	   //EnigmaticGenerationLgbParam_p gen_model =
+	   EnigmaticGenerationLgbModelInit(enigmaceo_filename,
+										 "model.lgb",
+										 proofcontrol->ocb,
+										 proofstate,
+										 proofcontrol->enigma_gen_model);
+	   fprintf(GlobalOut, "THIS IS A TEST: %s\n", enigmaceo_filename);
+	   fprintf(GlobalOut, "THIS IS A TEST: %s\n", model->features_filename);
+	   fprintf(GlobalOut, "THIS IS A TEST: %s\n", proofcontrol->enigma_gen_model->model1->model_filename);
+	   //Scanner_p in = CreateScanner(StreamTypeFile, enigmaceo_filename, true, NULL, true);
+	//in = CreateScanner(StreamTypeInternalString, DefaultWeightFunctions, true, NULL, true);
+		//CheckInpTok(in, Identifier);
+		//DestroyScanner(in);
+	}
 
    VERBOUT2("Prover state initialized\n");
    preproc_time = GetTotalCPUTime();
