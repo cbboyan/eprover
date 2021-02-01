@@ -190,6 +190,8 @@ void EnigmaticGenerationLgbModelInit(
    EnigmaticModel_p model1;
 
    model1 = EnigmaticModelCreate(d_prefix, model_name);// "model.lgb");
+   model1->weight_type = 1; // res = (pred <= threshold) ? EW_NEG : EW_POS;
+   model1->threshold = 0.5;
 
    //Now done in the ProofControl Allocation
    //EnigmaticGenerationLgbParam_p data = EnigmaticGenerationLgbParamAlloc();
@@ -260,6 +262,30 @@ double EnigmaticGenerationPredictLgb(Clause_p clause, EnigmaticGenerationLgbPara
    return EnigmaticPredict(clause, model, local, local->fill_fun, local->predict_fun);
 }
 
+double EnigmaticGenerationPredictSetLgb(ClauseSet_p parents, EnigmaticGenerationLgbParam_p local, EnigmaticModel_p model)
+{
+   if (!model)
+   {
+      model = local->model1;
+   }
+   local->lgb_count = 0;
+   return EnigmaticPredictSet(parents, model, local, local->fill_fun, local->predict_fun);
+}
+
+double EnigmaticGenerationPredictParentsLgb(Clause_p parent1, Clause_p parent2, EnigmaticGenerationLgbParam_p local, EnigmaticModel_p model)
+{
+   if (!model)
+   {
+      model = local->model1;
+   }
+   local->lgb_count = 0;
+   if (parent2)
+   {
+	   return EnigmaticPredictParents(parent1, parent2, model, local, local->fill_fun, local->predict_fun);
+   }
+   return EnigmaticPredict(parent1, model, local, local->fill_fun, local->predict_fun);
+}
+
 double EnigmaticGenerationLgbCompute(void* data, Clause_p clause)
 {
    EnigmaticGenerationLgbParam_p local = data;
@@ -297,6 +323,102 @@ double EnigmaticGenerationLgbCompute(void* data, Clause_p clause)
    }
    
    return res;
+}
+
+bool EnigmaticLgbFilterGenerationCompute(EnigmaticGenerationLgbParam_p local, Clause_p clause)
+{
+	//EnigmaticGenerationLgbParam_p local = control->enigma_gen_model;
+	double pred;
+	bool res = false;
+
+	//Clause_p clause;
+	PStackPointer j, sp;
+	DerivationCode op;
+	Clause_p parent1, parent2;
+	//ClauseSet_p parents = ClauseSetAlloc();
+
+	long resp = 0;
+
+	local->init_fun(local); // If the model is initialized, this is just a quick if-statement
+
+	// We want to get the parents.  So I'll try printing them first.
+
+	sp = PStackGetSP(clause->derivation);
+	j = 0;
+	//resp = 0;
+
+	//if (parent1)
+	//{
+	//	fprintf(GlobalOut, " #parent%ld ", resp);
+	//}
+	// I think we can rely on clauses having at most 2 parents by this point, before forward contraction steps that would add unit clauses and the like!
+	// Equality factoring and resolution would have one 'parent', i.e., the more complicated expression for the same clause before unification.
+	// Paramodulation adds two parents:
+	// ClausePushDerivation(clause,  pm_type==ParamodPlain?DCParamod:DCSimParamod, pminfo->into, pminfo->new_orig);
+	// The ClauseSet doesn't work as clauses are already in sets.  Copy them or add to a PStack but if they're always too, just passing them as parameters is most efficient!
+	// The generic framework can be made later if E'd like to have the addons.
+	//while (j < sp)
+	//{
+	op = PStackElementInt(clause->derivation, j);
+	j++;
+
+	if(DCOpHasCnfArg1(op))
+	{
+	   parent1 = PStackElementP(clause->derivation, j);
+	   j++; //resp++;
+	   if (OutputLevel>=1)
+	   	{
+		   fprintf(GlobalOut, " #parent1");//%ld ", resp);
+		   ClausePrint(GlobalOut, parent1, true);
+		   fprintf(GlobalOut, " ");
+	   	}
+	   //ClauseSetInsert(parents, parent);
+
+	}
+	if(DCOpHasCnfArg2(op))
+	{
+	   parent2 = PStackElementP(clause->derivation, j);
+	   j++; //resp++;
+	   if (OutputLevel>=1)
+	   	{
+		   fprintf(GlobalOut, " #parent2");//%ld ", resp);
+		   ClausePrint(GlobalOut, parent2, true);
+		   fprintf(GlobalOut, " ");
+		   fprintf(GlobalOut, "\n");
+	   	}
+	   //ClauseSetInsert(parents, parent);
+	}
+	//}
+	//if (sp == 0)
+	//{
+	//	fprintf(GlobalOut, " #sp == 0 ");
+	//}
+
+	//ClauseSetInsert(parents, clause);
+	//pred = EnigmaticGenerationPredictLgb(clause, local, local->model1);
+	//res = EnigmaticWeight(pred, local->model1->weight_type, local->model1->threshold);
+	if (parent1) // || parent2)
+	{
+		pred = EnigmaticGenerationPredictParentsLgb(parent1, parent2, local, local->model1);
+		//res = (pred <= local->model1->threshold);
+		res = (pred <= 0.1);
+	}
+	if (OutputLevel>=1)
+	{
+	  if (OutputLevel>=2)
+	  {
+		 fprintf(GlobalOut, "+? ");
+		 PrintEnigmaticVector(GlobalOut, local->model1->vector);
+		 fprintf(GlobalOut, "\n");
+	  }
+	  //fprintf(GlobalOut, "=%.2f (val=%.3f,vlen=%d) : ", res, pred, local->lgb_count);
+	  fprintf(GlobalOut, "=%s (val=%.3f,vlen=%d) : ", res ? "true" : "false", pred, local->lgb_count);
+	  ClausePrint(GlobalOut, clause, true);
+	  fprintf(GlobalOut, "\n");
+	}
+
+	//ClauseSetFree(parents);
+	return res;
 }
 
 void EnigmaticGenerationLgbExit(void* data)

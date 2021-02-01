@@ -648,41 +648,41 @@ void PStackClausePrint(FILE* out, PStack_p stack, char* extra)
       // I wonder why DCCnfAddArg is used above but not in DerivStackExtractParents
       // I also wonder if this will work elsewhere in E...
       if(ProofObjectRecordsParentClauses)
-            {
-              sp = PStackGetSP(clause->derivation);
-              j = 0;
-              res = 0;
+		{
+		  sp = PStackGetSP(clause->derivation);
+		  j = 0;
+		  res = 0;
 
-              while (j < sp)
-              {
-                op = PStackElementInt(clause->derivation, j);
-                j++;
+		  while (j < sp)
+		  {
+			op = PStackElementInt(clause->derivation, j);
+			j++;
 
-                if(DCOpHasCnfArg1(op))
-                {
-                   parent = PStackElementP(clause->derivation, j);
-                   j++; res++;
+			if(DCOpHasCnfArg1(op))
+			{
+			   parent = PStackElementP(clause->derivation, j);
+			   j++; res++;
 
-                   fprintf(out, " #parent%ld ", res);
-                   ClausePrint(out, parent, true);
-                   fprintf(out, " ");
+			   fprintf(out, " #parent%ld ", res);
+			   ClausePrint(out, parent, true);
+			   fprintf(out, " ");
 
-                }
-                if(DCOpHasCnfArg2(op))
-                {
-                   parent = PStackElementP(clause->derivation, j);
-                   j++; res++;
+			}
+			if(DCOpHasCnfArg2(op))
+			{
+			   parent = PStackElementP(clause->derivation, j);
+			   j++; res++;
 
-                   fprintf(out, " #parent%ld ", res);
-                   ClausePrint(out, parent, true);
-                   fprintf(out, " ");
-                }
-              }
-              if (sp == 0)
-              {
-                fprintf(out, " #sp == 0 ");
-              }
-            }
+			   fprintf(out, " #parent%ld ", res);
+			   ClausePrint(out, parent, true);
+			   fprintf(out, " ");
+			}
+		  }
+		  if (sp == 0)
+		  {
+			fprintf(out, " #sp == 0 ");
+		  }
+		}
 
 
 

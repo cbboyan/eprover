@@ -205,7 +205,7 @@ void GlobalIndicesReset(GlobalIndices_p indices)
 //
 // Function: GlobalIndicesInsertClause()
 //
-//   Add a clause to all exisiting global indices.
+//   Add a clause to all existing global indices.
 //
 // Global Variables: -
 //

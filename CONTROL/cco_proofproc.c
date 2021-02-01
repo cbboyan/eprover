@@ -632,7 +632,7 @@ void eval_clause_set(ProofState_p state, ProofControl_p control)
    {
       // keep collecting new clauses in delayed_store.
       ClauseSetInsertSet(state->delayed_store, state->eval_store);
-      // once enought clauses are collected ..
+      // once enough clauses are collected ..
       bool force = ClauseSetEmpty(state->unprocessed);
       // (or out of unprocessed)
       if (force || state->delayed_store->members >= DelayedEvalSize)
@@ -675,6 +675,7 @@ static Clause_p insert_new_clauses(ProofState_p state, ProofControl_p control)
 {
    Clause_p handle;
    long     clause_count;
+   bool     filter_child = false;
 
    state->generated_count+=state->tmp_store->members;
    state->generated_lit_count+=state->tmp_store->literals;
@@ -683,6 +684,18 @@ static Clause_p insert_new_clauses(ProofState_p state, ProofControl_p control)
       // printf("Inserting: ");
       // ClausePrint(stdout, handle, true);
       // printf("\n");
+
+	  // Filter children here
+	  if (control->enigma_gen_model->model1) // This test seem solid given the allocation scheme.
+	  {
+		 //fprintf(GlobalOut, "TEST -- ENTERED \n");
+		 filter_child = EnigmaticLgbFilterGenerationCompute(control->enigma_gen_model, handle);
+		 if (filter_child)
+		 {
+			 ClauseFree(handle);
+			 continue;
+		 }
+	  }
       if(ClauseQueryProp(handle,CPIsIRVictim))
       {
          assert(ClauseQueryProp(handle, CPLimitedRW));

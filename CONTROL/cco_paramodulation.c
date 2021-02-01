@@ -45,8 +45,8 @@ Changes
 //
 // Function: sim_paramod_q()
 //
-//   Given frompos (instantiated) and pm_type, determine wether to use
-//   normal, simultaneous or super-simultaneois paramodulation.
+//   Given frompos (instantiated) and pm_type, determine whether to use
+//   normal, simultaneous or super-simultaneous paramodulation.
 //
 // Global Variables: -
 //
