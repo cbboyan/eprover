@@ -132,6 +132,8 @@ static void debug_edges(EnigmaticWeightTfsParam_p data)
 }
 #endif
 
+static EnigmaticWeightTfsParam_p local_data = NULL;
+
 static void tfs_init(EnigmaticWeightTfsParam_p data)
 {
    Clause_p clause;
@@ -411,6 +413,8 @@ WFCB_p EnigmaticWeightTfsInit(
 
    ProofStateDelayedEvalRegister(proofstate, tfs_eval, data);
    ProofStateClauseProcessedRegister(proofstate, tfs_processed, data);
+   
+   local_data = data;
 
    return WFCBAlloc(
       EnigmaticWeightTfsCompute, 
@@ -439,11 +443,11 @@ double EnigmaticWeightTfsCompute(void* data, Clause_p clause)
       weight = EnigmaticWeight(clause->ext_weight, local->weight_type, local->threshold);
    }
 
-#if defined(DEBUG_ETF)
+//#if defined(DEBUG_ETF)
    fprintf(GlobalOut, "#TF#EVAL# %+.5f(%.1f)= ", weight, clause->ext_weight);
    ClausePrint(GlobalOut, clause, true);
    fprintf(GlobalOut, "\n");
-#endif
+//#endif
 
    return weight;
 }
@@ -456,6 +460,16 @@ void EnigmaticWeightTfsExit(void* data)
       close(junk->sock->fd);
    }
    EnigmaticWeightTfsParamFree(junk);
+}
+
+void EnigmaticWeightTfsEvalAxioms(ClauseSet_p axioms)
+{
+   fprintf(GlobalOut, "# local_data = %p\n", local_data);
+   if (local_data)
+   {
+      fprintf(GlobalOut, "#TFS# Evaluating axioms..\n");
+      tfs_eval(axioms, local_data);
+   }
 }
 
 /*---------------------------------------------------------------------*/

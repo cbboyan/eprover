@@ -90,6 +90,8 @@ double EnigmaticWeightTfsCompute(void* data, Clause_p clause);
 
 void EnigmaticWeightTfsExit(void* data);
 
+void EnigmaticWeightTfsEvalAxioms(ClauseSet_p axioms);
+
 //void EnigmaticComputeEvals(ClauseSet_p set, EnigmaticWeightTfsParam_p local);
 
 //void EnigmaticComputeEvalsSimple(ClauseSet_p set, EnigmaticWeightTfsParam_p local);
