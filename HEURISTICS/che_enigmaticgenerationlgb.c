@@ -279,50 +279,11 @@ double EnigmaticGenerationPredictParentsLgb(Clause_p parent1, Clause_p parent2, 
       model = local->model1;
    }
    local->lgb_count = 0;
-   if (parent2)
-   {
-	   return EnigmaticPredictParents(parent1, parent2, model, local, local->fill_fun, local->predict_fun);
-   }
-   return EnigmaticPredict(parent1, model, local, local->fill_fun, local->predict_fun);
-}
-
-double EnigmaticGenerationLgbCompute(void* data, Clause_p clause)
-{
-   EnigmaticGenerationLgbParam_p local = data;
-   double pred, res;
-
-   local->init_fun(data);
-   pred = EnigmaticGenerationPredictLgb(clause, local, local->model1);
-   // This function takes the prediction and converts it to a weight, which, frankly, can be kept for now.
-   // We will still need to filter based on this.
-   res = EnigmaticWeight(pred, local->model1->weight_type, local->model1->threshold);
-   //if (local->model2)
+   //if (parent2)
    //{
-   //   if (res == EW_POS)
-   //   {
-   //      pred = EnigmaticGenerationPredictLgb(clause, local, local->model2);
-   //      res = EnigmaticGeneration(pred, local->model2->weight_type, local->model2->threshold);
-   //   }
-   //   else
-   //   {
-   //      res = EW_WORST;
-   //   }
+   return EnigmaticPredictParents(parent1, parent2, model, local, local->fill_fun, local->predict_fun);
    //}
-
-   if (OutputLevel>=1) 
-   {
-      if (OutputLevel>=2)
-      {
-         fprintf(GlobalOut, "+? ");
-         PrintEnigmaticVector(GlobalOut, local->model1->vector);
-         fprintf(GlobalOut, "\n");
-      }
-      fprintf(GlobalOut, "=%.2f (val=%.3f,vlen=%d) : ", res, pred, local->lgb_count);
-      ClausePrint(GlobalOut, clause, true);
-      fprintf(GlobalOut, "\n");
-   }
-   
-   return res;
+   //return EnigmaticPredict(parent1, model, local, local->fill_fun, local->predict_fun);
 }
 
 bool EnigmaticLgbFilterGenerationCompute(EnigmaticGenerationLgbParam_p local, Clause_p clause)
@@ -332,19 +293,18 @@ bool EnigmaticLgbFilterGenerationCompute(EnigmaticGenerationLgbParam_p local, Cl
 	bool res = false;
 
 	//Clause_p clause;
-	PStackPointer j, sp;
+	PStackPointer j = 0; //, sp;
 	DerivationCode op;
 	Clause_p parent1, parent2;
 	//ClauseSet_p parents = ClauseSetAlloc();
-
-	long resp = 0;
+	//long resp = 0;
 
 	local->init_fun(local); // If the model is initialized, this is just a quick if-statement
 
 	// We want to get the parents.  So I'll try printing them first.
 
-	sp = PStackGetSP(clause->derivation);
-	j = 0;
+	//sp = PStackGetSP(clause->derivation);
+	//j = 0;
 	//resp = 0;
 
 	//if (parent1)
@@ -397,11 +357,12 @@ bool EnigmaticLgbFilterGenerationCompute(EnigmaticGenerationLgbParam_p local, Cl
 	//ClauseSetInsert(parents, clause);
 	//pred = EnigmaticGenerationPredictLgb(clause, local, local->model1);
 	//res = EnigmaticWeight(pred, local->model1->weight_type, local->model1->threshold);
-	if (parent1) // || parent2)
+	// At the moment, the models are trained only based on pairs of parents.
+	if (parent1 && parent2)
 	{
 		pred = EnigmaticGenerationPredictParentsLgb(parent1, parent2, local, local->model1);
-		//res = (pred <= local->model1->threshold);
-		res = (pred <= 0.1);
+		res = (pred <= local->model1->threshold);
+		//res = (pred <= 0.5);
 	}
 	if (OutputLevel>=1)
 	{

@@ -88,7 +88,6 @@ double EnigmaticGenerationPredictLgb(Clause_p clause, EnigmaticGenerationLgbPara
 double EnigmaticGenerationPredictSetLgb(ClauseSet_p parents, EnigmaticGenerationLgbParam_p local, EnigmaticModel_p model);
 double EnigmaticGenerationPredictParentsLgb(Clause_p parent1, Clause_p parent2, EnigmaticGenerationLgbParam_p local, EnigmaticModel_p model);
 
-double EnigmaticGenerationLgbCompute(void* data, Clause_p clause);
 
 bool EnigmaticLgbFilterGenerationCompute(EnigmaticGenerationLgbParam_p local, Clause_p clause);
 

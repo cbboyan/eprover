@@ -597,7 +597,7 @@ char* ParseContinous(Scanner_p in)
 // Function: ParseSkipParenthesizedExpr()
 //
 //   Skip any expression containing balanced (), [], {}. Print error
-//   on missmatch. Note that no full syntax check is performed, we are
+//   on mismatch. Note that no full syntax check is performed, we are
 //   only interested in the different braces.
 //
 // Global Variables: -

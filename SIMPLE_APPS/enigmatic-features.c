@@ -46,6 +46,7 @@ typedef enum
    OPT_JOIN_AVG,
    OPT_JOIN_SUM,
    OPT_JOIN_MAX,
+   OPT_MERGE_CLAUSES,
 }OptionCodes;
 
 
@@ -113,6 +114,11 @@ OptCell opts[] =
       '\0', "max",
       NoArg, NULL,
       "Compute the maximum of the vectors and output it instead of the clause vectors."},
+   {OPT_MERGE_CLAUSES,
+	  '\0', "merge",
+	  NoArg, NULL,
+	  "Merge multiple clauses into a single feature vector.  "
+	  "Place a semi-conol, ;, after each group of clauses to be merged."},
    {OPT_NOOPT,
       '\0', NULL,
       NoArg, NULL,
@@ -132,6 +138,7 @@ bool compute_avg = false;
 bool compute_max = false;
 bool compute_sum = false;
 int compute_joint = 0;
+bool merge_clauses = false;
 
 /*---------------------------------------------------------------------*/
 /*                      Forward Declarations                           */
@@ -185,6 +192,7 @@ static void process_clauses(FILE* out, char* filename, EnigmaticVector_p vector,
    ScannerSetFormat(in, TSTPFormat);
    Clause_p clause;
    WFormula_p formula = NULL;
+   ClauseSet_p merge_set = ClauseSetAlloc();
   
    int count = 0;
    while (TestInpId(in, "input_formula|input_clause|fof|cnf|tff|tcf"))
@@ -192,6 +200,10 @@ static void process_clauses(FILE* out, char* filename, EnigmaticVector_p vector,
       if (TestInpId(in, "input_clause|cnf"))
       {
          clause = ClauseParse(in, info->bank);
+         if (!merge_clauses && TestInpTok(in, Semicolon))
+		  {
+			 AcceptInpTok(in, Semicolon); // For testing to compare the features merged and not.
+		  }
       }
       else 
       {
@@ -199,31 +211,66 @@ static void process_clauses(FILE* out, char* filename, EnigmaticVector_p vector,
          clause = EnigmaticFormulaToClause(formula, info);
          WFormulaFree(formula);
       }
-      EnigmaticClause(vector->clause, clause, info);
-      if (!compute_joint)
+      if (merge_clauses)
       {
-         //ClausePrint(out, clause, true);
-         //fprintf(out, "\n");
+    	  ClauseSetInsert(merge_set, clause);
+    	  if (TestInpTok(in, Semicolon))
+		  {
+			 AcceptInpTok(in, Semicolon);
+			 //fprintf(out, "Semicolon");
+			 EnigmaticClauseSet(vector->clause, merge_set, info);
 
-         fprintf(out, prefix);
-         PrintEnigmaticVector(GlobalOut, vector);
-         fprintf(out, "\n");
+			 if (!compute_joint)
+			 {
+				 fprintf(out, prefix);
+				 PrintEnigmaticVector(GlobalOut, vector);
+				 fprintf(out, "\n");
+			 }
+			 else
+			 {
+				 if (compute_sum || compute_avg)
+				 {
+					 EnigmaticVectorFill(vector, fill_sum, info);
+				 }
+				 else if (compute_max)
+				 {
+					EnigmaticVectorFill(vector, fill_max, info);
+				 }
+			 }
+
+			 count++;
+			 ClauseSetFreeClauses(merge_set);
+			 EnigmaticClauseReset(vector->clause);
+		  }
       }
       else
-      {
-         if (compute_sum || compute_avg) 
-         {
-            EnigmaticVectorFill(vector, fill_sum, info);
-         }
-         else if (compute_max)
-         {
-            EnigmaticVectorFill(vector, fill_max, info);
-         }
-      }
+	  {
+		  EnigmaticClause(vector->clause, clause, info);
+		  if (!compute_joint)
+		  {
+			 //ClausePrint(out, clause, true);
+			 //fprintf(out, "\n");
 
-      count++;
-      ClauseFree(clause);
-      EnigmaticClauseReset(vector->clause);
+			 fprintf(out, prefix);
+			 PrintEnigmaticVector(GlobalOut, vector);
+			 fprintf(out, "\n");
+		  }
+		  else
+		  {
+			 if (compute_sum || compute_avg)
+			 {
+				EnigmaticVectorFill(vector, fill_sum, info);
+			 }
+			 else if (compute_max)
+			 {
+				EnigmaticVectorFill(vector, fill_max, info);
+			 }
+		  }
+
+		  count++;
+		  ClauseFree(clause);
+		  EnigmaticClauseReset(vector->clause);
+	  }
    }
 
    if (compute_joint)
@@ -237,6 +284,7 @@ static void process_clauses(FILE* out, char* filename, EnigmaticVector_p vector,
       fprintf(out, "\n");
    }
 
+   ClauseSetFree(merge_set);
    CheckInpTok(in, NoToken);
    DestroyScanner(in);
 }
@@ -369,6 +417,9 @@ CLState_p process_options(int argc, char* argv[])
          compute_max = true;
          compute_joint++;
          break;
+      case OPT_MERGE_CLAUSES:
+    	 merge_clauses = true;
+    	 break;
       default:
          assert(false);
          break;
