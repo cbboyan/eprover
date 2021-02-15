@@ -203,54 +203,8 @@ void EnigmaticGenerationLgbModelInit(
    data->proofstate = state;
    data->init_fun = lgb_init;
    data->model1 = model1;
-
-   //EnigmaticModel_p model2 = NULL;
-   //ClausePrioFun prio_fun;
-
-   //AcceptInpTok(in, OpenBracket);
-   //prio_fun = ParsePrioFun(in);
-   //AcceptInpTok(in, Comma);
-   //model1 = EnigmaticGenerationParse(in, "model.lgb");
-   //if (TestInpTok(in, Comma))
-   //{
-   //   if (model1->weight_type != 1)
-   //   {
-   //      Error("ENIGMATIC: In the two-phases evaluation, the first model must have binary weight type (1)!", USAGE_ERROR);
-   //   }
-   //   NextToken(in);
-   //   model2 = EnigmaticGenerationParse(in, "model.lgb");
-   //}
-   //AcceptInpTok(in, CloseBracket);
-
-   //return data;
-   //return EnigmaticGenerationLgbInit(
-   //   prio_fun,
-   //   ocb,
-   //   state,
-   //   model1);//,
-      //model2);
 }
 
-//WFCB_p EnigmaticGenerationLgbInit(
-//   ClausePrioFun prio_fun,
-//   OCB_p ocb,
-//   ProofState_p proofstate,
-//   EnigmaticModel_p model1)//,
-//   //EnigmaticModel_p model2)
-//{
-//   EnigmaticGenerationLgbParam_p data = EnigmaticGenerationLgbParamAlloc();
-//   data->init_fun = lgb_init;
-//   data->ocb = ocb;
-//   data->proofstate = proofstate;
-//   data->model1 = model1;
-//   //data->model2 = model2;
-//
-//   return WFCBAlloc(
-//      EnigmaticGenerationLgbCompute,
-//      prio_fun,
-//      EnigmaticGenerationLgbExit,
-//      data);
-//}
 
 double EnigmaticGenerationPredictLgb(Clause_p clause, EnigmaticGenerationLgbParam_p local, EnigmaticModel_p model)
 {
