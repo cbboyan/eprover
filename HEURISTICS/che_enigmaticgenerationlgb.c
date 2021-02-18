@@ -183,6 +183,7 @@ void EnigmaticGenerationLgbModelInit(
    //Scanner_p in,  // As the d_prefix is now given as a string input, we no longer need the stream!
    char* d_prefix,
    char* model_name,
+   double threshold,
    OCB_p ocb,
    ProofState_p state,
    EnigmaticGenerationLgbParam_p data)
@@ -191,7 +192,7 @@ void EnigmaticGenerationLgbModelInit(
 
    model1 = EnigmaticModelCreate(d_prefix, model_name);// "model.lgb");
    model1->weight_type = 1; // res = (pred <= threshold) ? EW_NEG : EW_POS;
-   model1->threshold = 0.5;
+   model1->threshold = threshold; //0.25; is the default
 
    //Now done in the ProofControl Allocation
    //EnigmaticGenerationLgbParam_p data = EnigmaticGenerationLgbParamAlloc();

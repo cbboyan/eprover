@@ -60,6 +60,7 @@ typedef enum
    OPT_TRAINING,
    OPT_RECORD_PARENT_CLAUSES,
    OPT_FILTER_GENERATED_CLAUSES,
+   OPT_FILTER_GENERATED_THRESHOLD,
    OPT_PCL_COMPRESSED,
    OPT_PCL_COMPACT,
    OPT_PCL_SHELL_LEVEL,
@@ -365,6 +366,12 @@ OptCell opts[] =
 	  "Filter mating of given clauses with processed clauses based on the "
       "supplied (LightGBM) model directory.  The directory structure is: "
    	  "Enigma/your/own/directory/structure. "},
+
+   {OPT_FILTER_GENERATED_THRESHOLD,
+	'\0', "filter-generated-threshold",
+	OptArg, "0.25",
+	  "Threshold for --filter-generated-clauses. "
+   	  "Default value is 0.25 and must be in (0,1). "},
 
    {OPT_PCL_COMPRESSED,
     '\0', "pcl-terms-compressed",

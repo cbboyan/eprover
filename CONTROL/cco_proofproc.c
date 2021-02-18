@@ -33,6 +33,7 @@ PERF_CTR_DEFINE(ParamodTimer);
 PERF_CTR_DEFINE(BWRWTimer);
 
 long DelayedEvalSize = 0;
+bool filter_generated = false;
 
 /*---------------------------------------------------------------------*/
 /*                      Forward Declarations                           */
@@ -671,28 +672,39 @@ void eval_clause_set(ProofState_p state, ProofControl_p control)
 //
 /----------------------------------------------------------------------*/
 
-static Clause_p insert_new_clauses(ProofState_p state, ProofControl_p control)
+static Clause_p insert_new_clauses(ProofState_p state, ProofControl_p control, bool revive_children)
 {
    Clause_p handle;
+   ClauseSet_p handles;
    long     clause_count;
    bool     filter_child = false;
 
-   state->generated_count+=state->tmp_store->members;
-   state->generated_lit_count+=state->tmp_store->literals;
-   while((handle = ClauseSetExtractFirst(state->tmp_store)))
+   // In essence, the aborted children are revived and inserted where they were left off.
+   if (revive_children)
+   {
+	   handles = state->aborted_store;
+   }
+   else
+   {
+	   state->generated_count+=state->tmp_store->members;
+	   state->generated_lit_count+=state->tmp_store->literals;
+	   handles = state->tmp_store;
+   }
+   while((handle = ClauseSetExtractFirst(handles)))
    {
       // printf("Inserting: ");
       // ClausePrint(stdout, handle, true);
       // printf("\n");
 
-	  // Filter children here
-	  if (control->enigma_gen_model->model1) // This test seem solid given the allocation scheme.
+	  // Filter children here unless they're being revived
+	  if (filter_generated && !revive_children) //control->enigma_gen_model->model1) // This test seem solid given the allocation scheme.
 	  {
 		 //fprintf(GlobalOut, "TEST -- ENTERED \n");
 		 filter_child = EnigmaticLgbFilterGenerationCompute(control->enigma_gen_model, handle);
 		 if (filter_child)
 		 {
-			 ClauseFree(handle);
+			 //ClauseFree(handle);
+			 ClauseSetInsert(state->aborted_store, handle);
 			 continue;
 		 }
 	  }
@@ -864,7 +876,7 @@ Clause_p replacing_inferences(ProofState_p state, ProofControl_p
        * which may have put some clauses into tmp_store. */
       FVUnpackClause(pclause);
 
-      res = insert_new_clauses(state, control);
+      res = insert_new_clauses(state, control, false);
    }
    return res;
 }
@@ -1745,7 +1757,7 @@ Clause_p ProcessClause(ProofState_p state, ProofControl_p control,
    {
       ClauseSetSort(state->tmp_store, ClauseCmpByStructWeight);
    }
-   if((empty = insert_new_clauses(state, control)))
+   if((empty = insert_new_clauses(state, control, false)))
    {
       PStackPushP(state->extract_roots, empty);
       return empty;
@@ -1839,6 +1851,15 @@ Clause_p Saturate(ProofState_p state, ProofControl_p control, long
             DocClauseQuoteDefault(6, handle, "eval");
             ClauseSetInsert(state->unprocessed, handle);
          }
+      }
+      if (filter_generated && ClauseSetEmpty(state->unprocessed))
+      {
+    	  //fprintf(GlobalOut, "OverFiltered\n");
+    	  if((unsatisfiable = insert_new_clauses(state, control, true)))
+    	  {
+			PStackPushP(state->extract_roots, unsatisfiable);
+			break;
+    	  }
       }
 
    }

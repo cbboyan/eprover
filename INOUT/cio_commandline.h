@@ -96,6 +96,7 @@ int    CLStateInsertArg(CLState_p state, char* arg);
 double CLStateGetFloatArg(Opt_p option, char* arg);
 long   CLStateGetIntArg(Opt_p option, char* arg);
 long   CLStateGetIntArgCheckRange(Opt_p option, char* arg, long lower, long upper);
+double CLStateGetFloatArgCheckRange(Opt_p option, char* arg, long lower, long upper);
 bool   CLStateGetBoolArg(Opt_p option, char* arg);
 
 void PrintOption(FILE* out, Opt_p option);

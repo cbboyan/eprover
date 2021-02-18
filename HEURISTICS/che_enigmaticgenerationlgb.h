@@ -68,6 +68,7 @@ void EnigmaticGenerationLgbParamFree(EnigmaticGenerationLgbParam_p junk);
 void EnigmaticGenerationLgbModelInit(
 	char* d_prefix,
 	char* model_name,
+	double threshold,
 	OCB_p ocb,
 	ProofState_p state,
 	EnigmaticGenerationLgbParam_p data);

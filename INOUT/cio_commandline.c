@@ -663,6 +663,39 @@ long CLStateGetIntArgCheckRange(Opt_p option, char* arg, long lower, long upper)
    return ret;
 }
 
+/*-----------------------------------------------------------------------
+//
+// Function: CLStateGetFloatArgCheckRange()
+//
+//   Return the numerical value of the argument if it is a well-formed
+//   long in the proper range, print an error message otherwise.
+//
+// Global Variables: -
+//
+// Side Effects    : May terminate program
+//
+/----------------------------------------------------------------------*/
+
+double CLStateGetFloatArgCheckRange(Opt_p option, char* arg, long lower, long upper)
+{
+   double ret = CLStateGetFloatArg(option, arg);
+   if(ret < lower || ret > upper)
+   {
+      DStr_p err = DStrAlloc();
+      DStrAppendStr(err, "Option ");
+      append_option_desc(err, option);
+      DStrAppendStr(err, " expects integer argument from {");
+      DStrAppendInt(err, lower);
+      DStrAppendStr(err, "...");
+      DStrAppendInt(err, upper);
+      DStrAppendStr(err, "} but got ");
+      DStrAppendStr(err, arg);
+      Error(DStrView(err), USAGE_ERROR);
+      DStrFree(err); /* Symmetry */
+   }
+   return ret;
+}
+
 
 /*-----------------------------------------------------------------------
 //

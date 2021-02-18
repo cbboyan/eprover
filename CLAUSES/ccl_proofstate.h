@@ -59,6 +59,9 @@ typedef struct proofstatecell
    ClauseSet_p   tmp_store;
    ClauseSet_p   eval_store;
    ClauseSet_p   archive;
+   ClauseSet_p   aborted_store;   /* Clauses filtered before
+                                     complete generation kept
+                                     in case they're needed */
    ClauseSet_p   delayed_store;   /* Clauses for delayed 'batch'
                                      evaluation (before evaluation, 
                                      not yet in unprocessed) */
