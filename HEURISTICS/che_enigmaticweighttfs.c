@@ -232,7 +232,11 @@ static void tfs_eval_gnn(EnigmaticWeightTfsParam_p local, ClauseSet_p set)
       }
       fprintf(GlobalOut, "#TF#SERVER: Lgb model filter skipped %d clauses\n", skipped);
 
-      float* evals = tfs_eval_call(local);
+      float* evals = NULL;
+      if (size)
+      {
+         evals = tfs_eval_call(local);
+      }
 
       int idx = local->tensors->context_cnt;
       size = 0;
@@ -443,11 +447,11 @@ double EnigmaticWeightTfsCompute(void* data, Clause_p clause)
       weight = EnigmaticWeight(clause->ext_weight, local->weight_type, local->threshold);
    }
 
-//#if defined(DEBUG_ETF)
+#if defined(DEBUG_ETF)
    fprintf(GlobalOut, "#TF#EVAL# %+.5f(%.1f)= ", weight, clause->ext_weight);
    ClausePrint(GlobalOut, clause, true);
    fprintf(GlobalOut, "\n");
-//#endif
+#endif
 
    return weight;
 }
