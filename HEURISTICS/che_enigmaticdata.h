@@ -111,11 +111,12 @@ typedef struct enigmaticfeaturescell
    long offset_theory;
    long offset_problem;
    long offset_proofwatch;
-   //long offset_parent_clause;
+   long offset_co_parent;
    
    EnigmaticParams_p clause;
    EnigmaticParams_p goal;
    EnigmaticParams_p theory;
+   EnigmaticParams_p co_parent;
 } EnigmaticFeaturesCell, *EnigmaticFeatures_p;
 
 typedef struct enigmaticclausecell
@@ -189,12 +190,11 @@ typedef struct enigmaticvectorcell
    EnigmaticClause_p goal;
    // theory features
    EnigmaticClause_p theory;
+   // parent number two's features
+   EnigmaticClause_p co_parent;
    // problem features
    float problem_features[EBS_PROBLEM];
    // TODO: proofwatch features
-   // TODO: parent features -- redacted
-   //EnigmaticClause_p parent_features;
-   // TODO: co-parent features
 
 } EnigmaticVectorCell, *EnigmaticVector_p;
 
