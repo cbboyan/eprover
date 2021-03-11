@@ -45,6 +45,7 @@ typedef struct enigmaticgenerationlgbparamcell
    float* lgb_data;
    int lgb_count;
    long lgb_size;
+   bool concat;
 
    FillFunc fill_fun;
    PredictFunc predict_fun;
@@ -88,6 +89,7 @@ void EnigmaticGenerationLgbModelInit(
 double EnigmaticGenerationPredictLgb(Clause_p clause, EnigmaticGenerationLgbParam_p local, EnigmaticModel_p model);
 double EnigmaticGenerationPredictSetLgb(ClauseSet_p parents, EnigmaticGenerationLgbParam_p local, EnigmaticModel_p model);
 double EnigmaticGenerationPredictParentsLgb(Clause_p parent1, Clause_p parent2, EnigmaticGenerationLgbParam_p local, EnigmaticModel_p model);
+double EnigmaticGenerationPredictParentsConcatLgb(Clause_p parent1, Clause_p parent2, EnigmaticGenerationLgbParam_p local, EnigmaticModel_p model);
 
 
 bool EnigmaticLgbFilterGenerationCompute(EnigmaticGenerationLgbParam_p local, Clause_p clause);

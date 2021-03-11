@@ -720,6 +720,20 @@ double EnigmaticPredictSet(
    return predict_func(data, model);
 }
 
+double EnigmaticPredictParentsConcat(
+   Clause_p parent1, Clause_p parent2,
+   EnigmaticModel_p model,
+   void* data,
+   FillFunc fill_func,
+   PredictFunc predict_func)
+{
+   EnigmaticClauseReset(model->vector->clause);
+   EnigmaticClause(model->vector->clause, parent1, model->info);
+   EnigmaticClause(model->vector->co_parent, parent2, model->info);
+   EnigmaticVectorFill(model->vector, fill_func, data);
+   return predict_func(data, model);
+}
+
 double EnigmaticPredictParents(
    Clause_p parent1, Clause_p parent2,
    EnigmaticModel_p model,

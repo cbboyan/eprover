@@ -47,6 +47,7 @@ typedef enum
    OPT_JOIN_SUM,
    OPT_JOIN_MAX,
    OPT_MERGE_CLAUSES,
+   OPT_CONCAT_CLAUSES,
 }OptionCodes;
 
 
@@ -118,7 +119,12 @@ OptCell opts[] =
 	  '\0', "merge",
 	  NoArg, NULL,
 	  "Merge multiple clauses into a single feature vector.  "
-	  "Place a semi-conol, ;, after each group of clauses to be merged."},
+	  "Place a semi-colon, ;, after each group of clauses to be merged."},
+   {OPT_CONCAT_CLAUSES,
+      '\0', "concat",
+	  NoArg, NULL,
+	  "Concatenate two clauses into a single feature vector with shared theory "
+	  "and goal sections.  Place a semi-colon after every second clause."},
    {OPT_NOOPT,
       '\0', NULL,
       NoArg, NULL,
@@ -139,6 +145,7 @@ bool compute_max = false;
 bool compute_sum = false;
 int compute_joint = 0;
 bool merge_clauses = false;
+bool concat_clauses = false;
 
 /*---------------------------------------------------------------------*/
 /*                      Forward Declarations                           */
@@ -186,31 +193,78 @@ static void fill_max(void* data, long idx, float val)
    info->avgs[idx] = MAX(val, info->avgs[idx]);
 }
 
+static Clause_p read_clause(Scanner_p in, EnigmaticInfo_p info)
+{
+	Clause_p clause;
+	WFormula_p formula = NULL;
+    if (TestInpId(in, "input_clause|cnf"))
+    {
+       clause = ClauseParse(in, info->bank);
+       //if (!merge_clauses && !concat_clauses && TestInpTok(in, Semicolon))
+		//  {
+		// 	 AcceptInpTok(in, Semicolon); // For testing to compare the features merged and not.
+		//  }
+    }
+    else
+    {
+       formula = WFormulaParse(in, info->bank);
+       clause = EnigmaticFormulaToClause(formula, info);
+       WFormulaFree(formula);
+    }
+    return clause;
+}
+
+static void print_vector(FILE* out, EnigmaticVector_p vector, EnigmaticInfo_p info)
+{
+	 if (!compute_joint)
+	  {
+		 //ClausePrint(out, clause, true);
+		 //fprintf(out, "\n");
+
+		 fprintf(out, prefix);
+		 PrintEnigmaticVector(GlobalOut, vector);
+		 fprintf(out, "\n");
+	  }
+	  else
+	  {
+		 if (compute_sum || compute_avg)
+		 {
+			EnigmaticVectorFill(vector, fill_sum, info);
+		 }
+		 else if (compute_max)
+		 {
+			EnigmaticVectorFill(vector, fill_max, info);
+		 }
+	  }
+}
+
 static void process_clauses(FILE* out, char* filename, EnigmaticVector_p vector, EnigmaticInfo_p info)
 {
    Scanner_p in = CreateScanner(StreamTypeFile, filename, true, NULL, true);
    ScannerSetFormat(in, TSTPFormat);
    Clause_p clause;
-   WFormula_p formula = NULL;
+   Clause_p clause2;
+   //WFormula_p formula = NULL;
    ClauseSet_p merge_set = ClauseSetAlloc();
   
    int count = 0;
    while (TestInpId(in, "input_formula|input_clause|fof|cnf|tff|tcf"))
    {
-      if (TestInpId(in, "input_clause|cnf"))
-      {
-         clause = ClauseParse(in, info->bank);
-         if (!merge_clauses && TestInpTok(in, Semicolon))
-		  {
-			 AcceptInpTok(in, Semicolon); // For testing to compare the features merged and not.
-		  }
-      }
-      else 
-      {
-         formula = WFormulaParse(in, info->bank);
-         clause = EnigmaticFormulaToClause(formula, info);
-         WFormulaFree(formula);
-      }
+//      if (TestInpId(in, "input_clause|cnf"))
+//      {
+//         clause = ClauseParse(in, info->bank);
+//         if (!merge_clauses && !concat_clauses && TestInpTok(in, Semicolon))
+//		  {
+//		 	 AcceptInpTok(in, Semicolon); // For testing to compare the features merged and not.
+//		  }
+//      }
+//      else
+//      {
+//         formula = WFormulaParse(in, info->bank);
+//         clause = EnigmaticFormulaToClause(formula, info);
+//         WFormulaFree(formula);
+//      }
+	  clause = read_clause(in, info);
       if (merge_clauses)
       {
     	  ClauseSetInsert(merge_set, clause);
@@ -220,52 +274,47 @@ static void process_clauses(FILE* out, char* filename, EnigmaticVector_p vector,
 			 //fprintf(out, "Semicolon");
 			 EnigmaticClauseSet(vector->clause, merge_set, info);
 
-			 if (!compute_joint)
-			 {
-				 fprintf(out, prefix);
-				 PrintEnigmaticVector(GlobalOut, vector);
-				 fprintf(out, "\n");
-			 }
-			 else
-			 {
-				 if (compute_sum || compute_avg)
-				 {
-					 EnigmaticVectorFill(vector, fill_sum, info);
-				 }
-				 else if (compute_max)
-				 {
-					EnigmaticVectorFill(vector, fill_max, info);
-				 }
-			 }
+			 print_vector(out, vector, info);
 
 			 count++;
 			 ClauseSetFreeClauses(merge_set);
 			 EnigmaticClauseReset(vector->clause);
-		  }
+		  } // Shouldn't I throw an error? -- Or just let it fail?
       }
       else
 	  {
-		  EnigmaticClause(vector->clause, clause, info);
-		  if (!compute_joint)
+		  if (concat_clauses)
 		  {
-			 //ClausePrint(out, clause, true);
-			 //fprintf(out, "\n");
-
-			 fprintf(out, prefix);
-			 PrintEnigmaticVector(GlobalOut, vector);
-			 fprintf(out, "\n");
+			 clause2 = read_clause(in, info);
+			 AcceptInpTok(in, Semicolon);
+			 EnigmaticClause(vector->clause, clause, info);
+			 EnigmaticClause(vector->co_parent, clause2, info);
 		  }
 		  else
 		  {
-			 if (compute_sum || compute_avg)
-			 {
-				EnigmaticVectorFill(vector, fill_sum, info);
-			 }
-			 else if (compute_max)
-			 {
-				EnigmaticVectorFill(vector, fill_max, info);
-			 }
+			 EnigmaticClause(vector->clause, clause, info);
 		  }
+		  print_vector(out, vector, info);
+//		  if (!compute_joint)
+//		  {
+//			 //ClausePrint(out, clause, true);
+//			 //fprintf(out, "\n");
+//
+//			 fprintf(out, prefix);
+//			 PrintEnigmaticVector(GlobalOut, vector);
+//			 fprintf(out, "\n");
+//		  }
+//		  else
+//		  {
+//			 if (compute_sum || compute_avg)
+//			 {
+//				EnigmaticVectorFill(vector, fill_sum, info);
+//			 }
+//			 else if (compute_max)
+//			 {
+//				EnigmaticVectorFill(vector, fill_max, info);
+//			 }
+//		  }
 
 		  count++;
 		  ClauseFree(clause);
@@ -420,6 +469,9 @@ CLState_p process_options(int argc, char* argv[])
       case OPT_MERGE_CLAUSES:
     	 merge_clauses = true;
     	 break;
+      case OPT_CONCAT_CLAUSES:
+    	 concat_clauses = true;
+    	 break;
       default:
          assert(false);
          break;
@@ -452,7 +504,11 @@ CLState_p process_options(int argc, char* argv[])
    }
    if (compute_joint > 1)
    {
-      Error("Option --max, --avg, and --sum are mutually exclusive. Pleasu select just one of them.", USAGE_ERROR);
+      Error("Option --max, --avg, and --sum are mutually exclusive. Please select just one of them.", USAGE_ERROR);
+   }
+   if (merge_clauses && concat_clauses)
+   {
+	   Error("Options --merge and --concat are mutually exclusive.  Please select just one of them.", USAGE_ERROR);
    }
    
    return state;

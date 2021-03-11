@@ -59,6 +59,7 @@ static void lgb_init(EnigmaticGenerationLgbParam_p data)
    data->load_fun(data->model1);
    EnigmaticInit(data->model1, data->proofstate);
    data->lgb_size = data->model1->vector->features->count;
+   data->concat = data->model1->vector->features->co_parent;
    //if (data->model2)
    //{
    //   data->load_fun(data->model2);
@@ -68,7 +69,7 @@ static void lgb_init(EnigmaticGenerationLgbParam_p data)
    data->lgb_indices = SizeMalloc(data->lgb_size*sizeof(int32_t));
    data->lgb_data = SizeMalloc(data->lgb_size*sizeof(float));
    
-   fprintf(GlobalOut, "# ENIGMATIC: LightGBM model #1 '%s' loaded with %ld features '%s'\n",
+   fprintf(GlobalOut, "# ENIGMATIC: LightGBM parental guidance model #1 '%s' loaded with %ld features '%s'\n",
       data->model1->model_filename, 
       data->model1->vector->features->count, 
       DStrView(data->model1->vector->features->spec)
@@ -241,6 +242,20 @@ double EnigmaticGenerationPredictParentsLgb(Clause_p parent1, Clause_p parent2, 
    //return EnigmaticPredict(parent1, model, local, local->fill_fun, local->predict_fun);
 }
 
+double EnigmaticGenerationPredictParentsConcatLgb(Clause_p parent1, Clause_p parent2, EnigmaticGenerationLgbParam_p local, EnigmaticModel_p model)
+{
+   if (!model)
+   {
+      model = local->model1;
+   }
+   local->lgb_count = 0;
+   //if (parent2)
+   //{
+   return EnigmaticPredictParentsConcat(parent1, parent2, model, local, local->fill_fun, local->predict_fun);
+   //}
+   //return EnigmaticPredict(parent1, model, local, local->fill_fun, local->predict_fun);
+}
+
 bool EnigmaticLgbFilterGenerationCompute(EnigmaticGenerationLgbParam_p local, Clause_p clause)
 {
 	//EnigmaticGenerationLgbParam_p local = control->enigma_gen_model;
@@ -315,7 +330,14 @@ bool EnigmaticLgbFilterGenerationCompute(EnigmaticGenerationLgbParam_p local, Cl
 	// At the moment, the models are trained only based on pairs of parents.
 	if (parent1 && parent2)
 	{
-		pred = EnigmaticGenerationPredictParentsLgb(parent1, parent2, local, local->model1);
+		if (local->concat)
+		{
+			pred = EnigmaticGenerationPredictParentsConcatLgb(parent1, parent2, local, local->model1);
+		}
+		else
+		{
+			pred = EnigmaticGenerationPredictParentsLgb(parent1, parent2, local, local->model1);
+		}
 		res = (pred <= local->model1->threshold);
 		//res = (pred <= 0.5);
 	}
