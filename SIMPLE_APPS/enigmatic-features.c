@@ -250,20 +250,6 @@ static void process_clauses(FILE* out, char* filename, EnigmaticVector_p vector,
    int count = 0;
    while (TestInpId(in, "input_formula|input_clause|fof|cnf|tff|tcf"))
    {
-//      if (TestInpId(in, "input_clause|cnf"))
-//      {
-//         clause = ClauseParse(in, info->bank);
-//         if (!merge_clauses && !concat_clauses && TestInpTok(in, Semicolon))
-//		  {
-//		 	 AcceptInpTok(in, Semicolon); // For testing to compare the features merged and not.
-//		  }
-//      }
-//      else
-//      {
-//         formula = WFormulaParse(in, info->bank);
-//         clause = EnigmaticFormulaToClause(formula, info);
-//         WFormulaFree(formula);
-//      }
 	  clause = read_clause(in, info);
       if (merge_clauses)
       {
@@ -289,36 +275,24 @@ static void process_clauses(FILE* out, char* filename, EnigmaticVector_p vector,
 			 AcceptInpTok(in, Semicolon);
 			 EnigmaticClause(vector->clause, clause, info);
 			 EnigmaticClause(vector->co_parent, clause2, info);
+
+			 print_vector(out, vector, info);
+
+		     count++;
+		     ClauseFree(clause);
+		     ClauseFree(clause2);
+		     EnigmaticClauseReset(vector->clause);
 		  }
 		  else
 		  {
 			 EnigmaticClause(vector->clause, clause, info);
-		  }
-		  print_vector(out, vector, info);
-//		  if (!compute_joint)
-//		  {
-//			 //ClausePrint(out, clause, true);
-//			 //fprintf(out, "\n");
-//
-//			 fprintf(out, prefix);
-//			 PrintEnigmaticVector(GlobalOut, vector);
-//			 fprintf(out, "\n");
-//		  }
-//		  else
-//		  {
-//			 if (compute_sum || compute_avg)
-//			 {
-//				EnigmaticVectorFill(vector, fill_sum, info);
-//			 }
-//			 else if (compute_max)
-//			 {
-//				EnigmaticVectorFill(vector, fill_max, info);
-//			 }
-//		  }
 
-		  count++;
-		  ClauseFree(clause);
-		  EnigmaticClauseReset(vector->clause);
+			 print_vector(out, vector, info);
+
+			 count++;
+			 ClauseFree(clause);
+			 EnigmaticClauseReset(vector->clause);
+		  }
 	  }
    }
 
