@@ -728,6 +728,7 @@ double EnigmaticPredictParentsConcat(
    PredictFunc predict_func)
 {
    EnigmaticClauseReset(model->vector->clause);
+   EnigmaticClauseReset(model->vector->co_parent);
    EnigmaticClause(model->vector->clause, parent1, model->info);
    EnigmaticClause(model->vector->co_parent, parent2, model->info);
    EnigmaticVectorFill(model->vector, fill_func, data);

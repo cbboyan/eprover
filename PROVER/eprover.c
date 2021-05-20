@@ -1266,6 +1266,7 @@ CLState_p process_options(int argc, char* argv[])
             PrintProofObject = MAX(1, PrintProofObject);
             ProofObjectRecordsGCSelection = true;
             ProofObjectRecordsParentClauses = true;
+            break;
       case OPT_FILTER_GENERATED_CLAUSES:
 	  	    enigmaceo_filename = arg;
 	  	    filter_generated = true;

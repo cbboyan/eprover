@@ -282,6 +282,8 @@ static void process_clauses(FILE* out, char* filename, EnigmaticVector_p vector,
 		     ClauseFree(clause);
 		     ClauseFree(clause2);
 		     EnigmaticClauseReset(vector->clause);
+		     EnigmaticClauseReset(vector->co_parent);
+
 		  }
 		  else
 		  {

@@ -260,12 +260,14 @@ bool EnigmaticLgbFilterGenerationCompute(EnigmaticGenerationLgbParam_p local, Cl
 {
 	//EnigmaticGenerationLgbParam_p local = control->enigma_gen_model;
 	double pred;
+	//double pred2;
 	bool res = false;
 
 	//Clause_p clause;
 	PStackPointer j = 0; //, sp;
 	DerivationCode op;
-	Clause_p parent1, parent2;
+	Clause_p parent1 = NULL;
+	Clause_p parent2 = NULL;
 	//ClauseSet_p parents = ClauseSetAlloc();
 	//long resp = 0;
 
@@ -333,6 +335,7 @@ bool EnigmaticLgbFilterGenerationCompute(EnigmaticGenerationLgbParam_p local, Cl
 		if (local->concat)
 		{
 			pred = EnigmaticGenerationPredictParentsConcatLgb(parent1, parent2, local, local->model1);
+			//pred2 = EnigmaticGenerationPredictParentsConcatLgb(parent2, parent1, local, local->model1);
 		}
 		else
 		{
