@@ -34,7 +34,7 @@ PERF_CTR_DEFINE(ParamodTimer);
 PERF_CTR_DEFINE(BWRWTimer);
 
 long DelayedEvalSize = 0;
-bool filter_generated = false;
+//bool filter_generated = false; // Moved to ccl_proofstate due to stat printing
 
 /*---------------------------------------------------------------------*/
 /*                      Forward Declarations                           */
@@ -652,10 +652,11 @@ static Clause_p insert_new_clauses(ProofState_p state, ProofControl_p control, b
    long     clause_count;
    bool     filter_child = false;
 
-   // In essence, the aborted children are revived and inserted where they were left off.
+   // In essence, the frozen children are revived and inserted where they were left off.
    if (revive_children)
    {
-	   handles = state->aborted_store;
+	   state->unfrozen_count+=state->frozen_store->members;
+	   handles = state->frozen_store;
    }
    else
    {
@@ -677,7 +678,8 @@ static Clause_p insert_new_clauses(ProofState_p state, ProofControl_p control, b
 		 if (filter_child)
 		 {
 			 //ClauseFree(handle);
-			 ClauseSetInsert(state->aborted_store, handle);
+			 ClauseSetInsert(state->frozen_store, handle);
+			 state->frozen_count++;
 			 continue;
 		 }
 	  }

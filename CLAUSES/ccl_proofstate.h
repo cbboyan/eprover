@@ -58,7 +58,7 @@ typedef struct proofstatecell
    ClauseSet_p   tmp_store;
    ClauseSet_p   eval_store;
    ClauseSet_p   archive;
-   ClauseSet_p   aborted_store;   /* Clauses filtered before
+   ClauseSet_p   frozen_store;   /* Clauses filtered before
                                      complete generation kept
                                      in case they're needed */
    ClauseSet_p   delayed_store;   /* Clauses for delayed 'batch'
@@ -102,6 +102,12 @@ typedef struct proofstatecell
    unsigned long generated_count;
    unsigned long generated_lit_count;
    unsigned long non_trivial_generated_count;
+   unsigned long frozen_count; /* Number of clauses filtered
+    							  by Parental Guidance in
+    							  the frozen_store */
+   unsigned long unfrozen_count; /* Number of clauses unfrozen
+    								when the unprocessed clause set
+    								became empty*/
    unsigned long context_sr_count;
    unsigned long paramod_count;
    unsigned long factor_count;
@@ -204,6 +210,7 @@ void ProofStatePropDocQuote(FILE* out, int level,
 #define WATCHLIST_INLINE_STRING "Use inline watchlist type"
 #define WATCHLIST_INLINE_QSTRING "'" WATCHLIST_INLINE_STRING "'"
 extern char* UseInlinedWatchList;
+extern bool filter_generated;
 
 void ProofStateResetSATSolver(ProofState_p state);
 

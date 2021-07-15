@@ -221,7 +221,7 @@ static void print_vector(FILE* out, EnigmaticVector_p vector, EnigmaticInfo_p in
 		 //ClausePrint(out, clause, true);
 		 //fprintf(out, "\n");
 
-		 fprintf(out, prefix);
+		 fprintf(out, "%s", prefix);
 		 PrintEnigmaticVector(GlobalOut, vector);
 		 fprintf(out, "\n");
 	  }
@@ -300,7 +300,7 @@ static void process_clauses(FILE* out, char* filename, EnigmaticVector_p vector,
 
    if (compute_joint)
    {
-      fprintf(out, prefix);
+      fprintf(out, "%s", prefix);
       int div = compute_avg ? count : 1;
       for (int i=0; i<features->count; i++)
       {
