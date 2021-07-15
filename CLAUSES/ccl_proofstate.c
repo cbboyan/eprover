@@ -28,6 +28,7 @@
 /*---------------------------------------------------------------------*/
 
 char* UseInlinedWatchList = WATCHLIST_INLINE_STRING;
+bool filter_generated = false;
 
 /*---------------------------------------------------------------------*/
 /*                      Forward Declarations                           */
@@ -167,7 +168,7 @@ ProofState_p ProofStateAlloc(FunctionProperties free_symb_prop)
    handle->archive              = ClauseSetAlloc();
    handle->watchlist            = ClauseSetAlloc();
    handle->f_archive            = FormulaSetAlloc();
-   handle->aborted_store        = ClauseSetAlloc();
+   handle->frozen_store        = ClauseSetAlloc();
    handle->delayed_store        = ClauseSetAlloc();
    handle->delayed_callbacks    = PStackAlloc();
    handle->delayed_data         = PStackAlloc();
@@ -201,7 +202,7 @@ ProofState_p ProofStateAlloc(FunctionProperties free_symb_prop)
    TBGCRegisterClauseSet(handle->terms, handle->tmp_store);
    TBGCRegisterClauseSet(handle->terms, handle->eval_store);
    TBGCRegisterClauseSet(handle->terms, handle->archive);
-   TBGCRegisterClauseSet(handle->terms, handle->aborted_store);
+   TBGCRegisterClauseSet(handle->terms, handle->frozen_store);
    TBGCRegisterClauseSet(handle->terms, handle->delayed_store);
    TBGCRegisterClauseSet(handle->terms, handle->watchlist);
    TBGCRegisterClauseSet(handle->terms, handle->definition_store->def_clauses);
@@ -225,6 +226,8 @@ ProofState_p ProofStateAlloc(FunctionProperties free_symb_prop)
    handle->aggressive_forward_subsumed_count  = 0;
    handle->generated_lit_count          = 0;
    handle->non_trivial_generated_count  = 0;
+   handle->frozen_count         = 0;
+   handle->unfrozen_count       = 0;
    handle->context_sr_count     = 0;
    handle->paramod_count        = 0;
    handle->factor_count         = 0;
@@ -387,7 +390,7 @@ void ProofStateResetClauseSets(ProofState_p state, bool term_gc)
    ClauseSetFreeClauses(state->tmp_store);
    ClauseSetFreeClauses(state->eval_store);
    ClauseSetFreeClauses(state->archive);
-   ClauseSetFreeClauses(state->aborted_store);
+   ClauseSetFreeClauses(state->frozen_store);
    ClauseSetFreeClauses(state->delayed_store);
    ClauseSetFreeClauses(state->ax_archive);
    FormulaSetFreeFormulas(state->f_ax_archive);
@@ -431,7 +434,7 @@ void ProofStateFree(ProofState_p junk)
    ClauseSetFree(junk->tmp_store);
    ClauseSetFree(junk->eval_store);
    ClauseSetFree(junk->archive);
-   ClauseSetFree(junk->aborted_store);
+   ClauseSetFree(junk->frozen_store);
    ClauseSetFree(junk->delayed_store);
    ClauseSetFree(junk->ax_archive);
    FormulaSetFree(junk->f_archive);
@@ -640,6 +643,12 @@ void ProofStateStatisticsPrint(FILE* out, ProofState_p state)
            state->non_trivial_generated_count);
    fprintf(out, "# ...aggressively subsumed             : %ld\n",
            state->aggressive_forward_subsumed_count);
+   if (filter_generated) {
+	   fprintf(out, "# ...frozen by parental guidance       : %ld\n",
+			   state->frozen_count);
+	   fprintf(out, "# ...of these subsequently unfrozen    : %ld\n",
+			   state->unfrozen_count);
+   }
    fprintf(out, "# Contextual simplify-reflections      : %ld\n",
            state->context_sr_count);
    fprintf(out, "# Paramodulations                      : %ld\n",
@@ -732,7 +741,7 @@ void ProofStateStatisticsPrint(FILE* out, ProofState_p state)
               TBTermNodes(state->terms),
               ClauseSetGetTermNodes(state->tmp_store)+
               ClauseSetGetTermNodes(state->eval_store)+
-			  ClauseSetGetTermNodes(state->aborted_store)+
+			  ClauseSetGetTermNodes(state->frozen_store)+
               ClauseSetGetTermNodes(state->delayed_store)+
               ClauseSetGetTermNodes(state->processed_pos_rules)+
               ClauseSetGetTermNodes(state->processed_pos_eqns)+
