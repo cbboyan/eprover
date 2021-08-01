@@ -28,6 +28,7 @@ Changes
 #include <arpa/inet.h>
 #include <cte_termbanks.h>
 #include <ccl_clauses.h>
+#include <clb_floattrees.h>
 
 /*---------------------------------------------------------------------*/
 /*                    Data type declarations                           */
@@ -40,7 +41,7 @@ Changes
 #define FNV_PRIME_32 16777619
 #define FNV_OFFSET_32 2166136261U
 
-//#define DEBUG_ETF
+#define DEBUG_ETF
 #define DEBUG_ETF_SERVER
 
 typedef struct inthash
@@ -59,6 +60,12 @@ typedef struct enigmaticsocketcell
    int evals_size;
    char* evals;
 } EnigmaticSocketCell, *EnigmaticSocket_p;
+
+typedef enum {
+   TAMConjecture = 1,
+   TAMContext = 2,
+   TAMClause = 3
+} TensorAppendMode;
 
 typedef struct enigmatictensorsparamcell
 {
@@ -80,7 +87,7 @@ typedef struct enigmatictensorsparamcell
    // context
    long context_cnt;
 
-   // conjecture edges
+   // conjecture edges 
    bool conj_mode;
    NumTree_p conj_terms;
    NumTree_p conj_syms;
