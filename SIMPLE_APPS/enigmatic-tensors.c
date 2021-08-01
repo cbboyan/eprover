@@ -27,6 +27,7 @@ Changes
 #include <ccl_proofstate.h>
 #include <che_clausesetfeatures.h>
 #include <che_enigmatictensors.h>
+#include <clb_floattrees.h>
 
 /*---------------------------------------------------------------------*/
 /*                  Data types                                         */

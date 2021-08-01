@@ -52,8 +52,8 @@ enigmatic-features: $(ENIGMATICFEATURES)
 	$(LD) -o enigmatic-features $(ENIGMATICFEATURES) $(LIBS)
 
 ENIGMATICTENSORS = enigmatic-tensors.o \
-				../lib/CONTROL.a ../lib/PCL2.a ../lib/CLAUSES.a ../lib/ORDERINGS.a \
-				../lib/TERMS.a ../lib/INOUT.a ../lib/BASICS.a ../lib/HEURISTICS.a
+				../lib/CONTROL.a ../lib/HEURISTICS.a ../lib/PCL2.a ../lib/CLAUSES.a \
+				../lib/ORDERINGS.a ../lib/TERMS.a ../lib/INOUT.a ../lib/BASICS.a 
 enigmatic-tensors: $(ENIGMATICTENSORS)
 	$(LD) -o enigmatic-tensors $(ENIGMATICTENSORS) $(LIBS)
 

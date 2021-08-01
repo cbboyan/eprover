@@ -153,6 +153,7 @@ static void tfs_init(EnigmaticWeightTfsParam_p data)
       if (ClauseQueryTPTPType(clause) == CPTypeNegConjecture) 
       {
          EnigmaticTensorsUpdateClause(clause, data->tensors);
+         PStackPushP(data->conj_clauses, clause);
       }
    }
    data->tensors->conj_mode = false;
@@ -206,6 +207,9 @@ static float* tfs_eval_call(EnigmaticWeightTfsParam_p local)
    debug_edges(local);
 #endif
    EnigmaticTensorsFill(local->tensors);
+#ifdef DEBUG_ETF
+   EnigmaticTensorsDump(GlobalOut, local->tensors);
+#endif
    EnigmaticSocketSend(local->sock, local->tensors);
    int n_q = local->tensors->fresh_c - local->tensors->conj_fresh_c + local->tensors->context_cnt;
    return EnigmaticSocketRecv(local->sock, n_q);
@@ -284,15 +288,8 @@ static void tfs_eval(ClauseSet_p set, void* data)
    tfs_eval_gnn(local, set);
 }
 
-static void tfs_processed(Clause_p clause, void* data)
+static void tfs_ctx_add_clause(Clause_p clause, EnigmaticWeightTfsParam_p local)
 {
-   EnigmaticWeightTfsParam_p local = data;
-   if (local->tensors->context_cnt >= local->context_size)
-   {
-      return;
-   }
-   local->init_fun(local);
-
    EnigmaticTensorsReset(local->tensors);
    local->tensors->conj_mode = true;
    EnigmaticTensorsUpdateClause(clause, local->tensors);
@@ -305,6 +302,120 @@ static void tfs_processed(Clause_p clause, void* data)
    fprintf(GlobalOut, "\n");
 #endif
    local->tensors->context_cnt++;
+}
+
+static void tfs_ctx_var_clause(Clause_p clause, EnigmaticWeightTfsParam_p local)
+{
+   if (isnan(clause->ext_weight))
+   {
+      return;
+   }
+
+   FloatTree_p node;
+   double key = -clause->ext_weight;
+   node = FloatTreeFind(&local->ctx_variable, key);
+   if (!node)
+   {
+      node = FloatTreeCellAllocEmpty();
+      node->key = key;
+      node->val1.p_val = PStackAlloc();
+      FloatTreeInsert(&local->ctx_variable, node);
+   }
+
+   PStackPushP(node->val1.p_val, clause);
+   local->ctx_var_cnt++;
+}
+
+static void tfs_ctx_recompute(EnigmaticWeightTfsParam_p local)
+{
+#ifdef DEBUG_ETF
+   fprintf(GlobalOut, "#TF# Recomputing context:\n");
+#endif
+
+   EnigmaticTensorsFree(local->tensors);
+   local->tensors = EnigmaticTensorsAlloc();
+   
+   local->tensors->tmp_bank = TBAlloc(local->proofstate->signature);
+   local->tensors->conj_mode = true;
+
+   // conjecture clauses
+   int i;
+   Clause_p clause;
+   for (i=0; i<local->conj_clauses->current; i++)
+   { 
+      clause = PStackElementP(local->conj_clauses, i);
+      EnigmaticTensorsUpdateClause(clause, local->tensors);
+   }
+
+   // fixed context clauses
+   for (i=0; i<local->ctx_fixed->current; i++)
+   { 
+      clause = PStackElementP(local->ctx_fixed, i);
+      EnigmaticTensorsUpdateClause(clause, local->tensors);
+#ifdef DEBUG_ETF
+      fprintf(GlobalOut, "#TF# Context clause %ld added: ", local->tensors->context_cnt);
+      ClausePrint(GlobalOut, clause, true);
+      fprintf(GlobalOut, "\n");
+#endif
+      local->tensors->context_cnt++;
+   }
+
+   // variable context clauses
+   PStack_p stack;
+   FloatTree_p node;
+   stack = FloatTreeTraverseInit(local->ctx_variable);
+   while ((node = FloatTreeTraverseNext(stack)))
+   {
+      PStack_p clauses = node->val1.p_val;
+      for (i=0; i<clauses->current; i++)
+      {
+         clause = PStackElementP(clauses, i);
+         EnigmaticTensorsUpdateClause(clause, local->tensors);
+#ifdef DEBUG_ETF
+         fprintf(GlobalOut, "#TF# Context clause %ld added: ", local->tensors->context_cnt);
+         ClausePrint(GlobalOut, clause, true);
+         fprintf(GlobalOut, "\n");
+#endif
+         local->tensors->context_cnt++;
+         if (local->tensors->context_cnt == local->context_size) { break; }
+      }
+      if (local->tensors->context_cnt == local->context_size) { break; }
+   }
+   FloatTreeTraverseExit(stack);
+
+   local->tensors->conj_mode = false;
+   local->tensors->conj_maxvar = local->tensors->maxvar; // save maxvar to restore
+   EnigmaticTensorsReset(local->tensors);
+   local->ctx_var_cnt = 0;
+}
+
+static void tfs_processed(Clause_p clause, void* data)
+{
+   EnigmaticWeightTfsParam_p local = data;
+   local->init_fun(local);
+
+   if (local->tensors->context_cnt < local->context_size_fixed)
+   {
+      tfs_ctx_add_clause(clause, local);
+      PStackPushP(local->ctx_fixed, clause);
+   }
+   else
+   {
+      if (local->tensors->context_cnt < local->context_size)
+      {
+         tfs_ctx_add_clause(clause, local);
+      }
+      if (local->context_size_variable == 0)
+      {
+         return;
+      }
+      tfs_ctx_var_clause(clause, local);
+   }
+
+   if (local->ctx_var_cnt > local->context_size)
+   {
+      tfs_ctx_recompute(local);
+   }
 }
 
 
@@ -320,6 +431,10 @@ EnigmaticWeightTfsParam_p EnigmaticWeightTfsParamAlloc(void)
    res->tensors = EnigmaticTensorsAlloc();
    res->sock = EnigmaticSocketAlloc();
    res->lgb = NULL;
+   res->ctx_fixed = PStackAlloc();
+   res->ctx_variable = NULL;
+   res->ctx_var_cnt = 0;
+   res->conj_clauses = PStackAlloc();
 
    return res;
 }
@@ -329,10 +444,26 @@ void EnigmaticWeightTfsParamFree(EnigmaticWeightTfsParam_p junk)
    FREE(junk->server_ip);
    EnigmaticSocketFree(junk->sock);
    EnigmaticTensorsFree(junk->tensors);
+   PStackFree(junk->conj_clauses);
+   PStackFree(junk->ctx_fixed);
    junk->tensors = NULL;
    if (junk->lgb)
    {
       EnigmaticWeightLgbParamFree(junk->lgb);
+   }
+   if (junk->ctx_variable)
+   {
+      PStack_p stack;
+      FloatTree_p node;
+      stack = FloatTreeTraverseInit(junk->ctx_variable);
+      while ((node = FloatTreeTraverseNext(stack)))
+      {
+         PStackFree(node->val1.p_val);
+      }
+      FloatTreeTraverseExit(stack);
+
+      FloatTreeFree(junk->ctx_variable);
+      junk->ctx_variable = NULL;
    }
    EnigmaticWeightTfsParamCellFree(junk);
 }
@@ -358,6 +489,8 @@ WFCB_p EnigmaticWeightTfsParse(
    AcceptInpTok(in, Comma);
    long context_size = ParseInt(in);
    AcceptInpTok(in, Comma);
+   double context_fixed_ratio = ParseFloat(in);
+   AcceptInpTok(in, Comma);
    int weight_type = ParseInt(in);
    AcceptInpTok(in, Comma);
    double threshold = ParseFloat(in);
@@ -381,6 +514,7 @@ WFCB_p EnigmaticWeightTfsParse(
       server_ip,
       server_port,
       context_size,
+      context_fixed_ratio,
       weight_type,
       threshold,
       lgb);
@@ -393,6 +527,7 @@ WFCB_p EnigmaticWeightTfsInit(
    char* server_ip,
    int server_port,
    long context_size,
+   double context_fixed_ratio,
    int weight_type,
    double threshold,
    EnigmaticWeightLgbParam_p lgb)
@@ -411,9 +546,13 @@ WFCB_p EnigmaticWeightTfsInit(
    data->server_ip = server_ip;
    data->server_port = server_port;
    data->context_size = context_size;
+   data->context_fixed_ratio = context_fixed_ratio;
    data->weight_type = weight_type;
    data->threshold = threshold;
    data->lgb = lgb;
+
+   data->context_size_fixed = data->context_size * data->context_fixed_ratio;
+   data->context_size_variable = data->context_size - data->context_size_fixed;
 
    ProofStateDelayedEvalRegister(proofstate, tfs_eval, data);
    ProofStateClauseProcessedRegister(proofstate, tfs_processed, data);
