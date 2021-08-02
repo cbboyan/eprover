@@ -56,6 +56,8 @@ typedef struct enigmaticweighttfparamcell
    PStack_p ctx_fixed;
    FloatTree_p ctx_variable;
    long ctx_var_cnt;
+   long ctx_var_total;
+   double ctx_var_worst;
 
    bool inited;
 

@@ -296,17 +296,20 @@ static void tfs_ctx_add_clause(Clause_p clause, EnigmaticWeightTfsParam_p local)
    local->tensors->conj_mode = false;
    local->tensors->conj_maxvar = local->tensors->maxvar; // save maxvar to restore
    EnigmaticTensorsReset(local->tensors);
-#ifdef DEBUG_ETF
-   fprintf(GlobalOut, "#TF# Context clause %ld added: ", local->tensors->context_cnt);
-   ClausePrint(GlobalOut, clause, true);
-   fprintf(GlobalOut, "\n");
-#endif
+   if (OutputLevel >= 1)
+   {
+      fprintf(GlobalOut, "#TF# Context clause %ld added (init): ", local->tensors->context_cnt);
+      ClausePrint(GlobalOut, clause, true);
+      fprintf(GlobalOut, "\n");
+   }
    local->tensors->context_cnt++;
 }
 
 static void tfs_ctx_var_clause(Clause_p clause, EnigmaticWeightTfsParam_p local)
 {
-   if (isnan(clause->ext_weight))
+   if ((isnan(clause->ext_weight)) ||
+       ((local->ctx_var_total > local->context_size_variable) && 
+        (clause->ext_weight < local->ctx_var_worst)))
    {
       return;
    }
@@ -324,13 +327,18 @@ static void tfs_ctx_var_clause(Clause_p clause, EnigmaticWeightTfsParam_p local)
 
    PStackPushP(node->val1.p_val, clause);
    local->ctx_var_cnt++;
+   local->ctx_var_total++;
+   if (clause->ext_weight < local->ctx_var_worst)
+   {
+      local->ctx_var_worst = clause->ext_weight;
+   }
 }
 
 static void tfs_ctx_recompute(EnigmaticWeightTfsParam_p local)
 {
-#ifdef DEBUG_ETF
-   fprintf(GlobalOut, "#TF# Recomputing context:\n");
-#endif
+   if (OutputLevel >= 1) { 
+      fprintf(GlobalOut, "#TF# Recomputing context (var_cnt=%ld; context_cnt=%ld, var_total=%ld, var_worst=%f):\n", local->ctx_var_cnt, local->tensors->context_cnt, local->ctx_var_total, local->ctx_var_worst); 
+   }
 
    EnigmaticTensorsFree(local->tensors);
    local->tensors = EnigmaticTensorsAlloc();
@@ -352,11 +360,12 @@ static void tfs_ctx_recompute(EnigmaticWeightTfsParam_p local)
    { 
       clause = PStackElementP(local->ctx_fixed, i);
       EnigmaticTensorsUpdateClause(clause, local->tensors);
-#ifdef DEBUG_ETF
-      fprintf(GlobalOut, "#TF# Context clause %ld added: ", local->tensors->context_cnt);
-      ClausePrint(GlobalOut, clause, true);
-      fprintf(GlobalOut, "\n");
-#endif
+      if (OutputLevel >= 1)
+      {
+         fprintf(GlobalOut, "#TF# Context clause %ld added (fixed): ", local->tensors->context_cnt);
+         ClausePrint(GlobalOut, clause, true);
+         fprintf(GlobalOut, "\n");
+      }
       local->tensors->context_cnt++;
    }
 
@@ -371,11 +380,12 @@ static void tfs_ctx_recompute(EnigmaticWeightTfsParam_p local)
       {
          clause = PStackElementP(clauses, i);
          EnigmaticTensorsUpdateClause(clause, local->tensors);
-#ifdef DEBUG_ETF
-         fprintf(GlobalOut, "#TF# Context clause %ld added: ", local->tensors->context_cnt);
-         ClausePrint(GlobalOut, clause, true);
-         fprintf(GlobalOut, "\n");
-#endif
+         if (OutputLevel >= 1)
+         {
+            fprintf(GlobalOut, "#TF# Context clause %ld added (sliding): ", local->tensors->context_cnt);
+            ClausePrint(GlobalOut, clause, true);
+            fprintf(GlobalOut, "\n");
+         }
          local->tensors->context_cnt++;
          if (local->tensors->context_cnt == local->context_size) { break; }
       }
@@ -387,6 +397,10 @@ static void tfs_ctx_recompute(EnigmaticWeightTfsParam_p local)
    local->tensors->conj_maxvar = local->tensors->maxvar; // save maxvar to restore
    EnigmaticTensorsReset(local->tensors);
    local->ctx_var_cnt = 0;
+   if (OutputLevel >= 1) 
+   { 
+      fprintf(GlobalOut, "#TF# Context recomputed (var_cnt=%ld; context_cnt=%ld):\n", local->ctx_var_cnt, local->tensors->context_cnt); 
+   }
 }
 
 static void tfs_processed(Clause_p clause, void* data)
@@ -412,7 +426,7 @@ static void tfs_processed(Clause_p clause, void* data)
       tfs_ctx_var_clause(clause, local);
    }
 
-   if (local->ctx_var_cnt > local->context_size)
+   if (local->ctx_var_cnt >= local->context_size)
    {
       tfs_ctx_recompute(local);
    }
@@ -434,6 +448,8 @@ EnigmaticWeightTfsParam_p EnigmaticWeightTfsParamAlloc(void)
    res->ctx_fixed = PStackAlloc();
    res->ctx_variable = NULL;
    res->ctx_var_cnt = 0;
+   res->ctx_var_total = 0;
+   res->ctx_var_worst = INFINITY;
    res->conj_clauses = PStackAlloc();
 
    return res;
@@ -586,11 +602,12 @@ double EnigmaticWeightTfsCompute(void* data, Clause_p clause)
       weight = EnigmaticWeight(clause->ext_weight, local->weight_type, local->threshold);
    }
 
-#if defined(DEBUG_ETF)
-   fprintf(GlobalOut, "#TF#EVAL# %+.5f(%.1f)= ", weight, clause->ext_weight);
-   ClausePrint(GlobalOut, clause, true);
-   fprintf(GlobalOut, "\n");
-#endif
+   if (OutputLevel >= 1)
+   {
+      fprintf(GlobalOut, "#TF#EVAL# %+.5f(%.1f)= ", weight, clause->ext_weight);
+      ClausePrint(GlobalOut, clause, true);
+      fprintf(GlobalOut, "\n");
+   }
 
    return weight;
 }
