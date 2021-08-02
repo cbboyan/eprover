@@ -41,7 +41,7 @@ Changes
 #define FNV_PRIME_32 16777619
 #define FNV_OFFSET_32 2166136261U
 
-#define DEBUG_ETF
+//#define DEBUG_ETF
 #define DEBUG_ETF_SERVER
 
 typedef struct inthash
