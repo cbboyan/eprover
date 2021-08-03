@@ -50,6 +50,9 @@ PERF_CTR_DEFINE(SatTimer);
 
 char              *outname = NULL;
 char              *watchlist_filename = NULL;
+char              *enigmaceo_filename = NULL;
+double            filter_generated_threshold;
+
 HeuristicParms_p  h_parms;
 FVIndexParms_p    fvi_parms;
 bool              print_sat = false,
@@ -513,6 +516,15 @@ int main(int argc, char* argv[])
    //printf("Alive (2)!\n");
    //ProofStateInitWatchlist(proofstate, proofcontrol->ocb);
 
+   if (filter_generated)
+   {
+       EnigmaticGenerationLgbModelInit(enigmaceo_filename,
+                                       "model.lgb",
+                                       filter_generated_threshold,
+                                       proofcontrol->ocb,
+                                       proofstate,
+                                       proofcontrol->enigma_gen_model);
+	}
 
    VERBOUT2("Prover state initialized\n");
    preproc_time = GetTotalCPUTime();
@@ -914,6 +926,19 @@ CLState_p process_options(int argc, char* argv[])
             PrintProofObject = MAX(1, PrintProofObject);
             ProofObjectRecordsGCSelection = true;
             proc_training_data = CLStateGetIntArg(handle, arg);
+            break;
+      case OPT_RECORD_PARENT_CLAUSES:
+            PrintProofObject = MAX(1, PrintProofObject);
+            ProofObjectRecordsGCSelection = true;
+            ProofObjectRecordsParentClauses = true;
+            break;
+      case OPT_FILTER_GENERATED_CLAUSES:
+            enigmaceo_filename = arg;
+            filter_generated = true;
+            if (!filter_generated_threshold) {filter_generated_threshold = 0.25;}
+            break;
+      case OPT_FILTER_GENERATED_THRESHOLD:
+            filter_generated_threshold = CLStateGetFloatArgCheckRange(handle, arg, 0, 1);
             break;
       case OPT_PCL_COMPRESSED:
             pcl_full_terms = false;

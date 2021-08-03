@@ -554,9 +554,6 @@ long ClauseSetDeleteOrphans(ClauseSet_p set)
 }
 
 
-
-
-
 /*-----------------------------------------------------------------------
 //
 // Function: PStackClausePrint()
@@ -574,10 +571,55 @@ void PStackClausePrint(FILE* out, PStack_p stack, char* extra)
    PStackPointer i;
    Clause_p clause;
 
+   PStackPointer j, sp;
+   DerivationCode op;
+   Clause_p parent;
+
+   long res = 0;
+
    for(i=0; i<PStackGetSP(stack); i++)
    {
       clause = PStackElementP(stack, i);
       ClausePrint(out, clause, true);
+
+      // Prints out the parents for a clause
+      if(ProofObjectRecordsParentClauses)
+		{
+		  sp = PStackGetSP(clause->derivation);
+		  j = 0;
+		  res = 0;
+
+		  while (j < sp)
+		  {
+			op = PStackElementInt(clause->derivation, j);
+			j++;
+
+			if(DCOpHasCnfArg1(op))
+			{
+			   parent = PStackElementP(clause->derivation, j);
+			   j++; res++;
+
+			   fprintf(out, " #parent%ld ", res);
+			   ClausePrint(out, parent, true);
+			   fprintf(out, " ");
+
+			}
+			if(DCOpHasCnfArg2(op))
+			{
+			   parent = PStackElementP(clause->derivation, j);
+			   j++; res++;
+
+			   fprintf(out, " #parent%ld ", res);
+			   ClausePrint(out, parent, true);
+			   fprintf(out, " ");
+			}
+		  }
+		  if (sp == 0)
+		  {
+			fprintf(out, " #sp == 0 ");
+		  }
+		}
+
       if(extra)
       {
          fprintf(out, "%s", extra);

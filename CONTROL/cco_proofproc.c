@@ -605,7 +605,7 @@ void eval_clause_set(ProofState_p state, ProofControl_p control)
    {
       // keep collecting new clauses in delayed_store.
       ClauseSetInsertSet(state->delayed_store, state->eval_store);
-      // once enought clauses are collected ..
+      // once enough clauses are collected ..
       bool force = ClauseSetEmpty(state->unprocessed);
       // (or out of unprocessed)
       if (force || state->delayed_store->members >= DelayedEvalSize)
@@ -644,18 +644,42 @@ void eval_clause_set(ProofState_p state, ProofControl_p control)
 //
 /----------------------------------------------------------------------*/
 
-static Clause_p insert_new_clauses(ProofState_p state, ProofControl_p control)
+static Clause_p insert_new_clauses(ProofState_p state, ProofControl_p control, bool revive_children)
 {
    Clause_p handle;
+   ClauseSet_p handles;
    long     clause_count;
+   bool     filter_child = false;
 
-   state->generated_count+=state->tmp_store->members;
-   state->generated_lit_count+=state->tmp_store->literals;
-   while((handle = ClauseSetExtractFirst(state->tmp_store)))
+   // The frozen children are revived and inserted as if they were freshly generated.
+   if (revive_children)
+   {
+	   state->unfrozen_count+=state->frozen_store->members;
+	   handles = state->frozen_store;
+   }
+   else
+   {
+	   state->generated_count+=state->tmp_store->members;
+	   state->generated_lit_count+=state->tmp_store->literals;
+	   handles = state->tmp_store;
+   }
+   while((handle = ClauseSetExtractFirst(handles)))
    {
       /* printf("Inserting: ");
          ClausePrint(stdout, handle, true);
          printf("\n"); */
+
+	  // Filter children here.
+	  if (filter_generated && !revive_children)
+	  {
+		 filter_child = EnigmaticLgbFilterGenerationCompute(control->enigma_gen_model, handle);
+		 if (filter_child)
+		 {
+			 ClauseSetInsert(state->frozen_store, handle);
+			 state->frozen_count++;
+			 continue;
+		 }
+	  }
       if(ClauseQueryProp(handle,CPIsIRVictim))
       {
          assert(ClauseQueryProp(handle, CPLimitedRW));
@@ -793,7 +817,7 @@ Clause_p replacing_inferences(ProofState_p state, ProofControl_p
        * which may have put some clauses into tmp_store. */
       FVUnpackClause(pclause);
 
-      res = insert_new_clauses(state, control);
+      res = insert_new_clauses(state, control, false);
    }
    return res;
 }
@@ -1606,7 +1630,7 @@ Clause_p ProcessClause(ProofState_p state, ProofControl_p control,
    {
       ClauseSetSort(state->tmp_store, ClauseCmpByStructWeight);
    }
-   if((empty = insert_new_clauses(state, control)))
+   if((empty = insert_new_clauses(state, control, false)))
    {
       PStackPushP(state->extract_roots, empty);
       return empty;
@@ -1700,6 +1724,14 @@ Clause_p Saturate(ProofState_p state, ProofControl_p control, long
             DocClauseQuoteDefault(6, handle, "eval");
             ClauseSetInsert(state->unprocessed, handle);
          }
+      }
+      if (filter_generated && ClauseSetEmpty(state->unprocessed))
+      {
+    	  if((unsatisfiable = insert_new_clauses(state, control, true)))
+    	  {
+			PStackPushP(state->extract_roots, unsatisfiable);
+			break;
+    	  }
       }
 
    }

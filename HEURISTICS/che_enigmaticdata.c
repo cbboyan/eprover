@@ -321,7 +321,6 @@ static void params_offset_set(bool cond, long* offset, long cur)
 static long params_offsets(EnigmaticParams_p params, long start)
 {
    long cur = start;
-
    params_offset(params->use_len, &params->offset_len, EFC_LEN, &cur);
    params_offset(params->count_var != -1, &params->offset_var, EFC_VAR(params), &cur);
    params_offset(params->count_sym != -1, &params->offset_sym, EFC_SYM(params), &cur);
@@ -671,11 +670,13 @@ EnigmaticFeatures_p EnigmaticFeaturesAlloc(void)
    EnigmaticFeatures_p features = EnigmaticFeaturesCellAlloc();
    features->spec = NULL;
    features->offset_clause = -1;
+   features->offset_co_parent = -1;
    features->offset_goal = -1;
    features->offset_theory = -1;
    features->offset_problem = -1;
    features->offset_proofwatch = -1;
    features->clause = NULL;
+   features->co_parent = NULL;
    features->goal = NULL;
    features->theory = NULL;
    return features;
@@ -686,6 +687,10 @@ void EnigmaticFeaturesFree(EnigmaticFeatures_p junk)
    if (junk->clause)
    {
       EnigmaticParamsFree(junk->clause);
+   }
+   if (junk->co_parent)
+   {
+	  EnigmaticParamsFree(junk->co_parent);
    }
    if (junk->goal)
    {
@@ -762,6 +767,17 @@ EnigmaticFeatures_p EnigmaticFeaturesParse(char* spec)
             parse_expect(&spec, 'W');
             features->offset_proofwatch = 0;
             break;
+         case 'F':
+			if (features->offset_co_parent == 0) { Error("ENIGMATIC: Multiple '%c' blocks are not allowed.", OTHER_ERROR, *spec); }
+			parse_expect(&spec, 'F');
+			features->offset_co_parent = 0;
+			features->co_parent = parse_block(&spec);
+			if ((!features->co_parent) && (defaults))
+			{
+				features->co_parent = EnigmaticParamsCopy(defaults);
+			}
+			defaults = features->co_parent;
+			break;
          default:
             Error("ENIGMA: Invalid feature specifier (expected block name, have '%s').",
                   USAGE_ERROR, spec);
@@ -776,6 +792,11 @@ EnigmaticFeatures_p EnigmaticFeaturesParse(char* spec)
    {
       features->offset_clause = idx;
       idx += params_offsets(features->clause, idx);
+   }
+   if (features->offset_co_parent == 0)
+   {
+      features->offset_co_parent = idx;
+      idx += params_offsets(features->co_parent, idx);
    }
    if (features->offset_goal == 0) 
    {
@@ -989,9 +1010,14 @@ EnigmaticVector_p EnigmaticVectorAlloc(EnigmaticFeatures_p features)
    vector->clause = NULL;
    vector->goal = NULL;
    vector->theory = NULL;
+   vector->co_parent = NULL;
    if (features->offset_clause != -1)
    {
       vector->clause = EnigmaticClauseAlloc(features->clause);
+   }
+   if (features->offset_co_parent != -1)
+   {
+	  vector->co_parent = EnigmaticClauseAlloc(features->co_parent);
    }
    if (features->offset_goal != -1)
    {
@@ -1025,6 +1051,10 @@ void EnigmaticVectorFree(EnigmaticVector_p junk)
    {
       EnigmaticClauseFree(junk->theory);
    }
+   if (junk->co_parent)
+      {
+         EnigmaticClauseFree(junk->co_parent);
+      }
    EnigmaticVectorCellFree(junk);
 }
 
@@ -1154,6 +1184,7 @@ EnigmaticModel_p EnigmaticWeightParse(Scanner_p in, char* model_name)
 void EnigmaticVectorFill(EnigmaticVector_p vector, FillFunc set, void* data)
 {
    fill_clause(set, data, vector->clause);
+   fill_clause(set, data, vector->co_parent);
    fill_clause(set, data, vector->goal);
    fill_clause(set, data, vector->theory);
    fill_problem(set, data, vector);
@@ -1203,6 +1234,7 @@ void PrintEnigmaticVector(FILE* out, EnigmaticVector_p vector)
 void PrintEnigmaticFeaturesMap(FILE* out, EnigmaticFeatures_p features)
 {
    names_clauses(out, "clause", features->clause, features->offset_clause);
+   names_clauses(out, "co_parent", features->co_parent, features->offset_co_parent);
    names_clauses(out, "goal", features->goal, features->offset_goal);
    names_clauses(out, "theory", features->theory, features->offset_theory);
    names_array(out, "problem", features->offset_problem, efn_problem, EBS_PROBLEM);
@@ -1215,16 +1247,19 @@ void PrintEnigmaticFeaturesInfo(FILE* out, EnigmaticFeatures_p features)
    fprintf(out, "count(%ld).\n", features->count);
    
    info_offset(out, "clause", NULL, features->offset_clause);
+   info_offset(out, "co_parent", NULL, features->offset_co_parent);
    info_offset(out, "goal", NULL, features->offset_goal);
    info_offset(out, "theory", NULL, features->offset_theory);
    info_offset(out, "problem", NULL, features->offset_problem);
    info_offset(out, "proofwatch", NULL, features->offset_proofwatch);
    
    info_suboffsets(out, "clause", features->clause);
+   info_suboffsets(out, "co_parent", features->co_parent);
    info_suboffsets(out, "goal", features->goal);
    info_suboffsets(out, "theory", features->theory);
    
    info_settings(out, "clause", features->clause);
+   info_settings(out, "co_parent", features->co_parent);
    info_settings(out, "goal", features->goal);
    info_settings(out, "theory", features->theory);
 }

@@ -46,6 +46,8 @@ typedef enum
    OPT_JOIN_AVG,
    OPT_JOIN_SUM,
    OPT_JOIN_MAX,
+   OPT_MERGE_CLAUSES,
+   OPT_CONCAT_CLAUSES,
 }OptionCodes;
 
 
@@ -113,6 +115,16 @@ OptCell opts[] =
       '\0', "max",
       NoArg, NULL,
       "Compute the maximum of the vectors and output it instead of the clause vectors."},
+   {OPT_MERGE_CLAUSES,
+	  '\0', "merge",
+	  NoArg, NULL,
+	  "Merge multiple clauses into a single feature vector.  "
+	  "Place a semi-colon, ;, after each group of clauses to be merged."},
+   {OPT_CONCAT_CLAUSES,
+      '\0', "concat",
+	  NoArg, NULL,
+	  "Concatenate two clauses into a single feature vector with shared theory "
+	  "and goal sections.  Place a semi-colon after every second clause."},
    {OPT_NOOPT,
       '\0', NULL,
       NoArg, NULL,
@@ -132,6 +144,8 @@ bool compute_avg = false;
 bool compute_max = false;
 bool compute_sum = false;
 int compute_joint = 0;
+bool merge_clauses = false;
+bool concat_clauses = false;
 
 /*---------------------------------------------------------------------*/
 /*                      Forward Declarations                           */
@@ -179,56 +193,105 @@ static void fill_max(void* data, long idx, float val)
    info->avgs[idx] = MAX(val, info->avgs[idx]);
 }
 
+static Clause_p read_clause(Scanner_p in, EnigmaticInfo_p info)
+{
+	Clause_p clause;
+	WFormula_p formula = NULL;
+    if (TestInpId(in, "input_clause|cnf"))
+    {
+       clause = ClauseParse(in, info->bank);
+    }
+    else
+    {
+       formula = WFormulaParse(in, info->bank);
+       clause = EnigmaticFormulaToClause(formula, info);
+       WFormulaFree(formula);
+    }
+    return clause;
+}
+
+static void print_vector(FILE* out, EnigmaticVector_p vector, EnigmaticInfo_p info)
+{
+	 if (!compute_joint)
+	  {
+		 fprintf(out, "%s", prefix);
+		 PrintEnigmaticVector(GlobalOut, vector);
+		 fprintf(out, "\n");
+	  }
+	  else
+	  {
+		 if (compute_sum || compute_avg)
+		 {
+			EnigmaticVectorFill(vector, fill_sum, info);
+		 }
+		 else if (compute_max)
+		 {
+			EnigmaticVectorFill(vector, fill_max, info);
+		 }
+	  }
+}
+
 static void process_clauses(FILE* out, char* filename, EnigmaticVector_p vector, EnigmaticInfo_p info)
 {
    Scanner_p in = CreateScanner(StreamTypeFile, filename, true, NULL, true);
    ScannerSetFormat(in, TSTPFormat);
    Clause_p clause;
-   WFormula_p formula = NULL;
+   Clause_p clause2;
+   ClauseSet_p merge_set = ClauseSetAlloc();
   
    int count = 0;
    while (TestInpId(in, "input_formula|input_clause|fof|cnf|tff|tcf"))
    {
-      if (TestInpId(in, "input_clause|cnf"))
+	  clause = read_clause(in, info);
+      if (merge_clauses)
       {
-         clause = ClauseParse(in, info->bank);
-      }
-      else 
-      {
-         formula = WFormulaParse(in, info->bank);
-         clause = EnigmaticFormulaToClause(formula, info);
-         WFormulaFree(formula);
-      }
-      EnigmaticClause(vector->clause, clause, info);
-      if (!compute_joint)
-      {
-         //ClausePrint(out, clause, true);
-         //fprintf(out, "\n");
+    	  ClauseSetInsert(merge_set, clause);
+    	  if (TestInpTok(in, Semicolon))
+		  {
+			 AcceptInpTok(in, Semicolon);
+			 EnigmaticClauseSet(vector->clause, merge_set, info);
 
-         fprintf(out, prefix);
-         PrintEnigmaticVector(GlobalOut, vector);
-         fprintf(out, "\n");
+			 print_vector(out, vector, info);
+
+			 count++;
+			 ClauseSetFreeClauses(merge_set);
+			 EnigmaticClauseReset(vector->clause);
+		  }
       }
       else
-      {
-         if (compute_sum || compute_avg) 
-         {
-            EnigmaticVectorFill(vector, fill_sum, info);
-         }
-         else if (compute_max)
-         {
-            EnigmaticVectorFill(vector, fill_max, info);
-         }
-      }
+	  {
+		  if (concat_clauses)
+		  {
+			 clause2 = read_clause(in, info);
+			 AcceptInpTok(in, Semicolon);
+			 EnigmaticClause(vector->clause, clause, info);
+			 EnigmaticClause(vector->co_parent, clause2, info);
 
-      count++;
-      ClauseFree(clause);
-      EnigmaticClauseReset(vector->clause);
+			 print_vector(out, vector, info);
+
+		     count++;
+		     ClauseFree(clause);
+		     ClauseFree(clause2);
+		     EnigmaticClauseReset(vector->clause);
+		     EnigmaticClauseReset(vector->co_parent);
+
+		  }
+		  else
+		  {
+			 EnigmaticClause(vector->clause, clause, info);
+
+			 print_vector(out, vector, info);
+
+			 count++;
+			 ClauseFree(clause);
+			 EnigmaticClauseReset(vector->clause);
+		  }
+	  }
    }
 
    if (compute_joint)
    {
-      fprintf(out, prefix);
+      fprintf(out, "%s", prefix);
       int div = compute_avg ? count : 1;
       for (int i=0; i<features->count; i++)
       {
@@ -237,6 +300,8 @@ static void process_clauses(FILE* out, char* filename, EnigmaticVector_p vector,
       fprintf(out, "\n");
    }
 
+   // Might be good to make sure merge_set is empty at this point.
+   ClauseSetFree(merge_set);
    CheckInpTok(in, NoToken);
    DestroyScanner(in);
 }
@@ -369,6 +434,12 @@ CLState_p process_options(int argc, char* argv[])
          compute_max = true;
          compute_joint++;
          break;
+      case OPT_MERGE_CLAUSES:
+    	 merge_clauses = true;
+    	 break;
+      case OPT_CONCAT_CLAUSES:
+    	 concat_clauses = true;
+    	 break;
       default:
          assert(false);
          break;
@@ -401,7 +472,11 @@ CLState_p process_options(int argc, char* argv[])
    }
    if (compute_joint > 1)
    {
-      Error("Option --max, --avg, and --sum are mutually exclusive. Pleasu select just one of them.", USAGE_ERROR);
+      Error("Option --max, --avg, and --sum are mutually exclusive. Please select just one of them.", USAGE_ERROR);
+   }
+   if (merge_clauses && concat_clauses)
+   {
+	   Error("Options --merge and --concat are mutually exclusive.  Please select just one of them.", USAGE_ERROR);
    }
    
    return state;

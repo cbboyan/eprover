@@ -30,6 +30,7 @@
 
 ProofObjectType PrintProofObject = 0;
 bool            ProofObjectRecordsGCSelection = false;
+bool            ProofObjectRecordsParentClauses  = false;
 
 char *opids[] =
 {

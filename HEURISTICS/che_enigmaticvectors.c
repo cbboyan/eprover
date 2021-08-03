@@ -488,6 +488,24 @@ void EnigmaticClause(EnigmaticClause_p enigma, Clause_p clause, EnigmaticInfo_p 
    update_hists(enigma, info);
 }
 
+void EnigmaticClauseParents(EnigmaticClause_p enigma, Clause_p parent1, Clause_p parent2, EnigmaticInfo_p info)
+{
+   EnigmaticInfoReset(info);
+
+   info->var_offset = 0;
+   update_clause(enigma, info, parent1);
+   update_clause(enigma, info, parent2);
+   enigma->avg_lit_depth /= enigma->lits;
+   update_hists(enigma, info);
+   if (enigma->params->use_prios)
+   {
+      for (int i=0; i<EFC_PRIOS; i++)
+      {
+         enigma->prios[i] /= 2; // average priorities
+      }
+   }
+}
+
 void EnigmaticClauseSet(EnigmaticClause_p enigma, ClauseSet_p set, EnigmaticInfo_p info)
 {
    EnigmaticInfoReset(info);
@@ -685,6 +703,34 @@ double EnigmaticPredict(
 {
    EnigmaticClauseReset(model->vector->clause);
    EnigmaticClause(model->vector->clause, clause, model->info);
+   EnigmaticVectorFill(model->vector, fill_func, data);
+   return predict_func(data, model);
+}
+
+double EnigmaticPredictParentsConcat(
+   Clause_p parent1, Clause_p parent2,
+   EnigmaticModel_p model,
+   void* data,
+   FillFunc fill_func,
+   PredictFunc predict_func)
+{
+   EnigmaticClauseReset(model->vector->clause);
+   EnigmaticClauseReset(model->vector->co_parent);
+   EnigmaticClause(model->vector->clause, parent1, model->info);
+   EnigmaticClause(model->vector->co_parent, parent2, model->info);
+   EnigmaticVectorFill(model->vector, fill_func, data);
+   return predict_func(data, model);
+}
+
+double EnigmaticPredictParents(
+   Clause_p parent1, Clause_p parent2,
+   EnigmaticModel_p model,
+   void* data,
+   FillFunc fill_func,
+   PredictFunc predict_func)
+{
+   EnigmaticClauseReset(model->vector->clause);
+   EnigmaticClauseParents(model->vector->clause, parent1, parent2, model->info);
    EnigmaticVectorFill(model->vector, fill_func, data);
    return predict_func(data, model);
 }

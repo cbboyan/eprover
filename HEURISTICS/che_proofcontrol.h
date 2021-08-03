@@ -31,6 +31,7 @@ Changes
 #include <che_hcbadmin.h>
 #include <che_to_weightgen.h>
 #include <che_to_precgen.h>
+#include <che_enigmaticgenerationlgb.h>
 
 /*---------------------------------------------------------------------*/
 /*                    Data type declarations                           */
@@ -49,6 +50,8 @@ typedef struct proofcontrolcell
    SpecFeatureCell     problem_specs;
    /* Sat solver object. */
    SatSolver_p         solver;
+   /* Enigma model to filter generated clauses. */
+   EnigmaticGenerationLgbParam_p enigma_gen_model;
 }ProofControlCell, *ProofControl_p;
 
 #define HCBARGUMENTS ProofState_p state, ProofControl_p control, \

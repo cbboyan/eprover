@@ -316,8 +316,8 @@ Clause_p ComputeEqualityFactor(TB_p bank, OCB_p ocb, ClausePos_p pos1,
 //
 // Function: ClausePosFirstEqualityFactorSides()
 //
-//   Given a clause and two uninialized positions, set the positions
-//   to the first potiental pair of sides for an equality factoring
+//   Given a clause and two uninitialized positions, set the positions
+//   to the first potential pair of sides for an equality factoring
 //   inference. Return the second literal, or NULL if no legal pair
 //   exists.
 //

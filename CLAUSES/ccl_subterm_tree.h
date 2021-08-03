@@ -41,7 +41,7 @@ typedef struct bw_rw_payload
    PTree_p rw_rest; /* Of clauses in which the subterm appears in a
                        privileged position with restricted rewriting
                        */
-   PTree_p rw_full; /* Of clauses in which it appeats unrestricted */
+   PTree_p rw_full; /* Of clauses in which it appears unrestricted */
 }BWRWPayload;
 
 
@@ -53,7 +53,7 @@ typedef struct overlap_payload
 }OverlapPayload;
 
 
-/* Cell for recording all occurances of a subterm.*/
+/* Cell for recording all occurrences of a subterm.*/
 
 typedef struct subterm_occ_cell
 {
