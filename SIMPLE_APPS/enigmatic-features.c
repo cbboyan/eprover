@@ -200,10 +200,6 @@ static Clause_p read_clause(Scanner_p in, EnigmaticInfo_p info)
     if (TestInpId(in, "input_clause|cnf"))
     {
        clause = ClauseParse(in, info->bank);
-       //if (!merge_clauses && !concat_clauses && TestInpTok(in, Semicolon))
-		//  {
-		// 	 AcceptInpTok(in, Semicolon); // For testing to compare the features merged and not.
-		//  }
     }
     else
     {
@@ -218,9 +214,6 @@ static void print_vector(FILE* out, EnigmaticVector_p vector, EnigmaticInfo_p in
 {
 	 if (!compute_joint)
 	  {
-		 //ClausePrint(out, clause, true);
-		 //fprintf(out, "\n");
-
 		 fprintf(out, "%s", prefix);
 		 PrintEnigmaticVector(GlobalOut, vector);
 		 fprintf(out, "\n");
@@ -244,7 +237,6 @@ static void process_clauses(FILE* out, char* filename, EnigmaticVector_p vector,
    ScannerSetFormat(in, TSTPFormat);
    Clause_p clause;
    Clause_p clause2;
-   //WFormula_p formula = NULL;
    ClauseSet_p merge_set = ClauseSetAlloc();
   
    int count = 0;
@@ -257,7 +249,6 @@ static void process_clauses(FILE* out, char* filename, EnigmaticVector_p vector,
     	  if (TestInpTok(in, Semicolon))
 		  {
 			 AcceptInpTok(in, Semicolon);
-			 //fprintf(out, "Semicolon");
 			 EnigmaticClauseSet(vector->clause, merge_set, info);
 
 			 print_vector(out, vector, info);
@@ -265,7 +256,7 @@ static void process_clauses(FILE* out, char* filename, EnigmaticVector_p vector,
 			 count++;
 			 ClauseSetFreeClauses(merge_set);
 			 EnigmaticClauseReset(vector->clause);
-		  } // Shouldn't I throw an error? -- Or just let it fail?
+		  }
       }
       else
 	  {
@@ -309,6 +300,7 @@ static void process_clauses(FILE* out, char* filename, EnigmaticVector_p vector,
       fprintf(out, "\n");
    }
 
+   // Might be good to make sure merge_set is empty at this point.
    ClauseSetFree(merge_set);
    CheckInpTok(in, NoToken);
    DestroyScanner(in);

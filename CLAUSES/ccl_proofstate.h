@@ -106,8 +106,8 @@ typedef struct proofstatecell
     							  by Parental Guidance in
     							  the frozen_store */
    unsigned long unfrozen_count; /* Number of clauses unfrozen
-    								when the unprocessed clause set
-    								became empty*/
+                                    when the unprocessed clause set
+                                    became empty*/
    unsigned long context_sr_count;
    unsigned long paramod_count;
    unsigned long factor_count;

@@ -59,9 +59,6 @@ void EnigmaticInit(EnigmaticModel_p model, ProofState_p proofstate);
 double EnigmaticPredict(Clause_p clause, EnigmaticModel_p model, void* data,
    FillFunc fill_func, PredictFunc predict_func);
 
-double EnigmaticPredictSet(ClauseSet_p clauses, EnigmaticModel_p model, void* data,
-   FillFunc fill_func, PredictFunc predict_func);
-
 double EnigmaticPredictParentsConcat(Clause_p parent1, Clause_p parent2, EnigmaticModel_p model,
    void* data, FillFunc fill_func, PredictFunc predict_func);
 

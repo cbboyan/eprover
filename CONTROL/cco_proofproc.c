@@ -34,7 +34,6 @@ PERF_CTR_DEFINE(ParamodTimer);
 PERF_CTR_DEFINE(BWRWTimer);
 
 long DelayedEvalSize = 0;
-//bool filter_generated = false; // Moved to ccl_proofstate due to stat printing
 
 /*---------------------------------------------------------------------*/
 /*                      Forward Declarations                           */
@@ -652,7 +651,7 @@ static Clause_p insert_new_clauses(ProofState_p state, ProofControl_p control, b
    long     clause_count;
    bool     filter_child = false;
 
-   // In essence, the frozen children are revived and inserted where they were left off.
+   // The frozen children are revived and inserted as if they were freshly generated.
    if (revive_children)
    {
 	   state->unfrozen_count+=state->frozen_store->members;
@@ -670,14 +669,12 @@ static Clause_p insert_new_clauses(ProofState_p state, ProofControl_p control, b
          ClausePrint(stdout, handle, true);
          printf("\n"); */
 
-	  // Filter children here unless they're being revived
-	  if (filter_generated && !revive_children) //control->enigma_gen_model->model1) // This test seem solid given the allocation scheme.
+	  // Filter children here.
+	  if (filter_generated && !revive_children)
 	  {
-		 //fprintf(GlobalOut, "TEST -- ENTERED \n");
 		 filter_child = EnigmaticLgbFilterGenerationCompute(control->enigma_gen_model, handle);
 		 if (filter_child)
 		 {
-			 //ClauseFree(handle);
 			 ClauseSetInsert(state->frozen_store, handle);
 			 state->frozen_count++;
 			 continue;
@@ -1730,7 +1727,6 @@ Clause_p Saturate(ProofState_p state, ProofControl_p control, long
       }
       if (filter_generated && ClauseSetEmpty(state->unprocessed))
       {
-    	  //fprintf(GlobalOut, "OverFiltered\n");
     	  if((unsatisfiable = insert_new_clauses(state, control, true)))
     	  {
 			PStackPushP(state->extract_roots, unsatisfiable);
