@@ -28,6 +28,7 @@ Changes
 #include <arpa/inet.h>
 #include <cte_termbanks.h>
 #include <ccl_clauses.h>
+#include <clb_floattrees.h>
 
 /*---------------------------------------------------------------------*/
 /*                    Data type declarations                           */
@@ -60,6 +61,12 @@ typedef struct enigmaticsocketcell
    char* evals;
 } EnigmaticSocketCell, *EnigmaticSocket_p;
 
+typedef enum {
+   TAMConjecture = 1,
+   TAMContext = 2,
+   TAMClause = 3
+} TensorAppendMode;
+
 typedef struct enigmatictensorsparamcell
 {
    TB_p         tmp_bank;
@@ -80,7 +87,7 @@ typedef struct enigmatictensorsparamcell
    // context
    long context_cnt;
 
-   // conjecture edges
+   // conjecture edges 
    bool conj_mode;
    NumTree_p conj_terms;
    NumTree_p conj_syms;

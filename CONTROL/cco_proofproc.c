@@ -1411,6 +1411,8 @@ void ProofStateInit(ProofState_p state, ProofControl_p control)
    assert(tmphcb);
    ClauseSetReweight(tmphcb, state->axioms);
 
+   EnigmaticWeightTfsEvalAxioms(state->axioms);
+
    traverse =
       EvalTreeTraverseInit(PDArrayElementP(state->axioms->eval_indices,0),0);
 

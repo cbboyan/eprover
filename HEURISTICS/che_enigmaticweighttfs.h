@@ -45,8 +45,19 @@ typedef struct enigmaticweighttfparamcell
    char* server_ip;
    uint16_t server_port;
    long context_size;
+   double context_fixed_ratio;
+   long context_size_fixed;
+   long context_size_variable;
    int weight_type;
    double threshold;
+
+   // fluent context handling
+   PStack_p conj_clauses;
+   PStack_p ctx_fixed;
+   FloatTree_p ctx_variable;
+   long ctx_var_cnt;
+   long ctx_var_total;
+   double ctx_var_worst;
 
    bool inited;
 
@@ -82,6 +93,7 @@ WFCB_p EnigmaticWeightTfsInit(
    char* server_ip,
    int server_port,
    long context_size,
+   double context_fixed_ratio,
    int weight_type,
    double threshold,
    EnigmaticWeightLgbParam_p lgb);
@@ -89,6 +101,8 @@ WFCB_p EnigmaticWeightTfsInit(
 double EnigmaticWeightTfsCompute(void* data, Clause_p clause);
 
 void EnigmaticWeightTfsExit(void* data);
+
+void EnigmaticWeightTfsEvalAxioms(ClauseSet_p axioms);
 
 //void EnigmaticComputeEvals(ClauseSet_p set, EnigmaticWeightTfsParam_p local);
 
