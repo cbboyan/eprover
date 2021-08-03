@@ -3,6 +3,39 @@ System Competition is in `DOC/Readme`.
 **NOTE**: The ultimate source is now README.md. Don't edit the plain
 README!
 
+## Running E with parental guidance.
+
+Download and compile an E client as described below this section.
+
+Parental guidance is used via a commandline argument to E:
+
+```
+--filter-generated-clauses=parental_lgb_model_dir
+--filter-generated-threshold=parental_threshold
+```
+
+An LGB model for clause selection can be used via the clause weight function `EnigmaticLgb`:
+
+```
+EnigmaticLgb(prio_fun, selection_lgb_model_dir, weight_type, threshold)
+```
+
+where 
+
+* `parental_lgb_model_dir` is the directory with the LGB model for parental guidance,
+* `parental_threshold` is the threshold below which a pair of inference parents will be filtered (a real number between _0_ and _1_).
+* `prio_fun` is E's standard priority function (we use `ConstPrio`).
+* `selection_lgb_model_dir` is the directory with the LGB model for clause selection,
+* `weight_type` can be set to `1` to simply rate clauses as `positive` or `negative`.
+
+Repositories to help with training models can be found at:
+
+* https://github.com/zariuq/pyprove/tree/parentalguidance_frozen
+* https://github.com/zariuq/enigmatic/tree/parentalguidance_frozen
+
+
+
+
 
 Short Installation Instructions for the Impatient
 =================================================

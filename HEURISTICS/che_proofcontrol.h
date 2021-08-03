@@ -50,8 +50,8 @@ typedef struct proofcontrolcell
    SpecFeatureCell     problem_specs;
    /* Sat solver object. */
    SatSolver_p         solver;
-   //EnigmaticModel_p    enigma_model; // TODO, upgrade to a wrapper with a vector
-   EnigmaticGenerationLgbParam_p enigma_gen_model; // Enigma model to filter generated clauses (possibly before creation).
+   /* Enigma model to filter generated clauses. */
+   EnigmaticGenerationLgbParam_p enigma_gen_model;
 }ProofControlCell, *ProofControl_p;
 
 #define HCBARGUMENTS ProofState_p state, ProofControl_p control, \

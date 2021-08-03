@@ -645,8 +645,6 @@ void PStackClausePrint(FILE* out, PStack_p stack, char* extra)
       ClausePrint(out, clause, true);
 
       // Prints out the parents for a clause
-      // I wonder why DCCnfAddArg is used above but not in DerivStackExtractParents
-      // I also wonder if this will work elsewhere in E...
       if(ProofObjectRecordsParentClauses)
 		{
 		  sp = PStackGetSP(clause->derivation);
@@ -683,8 +681,6 @@ void PStackClausePrint(FILE* out, PStack_p stack, char* extra)
 			fprintf(out, " #sp == 0 ");
 		  }
 		}
-
-
 
       if(extra)
       {

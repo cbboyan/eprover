@@ -831,18 +831,12 @@ int main(int argc, char* argv[])
 
    if (filter_generated)
    {
-	   //EnigmaticModel_p model = EnigmaticModelCreate(enigmaceo_filename, "model.lgb");
-	   //EnigmaticGenerationLgbParam_p gen_model =
-	   EnigmaticGenerationLgbModelInit(enigmaceo_filename,
-										 "model.lgb",
-										 filter_generated_threshold,
-										 proofcontrol->ocb,
-										 proofstate,
-										 proofcontrol->enigma_gen_model);
-	   //fprintf(GlobalOut, "THIS IS A TEST: %s\n", enigmaceo_filename);
-	   //fprintf(GlobalOut, "THIS IS A TEST: %s\n", model->features_filename);
-	   //fprintf(GlobalOut, "Filter threshold: %.3f\n", filter_generated_threshold);
-	   //fprintf(GlobalOut, "THIS IS A TEST: %s\n", proofcontrol->enigma_gen_model->model1->model_filename);
+       EnigmaticGenerationLgbModelInit(enigmaceo_filename,
+                                       "model.lgb",
+                                       filter_generated_threshold,
+                                       proofcontrol->ocb,
+                                       proofstate,
+                                       proofcontrol->enigma_gen_model);
 	}
 
    VERBOUT2("Prover state initialized\n");
@@ -1268,13 +1262,13 @@ CLState_p process_options(int argc, char* argv[])
             ProofObjectRecordsParentClauses = true;
             break;
       case OPT_FILTER_GENERATED_CLAUSES:
-	  	    enigmaceo_filename = arg;
-	  	    filter_generated = true;
-	  	    if (!filter_generated_threshold) {filter_generated_threshold = 0.25;}
-	  	    break;
+            enigmaceo_filename = arg;
+            filter_generated = true;
+            if (!filter_generated_threshold) {filter_generated_threshold = 0.25;}
+            break;
       case OPT_FILTER_GENERATED_THRESHOLD:
-      	  	filter_generated_threshold = CLStateGetFloatArgCheckRange(handle, arg, 0, 1);
-      	  	break;
+            filter_generated_threshold = CLStateGetFloatArgCheckRange(handle, arg, 0, 1);
+            break;
       case OPT_PCL_COMPRESSED:
             pcl_full_terms = false;
             break;
