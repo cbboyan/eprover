@@ -209,7 +209,7 @@ double EnigmaticGenerationPredictParentsConcatLgb(Clause_p parent1, Clause_p par
 
 bool EnigmaticLgbFilterGenerationCompute(EnigmaticGenerationLgbParam_p local, Clause_p clause)
 {
-	double pred;
+	double pred = 0.0;
 	bool res = false;
 
 	PStackPointer j = 0;
