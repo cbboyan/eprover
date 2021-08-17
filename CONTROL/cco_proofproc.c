@@ -23,6 +23,7 @@ Changes
 
 #include "cco_proofproc.h"
 #include <picosat.h>
+#include <cco_ho_inferences.h>
 
 
 
@@ -516,6 +517,7 @@ void simplify_watchlist(ProofState_p state, ProofControl_p control,
 static void generate_new_clauses(ProofState_p state, ProofControl_p
                                  control, Clause_p clause, Clause_p tmp_copy)
 {
+   ComputeHOInferences(state,control,tmp_copy,clause);
    if(control->heuristic_parms.enable_eq_factoring)
    {
       state->factor_count+=
@@ -704,6 +706,10 @@ static Clause_p insert_new_clauses(ProofState_p state, ProofControl_p control, b
          ClauseFree(handle);
          continue;
       }
+
+
+
+
       check_watchlist(&(state->wlindices), state->watchlist,
                       handle, state->archive,
                       control->heuristic_parms.watchlist_is_static);
@@ -711,6 +717,27 @@ static Clause_p insert_new_clauses(ProofState_p state, ProofControl_p control, b
       {
          return handle;
       }
+
+      if(control->heuristic_parms.forward_subsumption_aggressive)
+      {
+         FVPackedClause_p pclause;
+
+         pclause = ForwardSubsumption(state,
+                                      handle,
+                                      &(state->aggressive_forward_subsumed_count),
+                                      true);
+         if(pclause)
+         {  // Not subsumed
+            FVUnpackClause(pclause);
+            ENSURE_NULL(pclause);
+         }
+         else
+         {
+            ClauseFree(handle);
+            continue;
+         }
+      }
+
       if(control->heuristic_parms.er_aggressive &&
          control->heuristic_parms.er_varlit_destructive &&
          (clause_count =
@@ -791,6 +818,11 @@ Clause_p replacing_inferences(ProofState_p state, ProofControl_p
    long     clause_count;
    Clause_p res = pclause->clause;
 
+   if(problemType == PROBLEM_HO && DestructEquivalences(res, state->tmp_store, state->archive))
+   {
+      pclause->clause = NULL;
+   }
+   else
    if(control->heuristic_parms.er_varlit_destructive &&
       (clause_count =
        ClauseERNormalizeVar(state->terms,
@@ -1435,6 +1467,7 @@ void ProofStateInit(ProofState_p state, ProofControl_p control)
       }
       ClauseSetInsert(state->unprocessed, new);
    }
+   OUTPRINT(1, "# Initializing proof state (3)\n");
    ClauseSetMarkSOS(state->unprocessed, control->heuristic_parms.use_tptp_sos);
    // printf("Before EvalTreeTraverseExit\n");
    EvalTreeTraverseExit(traverse);
@@ -1461,7 +1494,8 @@ void ProofStateInit(ProofState_p state, ProofControl_p control)
                      state->signature,
                      control->heuristic_parms.rw_bw_index_type,
                      control->heuristic_parms.pm_from_index_type,
-                     control->heuristic_parms.pm_into_index_type);
+                     control->heuristic_parms.pm_into_index_type,
+                     control->heuristic_parms.ext_sup_max_depth);
 
 }
 

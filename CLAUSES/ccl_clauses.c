@@ -358,6 +358,37 @@ void ClauseRecomputeLitCounts(Clause_p clause)
 }
 
 
+/*-----------------------------------------------------------------------
+//
+// Function: ClauseIsTrivial()
+//
+//   Return true if the clause is trivial (because it has a trivial
+//   true literal or propositionally conflicting literals).
+//
+// Global Variables: -
+//
+// Side Effects    : -
+//
+/----------------------------------------------------------------------*/
+
+bool ClauseIsTrivial(Clause_p clause)
+{
+   if(EqnListFindTrue(clause->literals))
+   {
+      return true;
+   }
+   if(clause->pos_lit_no && clause->neg_lit_no)
+   {
+      if(ClauseLiteralNumber(clause) > EQN_LIST_LONG_LIMIT)
+      {
+         return EqnLongListIsTrivial(clause->literals);
+      }
+      return EqnListIsTrivial(clause->literals);
+   }
+   return false;
+}
+
+
 
 /*-----------------------------------------------------------------------
 //
@@ -1421,7 +1452,7 @@ void ClauseTSTPPrint(FILE* out, Clause_p clause, bool fullterms, bool complete)
    }
    fprintf(out, "%s, ", typename);
 
-   if(is_untyped)
+   if(ClauseIsEmpty(clause) || (is_untyped && problemType != PROBLEM_HO))
    {
       ClauseTSTPCorePrint(out, clause, fullterms);
    }
@@ -1495,6 +1526,10 @@ FormulaProperties ClauseTypeParse(Scanner_p in, char *legal_types)
                 "axiom|definition|theorem"))
    {
       res = CPTypeAxiom;
+      if(problemType == PROBLEM_HO && TestInpId(in, "definition"))
+      {
+         res = res | CPIsLambdaDef;
+      }
    }
    else if(TestInpId(in, "question"))
    {
@@ -1735,6 +1770,7 @@ Clause_p ClausePCLParse(Scanner_p in, TB_p bank)
 void ClauseMarkMaximalTerms(OCB_p ocb, Clause_p clause)
 {
    EqnListOrient(ocb, clause->literals);
+   // printf("Litno: %d\n", ClauseLiteralNumber(clause));
    EqnListMaximalLiterals(ocb, clause->literals);
    ClauseSetProp(clause, CPIsOriented);
 }

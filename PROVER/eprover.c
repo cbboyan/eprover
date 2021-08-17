@@ -8,13 +8,13 @@
 
   Main program for the E equational theorem prover.
 
-  Copyright 1998-2018 by the authors.
+  Copyright 1998-2021 by the authors.
   This code is released under the GNU General Public Licence and
   the GNU Lesser General Public License.
   See the file COPYING in the main E directory for details..
   Run "eprover -h" for contact information.
 
-  Created: Tue Jun  9 01:32:15 MET DST 1998 - New.
+  Created: Tue Jun  9 01:32:15 MET DST 1998
 
 -----------------------------------------------------------------------*/
 
@@ -60,12 +60,14 @@ bool              print_sat = false,
    print_statistics = false,
    filter_sat = false,
    print_rusage = false,
+   print_strategy = false,
    print_pid = false,
    print_version = false,
    outinfo = false,
    error_on_empty = false,
    pcl_full_terms = true,
    indexed_subsumption = true,
+   syntax_only = false,
    prune_only = false,
    new_cnf = true,
    cnf_only = false,
@@ -164,6 +166,8 @@ ProofState_p parse_spec(CLState_p state,
                                proofstate->terms,
                                NULL,
                                &skip_includes);
+      // exit(-1);
+      //printf("Set complete\n");
       CheckInpTok(in, NoToken);
       DestroyScanner(in);
    }
@@ -183,6 +187,7 @@ ProofState_p parse_spec(CLState_p state,
    }
    *ax_no = parsed_ax_no;
 
+   //printf("Returning set\n");
    return proofstate;
 }
 
@@ -396,7 +401,11 @@ int main(int argc, char* argv[])
 
    OpenGlobalOut(outname);
    print_info();
-
+   if(print_strategy)
+   {
+      HeuristicParmsPrint(stdout, h_parms);
+      exit(NO_ERROR);
+   }
 
    if(state->argc ==  0)
    {
@@ -407,10 +416,16 @@ int main(int argc, char* argv[])
                            error_on_empty, free_symb_prop,
                            &parsed_ax_no);
 
+   if(syntax_only)
+   {
+      fprintf(GlobalOut, "\n# Parsing successful!\n");
+      TSTPOUT(GlobalOut, "Unknown");
+      goto cleanup1;
+   }
+
    relevancy_pruned += ProofStateSinE(proofstate, sine);
    relevancy_pruned += ProofStateRelevancyProcess(proofstate,
                                                   relevance_prune_level);
-
    if(app_encode)
    {
       FormulaSetAppEncode(stdout, proofstate->f_axioms);
@@ -419,7 +434,7 @@ int main(int argc, char* argv[])
 
    if(strategy_scheduling)
    {
-      ExecuteSchedule(StratSchedule, h_parms, print_rusage);
+      ExecuteSchedule(chosen_schedule, h_parms, print_rusage);
    }
 
    FormulaSetDocInital(GlobalOut, OutputLevel, proofstate->f_axioms);
@@ -447,6 +462,7 @@ int main(int argc, char* argv[])
       VERBOUT("Negated conjectures.\n");
    }
 
+   VERBOUT("Clausification started.\n");
    if(new_cnf)
    {
       cnf_size = FormulaSetCNF2(proofstate->f_axioms,
@@ -466,12 +482,12 @@ int main(int argc, char* argv[])
                                proofstate->freshvars,
                                proofstate->gc_terms);
    }
+   VERBOUT("Clausification done.\n");
 
    if(cnf_size)
    {
       VERBOUT("CNFization done\n");
    }
-   //HeuristicParmsPrint(stdout, h_parms);
 
    raw_clause_no = proofstate->axioms->members;
    ProofStateLoadWatchlist(proofstate, watchlist_filename, parse_format);
@@ -483,16 +499,29 @@ int main(int argc, char* argv[])
       //{
       //   ClauseSetArchiveCopy(proofstate->ax_archive, proofstate->watchlist);
       //}
+      VERBOUT("Clausal preprocessing started.\n");
       preproc_removed = ClauseSetPreprocess(proofstate->axioms,
                                             proofstate->watchlist,
                                             proofstate->archive,
-                                            proofstate->tmp_terms);
+                                            proofstate->tmp_terms,
+                                            proofstate->terms,
+                                            h_parms->replace_inj_defs,
+                                            h_parms->eqdef_incrlimit,
+                                            h_parms->eqdef_maxclauses);
+      VERBOUT("Clausal preprocessing complete.\n");
    }
+   //HeuristicParmsPrint(stdout, h_parms);
 
    proofcontrol = ProofControlAlloc();
    ProofControlInit(proofstate, proofcontrol, h_parms,
                     fvi_parms, wfcb_definitions, hcb_definitions);
-   //HeuristicParmsPrint(stdout, h_parms);
+
+   /* Scanner_p hin = CreateScanner(StreamTypeFile, "bla.txt", true, NULL, true); */
+   /* HeuristicParms_p parms = HeuristicParmsParse(hin, true); */
+   /* DestroyScanner(hin); */
+   /* printf("# Parsed\n"); */
+   /* HeuristicParmsPrint(stdout, parms); */
+   /* HeuristicParmsFree(parms); */
 
    // Unfold definitions and re-normalize
    preproc_removed += ClauseSetUnfoldEqDefNormalize(proofstate->axioms,
@@ -509,7 +538,8 @@ int main(int argc, char* argv[])
                      proofstate->signature,
                      proofcontrol->heuristic_parms.rw_bw_index_type,
                      "NoIndex",
-                     "NoIndex");
+                     "NoIndex",
+                     proofcontrol->heuristic_parms.ext_sup_max_depth);
    //printf("Alive (1)!\n");
 
    ProofStateInit(proofstate, proofcontrol);
@@ -630,8 +660,11 @@ int main(int argc, char* argv[])
                                     print_derivation,
                                     OutputLevel||print_statistics);
          ProofStateAnalyseGC(proofstate);
-         ProofStateTrain(proofstate, proc_training_data&TSPrintPos,
-                         proc_training_data&TSPrintNeg);
+         if(proc_training_data)
+         {
+            ProofStateTrain(proofstate, proc_training_data&TSPrintPos,
+                            proc_training_data&TSPrintNeg);
+         }
       }
       DerivationFree(deriv);
    }
@@ -685,7 +718,7 @@ int main(int argc, char* argv[])
             }
             retval = INCOMPLETE_PROOFSTATE;
          }
-         else if(proofstate->state_is_complete && inf_sys_complete)
+         else if(problemType == PROBLEM_FO && proofstate->state_is_complete && inf_sys_complete)
          {
             fprintf(GlobalOut, "\n# No proof found!\n");
             TSTPOUT(GlobalOut, neg_conjectures?"CounterSatisfiable":"Satisfiable");
@@ -968,9 +1001,12 @@ CLState_p process_options(int argc, char* argv[])
             CheckOptionLetterString(filterdesc, "eigEIGaA", "--filter-saturated");
             filter_sat = true;
             break;
+      case OPT_SYNTAX_ONLY:
+            syntax_only = true;
+            break;
       case OPT_PRUNE_ONLY:
             OutputLevel = 4;
-            prune_only   = true;
+            prune_only  = true;
             break;
       case OPT_CNF_ONLY:
             outdesc    = "teigEIG";
@@ -1039,6 +1075,9 @@ CLState_p process_options(int argc, char* argv[])
             break;
       case OPT_RUSAGE_INFO:
             print_rusage = true;
+            break;
+      case OPT_PRINT_STRATEGY:
+            print_strategy = true;
             break;
       case OPT_STEP_LIMIT:
             step_limit = CLStateGetIntArg(handle, arg);
@@ -1125,6 +1164,20 @@ CLState_p process_options(int argc, char* argv[])
             break;
       case OPT_SATAUTO_SCHED:
             strategy_scheduling = true;
+            break;
+      case OPT_AUTOSCHEDULE_KIND:
+            if(strcmp(arg, "SH")==0)
+            {
+               chosen_schedule = (ScheduleCell*)CASC_SH_SCHEDULE;
+            }
+            else if(strcmp(arg, "CASC")==0)
+            {
+               chosen_schedule = (ScheduleCell*)CASC_SCHEDULE;
+            }
+            else
+            {
+               Error("There are only two schedules available: SH and CASC", USAGE_ERROR);
+            }
             break;
       case OPT_NO_PREPROCESSING:
             h_parms->no_preproc = true;
@@ -1559,6 +1612,9 @@ CLState_p process_options(int argc, char* argv[])
       case OPT_WATCHLIST_NO_SIMPLIFY:
             h_parms->watchlist_simplify = false;
             break;
+      case OPT_FW_SUMBSUMPTION_AGGRESSIVE:
+            h_parms->forward_subsumption_aggressive = true;
+            break;
       case OPT_NO_INDEXED_SUBSUMPTION:
             fvi_parms->cspec.features = FVINoFeatures;
             break;
@@ -1673,6 +1729,7 @@ CLState_p process_options(int argc, char* argv[])
             PStackPushP(wfcb_definitions, arg);
             break;
       case OPT_DEFINE_HEURISTIC:
+            /* Note that we postprocess this at the end */
             PStackPushP(hcb_definitions, arg);
             break;
       case OPT_FREE_NUMBERS:
@@ -1699,11 +1756,69 @@ CLState_p process_options(int argc, char* argv[])
       case OPT_DELAYED_EVAL:
             DelayedEvalSize = CLStateGetIntArg(handle, arg);
             break;
+      case OPT_ARG_CONG:
+            if(!strcmp(arg, "all"))
+            {
+               h_parms->arg_cong = AllLits;
+            } else if (!strcmp(arg, "max"))
+            {
+               h_parms->arg_cong = MaxLits;
+            } else if (!strcmp(arg, "off"))
+            {
+               h_parms->arg_cong = NoLits;
+            } else
+            {
+               Error("neg-ext excepts either all, max or off", 0);
+            }
+            break;
+      case OPT_NEG_EXT:
+            if(!strcmp(arg, "all"))
+            {
+               h_parms->neg_ext = AllLits;
+            }
+            else if (!strcmp(arg, "max"))
+            {
+               h_parms->neg_ext = MaxLits;
+            }
+            else
+            {
+               Error("neg-ext excepts either all or max", 0);
+            }
+            break;
+      case OPT_POS_EXT:
+            if(!strcmp(arg, "all"))
+            {
+               h_parms->pos_ext = AllLits;
+            }
+            else if (!strcmp(arg, "max"))
+            {
+               h_parms->pos_ext = MaxLits;
+            } else
+            {
+               Error("pos-ext excepts either all or max", 0);
+            }
+            break;
+      case OPT_EXT_SUP:
+            h_parms->ext_sup_max_depth =
+               CLStateGetIntArgCheckRange(handle, arg, -1, INT_MAX);
+            break;
+      case OPT_INVERSE_RECOGNITION:
+            h_parms->inverse_recognition = true;
+            break;
+      case OPT_REPLACE_INJ_DEFS:
+            h_parms->replace_inj_defs = true;
+            break;
       default:
             assert(false && "Unknown option");
             break;
       }
    }
+   if(!PStackEmpty(hcb_definitions))
+   {
+      h_parms->heuristic_def = SecureStrdup(PStackTopP(hcb_definitions));
+   }
+
+
    if((HardTimeLimit!=RLIM_INFINITY)||(SoftTimeLimit!=RLIM_INFINITY))
    {
       if(SoftTimeLimit!=RLIM_INFINITY)

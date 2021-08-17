@@ -38,14 +38,16 @@ Changes
  * information about all the includes parsed so they are parsed at
  * most once. */
 
-typedef struct strtuctured_FOF_spec_cell
+typedef struct structured_FOF_spec_cell
 {
-   Sig_p         sig;
+   //Sig_p         sig;
    TB_p          terms;
+   //GCAdmin_p     gc_terms;
    PStack_p      clause_sets;
    PStack_p      formula_sets;
    StrTree_p     parsed_includes;
    PStackPointer shared_ax_sp;
+   FunCode       shared_ax_f_count;
    GenDistrib_p  f_distrib;
 }StructFOFSpecCell, *StructFOFSpec_p;
 

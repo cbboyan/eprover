@@ -147,6 +147,14 @@ int PartiallyMatchVar(Term_p var_matcher, Term_p to_match, Sig_p sig,
    Type_p term_head_type = GetHeadType(sig, to_match);
    Type_p matcher_type   = var_matcher->type;
 
+   if(!term_head_type || TermIsLambda(to_match))
+   {
+      // ad-hoc polymorphic type -- at the moment we cannot
+      // determine these types :(
+      return MATCH_FAILED;
+   }
+
+
    if(matcher_type == to_match->type)
    {
       args_to_eat = ARG_NUM(to_match);
@@ -311,10 +319,12 @@ bool SubstComputeMatch(Term_p matcher, Term_p to_match, Subst_p subst)
 int SubstComputeMatchHO(Term_p matcher, Term_p to_match, Subst_p subst)
 {
    assert(problemType == PROBLEM_HO);
-   assert(TermGetBank(matcher) == TermGetBank(to_match));
    long matcher_weight  = TermStandardWeight(matcher);
    long to_match_weight = TermStandardWeight(to_match);
-   TB_p bank = TermGetBank(matcher);
+   TB_p bank = TermGetBank(matcher) ? TermGetBank(matcher) : TermGetBank(to_match);
+   assert(bank || TermIsVar(matcher) || TermIsVar(to_match));
+   assert(!(TermGetBank(matcher) && TermGetBank(to_match)) 
+            || TermGetBank(matcher) == TermGetBank(to_match));
 
    assert(TermStandardWeight(matcher)  == TermWeight(matcher, DEFAULT_VWEIGHT, DEFAULT_FWEIGHT));
    assert(TermStandardWeight(to_match) == TermWeight(to_match, DEFAULT_VWEIGHT, DEFAULT_FWEIGHT));
@@ -330,7 +340,7 @@ int SubstComputeMatchHO(Term_p matcher, Term_p to_match, Subst_p subst)
       return MATCH_FAILED;
    }
 
-   Sig_p sig = bank->sig;
+   Sig_p sig = bank ? bank->sig : NULL;
    
    PStackPointer backtrack = PStackGetSP(subst);
    PLocalStackInit(jobs);
@@ -837,6 +847,8 @@ __inline__ int SubstMatchPossiblyPartial(Term_p pattern, Term_p target, Subst_p 
 UnificationResult SubstMguPossiblyPartial(Term_p t, Term_p s, Subst_p subst)
 {
    UnificationResult res;
+   PStackPointer backtrack = PStackGetSP(subst);
+   
    if(problemType == PROBLEM_FO)
    {
       res = (UnificationResult) {SubstComputeMgu(t,s,subst) ? RightTerm : NoTerm, 0};
@@ -844,6 +856,11 @@ UnificationResult SubstMguPossiblyPartial(Term_p t, Term_p s, Subst_p subst)
    else
    {
       res = SubstComputeMguHO(t,s,subst);
+      if(res.term_remaining != 0)
+      {
+         res = UNIF_FAILED;
+         SubstBacktrackToPos(subst, backtrack);
+      }
    }
 
    return res;

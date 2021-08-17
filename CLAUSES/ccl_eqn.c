@@ -285,131 +285,6 @@ static CompareResult compare_poseqn_negeqn(OCB_p ocb, Eqn_p eq1, Eqn_p eq2)
 
 /*-----------------------------------------------------------------------
 //
-// Function: eqn_parse_infix()
-//
-//   Parse a literal without external sign assuming that _all_
-//   equational literals are infix. Return sign. This is for TSTP
-//   syntax and E-LOP style.
-//
-// Global Variables: -
-//
-// Side Effects    : Input, memory management.
-//
-/----------------------------------------------------------------------*/
-
-static bool eqn_parse_infix(Scanner_p in, TB_p bank, Term_p *lref,
-                            Term_p *rref)
-{
-   Term_p  lterm;
-   Term_p  rterm;
-   bool    positive = true;
-
-   bool in_parens = false;
-   if(problemType == PROBLEM_HO && TestInpTok(in, OpenBracket))
-   {
-      AcceptInpTok(in, OpenBracket);
-      in_parens = true;
-   }
-
-   lterm = TBTermParse(in, bank);
-
-   BOOL_TERM_NORMALIZE(lterm);
-
-   /* Shortcut not to check for equality --
-         !TermIsVar guards calls against negative f_code */
-   if(problemType == PROBLEM_FO && !TermIsVar(lterm) &&
-      SigIsPredicate(bank->sig,lterm->f_code) &&
-      SigIsFixedType(bank->sig, lterm->f_code))
-   {
-      rterm = bank->true_term; /* Non-Equational literal */
-   }
-   else
-   {
-      /* If we have a predicate variable then = might not come */
-      if((TermIsVar(lterm) && !TypeIsPredicate(lterm->type))
-              /* guarding SigIsFunction */
-          || (!TermIsVar(lterm) && SigIsFunction(bank->sig, lterm->f_code)))
-      {
-         if(in_parens && TestInpTok(in, CloseBracket))
-         {
-            AcceptInpTok(in, CloseBracket);
-            in_parens = false;
-         }
-
-         if(TestInpTok(in, NegEqualSign))
-         {
-            positive = !positive;
-         }
-         AcceptInpTok(in, NegEqualSign|EqualSign);
-
-         rterm = TBTermParse(in, bank);
-
-         if(!TermIsTopLevelVar(rterm))
-         {
-            TypeDeclareIsNotPredicate(bank->sig, rterm, in);
-         }
-      }
-      else if(TestInpTok(in, NegEqualSign|EqualSign) && !TypeIsPredicate(lterm->type))
-      { /* Now both sides must be terms */
-         if(in_parens && TestInpTok(in, CloseBracket))
-         {
-            AcceptInpTok(in, CloseBracket);
-            in_parens = false;
-         }
-
-         if(!TermIsAppliedVar(lterm) && problemType == PROBLEM_FO)
-         {
-            TypeDeclareIsNotPredicate(bank->sig, lterm, in);
-         }
-         if(TestInpTok(in, NegEqualSign))
-         {
-            positive = !positive;
-         }
-         AcceptInpTok(in, NegEqualSign|EqualSign);
-
-         rterm = TBTermParse(in, bank);
-
-         // We have to make those declarations only for FO problems
-         if(!TermIsTopLevelVar(lterm) && problemType == PROBLEM_FO)
-         {
-            TypeDeclareIsNotPredicate(bank->sig, lterm, in);
-         }
-         if(!TermIsTopLevelVar(rterm) && !TermIsAppliedVar(rterm) && problemType == PROBLEM_FO)
-         {
-            TypeDeclareIsNotPredicate(bank->sig, rterm, in);
-         }
-      }
-      else
-      {  /* It's a predicate */
-         if(problemType == PROBLEM_HO && !TermIsTopLevelVar(lterm)
-            && SigIsFunction(bank->sig, lterm->f_code))
-         {
-            DStr_p err = DStrAlloc();
-            DStrAppendStr(err, "Symbol ");
-            DStrAppendStr(err, SigFindName(bank->sig, lterm->f_code));
-            DStrAppendStr(err, " interpreted both as function and predicate (check parentheses).");
-            AktTokenError(in, DStrView(err), SYNTAX_ERROR);
-         }
-         rterm = bank->true_term; /* Non-Equational literal */
-         if(!TermIsTopLevelVar(lterm))
-         {
-            TypeDeclareIsPredicate(bank->sig, lterm);
-         }
-      }
-   }
-   *lref = lterm;
-   *rref = rterm;
-
-   if(in_parens)
-   {
-      AcceptInpTok(in, CloseBracket);
-   }
-   return positive;
-}
-
-
-/*-----------------------------------------------------------------------
-//
 // Function: eqn_parse_prefix()
 //
 //   Parse a literal without external sign assuming that _all_
@@ -445,6 +320,7 @@ static bool eqn_parse_prefix(Scanner_p in, TB_p bank, Term_p *lref,
    else
    {
       lterm = TBTermParse(in, bank);
+      TypeDeclareIsPredicate(bank->sig, lterm);
       BOOL_TERM_NORMALIZE(lterm);
       rterm = bank->true_term; /* Non-Equational literal */
    }
@@ -485,7 +361,7 @@ static bool eqn_parse_mixfix(Scanner_p in, TB_p bank, Term_p *lref,
    {
       return eqn_parse_prefix(in, bank, lref, rref);
    }
-   return eqn_parse_infix(in, bank, lref, rref);
+   return EqnParseInfix(in, bank, lref, rref);
 }
 
 /*-----------------------------------------------------------------------
@@ -550,7 +426,7 @@ bool eqn_parse_real(Scanner_p in, TB_p bank, Term_p *lref,
             negate = true;
             NextToken(in);
          }
-         positive = eqn_parse_infix(in, bank,  lref, rref);
+         positive = EqnParseInfix(in, bank,  lref, rref);
          break;
    default:
          assert(false && "Format not supported");
@@ -565,6 +441,138 @@ bool eqn_parse_real(Scanner_p in, TB_p bank, Term_p *lref,
 /*---------------------------------------------------------------------*/
 /*                         Exported Functions                          */
 /*---------------------------------------------------------------------*/
+
+/*-----------------------------------------------------------------------
+//
+// Function: EqnParseInfix()
+//
+//   Parse a literal without external sign assuming that _all_
+//   equational literals are infix. Return sign. This is for TSTP
+//   syntax and E-LOP style.
+//
+// Global Variables: -
+//
+// Side Effects    : Input, memory management.
+//
+/----------------------------------------------------------------------*/
+
+bool EqnParseInfix(Scanner_p in, TB_p bank, Term_p *lref, Term_p *rref)
+{
+   Term_p  lterm;
+   Term_p  rterm;
+   bool    positive = true;
+
+   bool in_parens = false;
+   if(problemType == PROBLEM_HO && TestInpTok(in, OpenBracket))
+   {
+      AcceptInpTok(in, OpenBracket);
+      in_parens = true;
+   }
+
+   lterm = TBTermParse(in, bank);
+
+   BOOL_TERM_NORMALIZE(lterm);
+
+   /* Shortcut not to check for equality --
+         !TermIsVar guards calls against negative f_code */
+   if(problemType == PROBLEM_FO && !TermIsVar(lterm) &&
+      SigIsPredicate(bank->sig,lterm->f_code) &&
+      SigIsFixedType(bank->sig, lterm->f_code))
+   {
+      rterm = bank->true_term; /* Non-Equational literal */
+   }
+   else
+   {
+      /* If we have a predicate variable then = might not come */
+      if((TermIsVar(lterm) && !TypeIsPredicate(lterm->type))
+              /* guarding SigIsFunction */
+          || (!TermIsVar(lterm) && SigIsFunction(bank->sig, lterm->f_code)))
+      {
+         if(in_parens && TestInpTok(in, CloseBracket))
+         {
+            AcceptInpTok(in, CloseBracket);
+            in_parens = false;
+         }
+
+         if(!TestInpTok(in, NegEqualSign|EqualSign))
+         {
+            // type is known but it is inside $let
+            // or $ite and is not in an equation
+            rterm = NULL;
+         }
+         else
+         {
+            if(TestInpTok(in, NegEqualSign))
+            {
+               positive = !positive;
+            }
+            AcceptInpTok(in, NegEqualSign|EqualSign);
+
+            rterm = TBTermParse(in, bank);
+
+            if(!TermIsTopLevelVar(rterm))
+            {
+               TypeDeclareIsNotPredicate(bank->sig, rterm, in);
+            }
+         }
+      }
+      else if(TestInpTok(in, NegEqualSign|EqualSign) && !TypeIsPredicate(lterm->type))
+      { /* Now both sides must be terms */
+         if(in_parens && TestInpTok(in, CloseBracket))
+         {
+            AcceptInpTok(in, CloseBracket);
+            in_parens = false;
+         }
+
+         if(lterm->f_code > bank->sig->internal_symbols && problemType == PROBLEM_FO)
+         {
+            TypeDeclareIsNotPredicate(bank->sig, lterm, in);
+         }
+         if(TestInpTok(in, NegEqualSign))
+         {
+            positive = !positive;
+         }
+         AcceptInpTok(in, NegEqualSign|EqualSign);
+
+         rterm = TBTermParse(in, bank);
+
+         // We have to make those declarations only for FO problems
+         if(lterm->f_code > bank->sig->internal_symbols && problemType == PROBLEM_FO)
+         {
+            TypeDeclareIsNotPredicate(bank->sig, lterm, in);
+         }
+         if(rterm->f_code > bank->sig->internal_symbols && problemType == PROBLEM_FO)
+         {
+            TypeDeclareIsNotPredicate(bank->sig, rterm, in);
+         }
+      }
+      else
+      {  /* It's a predicate */
+         if(problemType == PROBLEM_HO && !TermIsTopLevelVar(lterm)
+            && SigIsFunction(bank->sig, lterm->f_code))
+         {
+            DStr_p err = DStrAlloc();
+            DStrAppendStr(err, "Symbol ");
+            DStrAppendStr(err, SigFindName(bank->sig, lterm->f_code));
+            DStrAppendStr(err, " interpreted both as function and predicate (check parentheses).");
+            AktTokenError(in, DStrView(err), SYNTAX_ERROR);
+         }
+         rterm = bank->true_term; /* Non-Equational literal */
+         if(lterm->f_code > bank->sig->internal_symbols)
+         {
+            TypeDeclareIsPredicate(bank->sig, lterm);
+         }
+      }
+   }
+   *lref = lterm;
+   *rref = rterm;
+
+   if(in_parens)
+   {
+      AcceptInpTok(in, CloseBracket);
+   }
+   return positive;
+}
 
 
 /*-----------------------------------------------------------------------
@@ -585,7 +593,6 @@ Eqn_p EqnAlloc(Term_p lterm, Term_p rterm, TB_p bank,  bool positive)
    Eqn_p handle = EqnCellAlloc();
 
    /* printf("Handle = %p\n", handle); */
-
    handle->properties = EPNoProps;
    if(positive)
    {
@@ -606,7 +613,7 @@ Eqn_p EqnAlloc(Term_p lterm, Term_p rterm, TB_p bank,  bool positive)
 #ifndef ENABLE_LFHO
       //assert(!TermIsVar(lterm));
 #endif
-      if(!TermIsVar(lterm) && !TermIsAppliedVar(lterm))
+      if(lterm->f_code > bank->sig->internal_symbols)
       {
          SigDeclareIsPredicate(bank->sig, lterm->f_code);
       }
@@ -709,6 +716,7 @@ Eqn_p EqnFOFParse(Scanner_p in, TB_p bank)
    Term_p lterm, rterm;
    Eqn_p handle;
 
+   
    positive = eqn_parse_real(in, bank, &lterm, &rterm, true);
    handle = EqnAlloc(lterm, rterm, bank, positive);
 
@@ -808,8 +816,8 @@ Eqn_p EqnHOFParse(Scanner_p in, TB_p bank, bool* continue_parsing)
 //
 /----------------------------------------------------------------------*/
 
-Term_p EqnTermsTBTermEncode(TB_p bank, Term_p lterm, Term_p rterm, bool
-                            positive, PatEqnDirection dir)
+Term_p EqnTermsTBTermEncode(TB_p bank, Term_p lterm, Term_p rterm,
+                            bool positive, PatEqnDirection dir)
 {
    Term_p  handle;
 
@@ -817,12 +825,11 @@ Term_p EqnTermsTBTermEncode(TB_p bank, Term_p lterm, Term_p rterm, bool
    assert(TBFind(bank, lterm));
    assert(TBFind(bank, rterm));
 
-   handle = TermDefaultCellAlloc();
+   handle = TermDefaultCellArityAlloc(2);
    handle->arity = 2;
    handle->f_code = SigGetEqnCode(bank->sig, positive);
    handle->type = bank->sig->type_bank->bool_type;
    assert(handle->f_code);
-   handle->args = TermArgArrayAlloc(2);
    if(dir == PENormal)
    {
       handle->args[0] = lterm;
@@ -961,6 +968,7 @@ void EqnPrint(FILE* out, Eqn_p eq, bool negated,  bool fullterms)
           /* || eq->lterm==eq->bank->true_term*/
             ))
       {
+         PRINT_HO_PAREN(out, '(');
          TBPrintTerm(out, eq->bank, eq->lterm, fullterms);
 
          if(!positive)
@@ -970,6 +978,7 @@ void EqnPrint(FILE* out, Eqn_p eq, bool negated,  bool fullterms)
          /* fprintf(out, EqnIsOriented(eq)?"=>":"="); */
          fprintf(out, "=");
          TBPrintTerm(out, eq->bank, eq->rterm, fullterms);
+         PRINT_HO_PAREN(out, ')');
       }
       else
       {
@@ -989,7 +998,9 @@ void EqnPrint(FILE* out, Eqn_p eq, bool negated,  bool fullterms)
          }
          else
          {
+            PRINT_HO_PAREN(out, '(');
             TBPrintTerm(out, eq->bank, eq->lterm, fullterms);
+            PRINT_HO_PAREN(out, ')');
          }
       }
    }
@@ -1059,6 +1070,7 @@ void EqnFOFPrint(FILE* out, Eqn_p eq, bool negated,  bool fullterms, bool pcl)
       if(EqnIsEquLit(eq))
       {
          PRINT_HO_PAREN(out, '(');
+         PRINT_HO_PAREN(out, '(');
          TBPrintTerm(out, eq->bank, eq->lterm, fullterms);
          PRINT_HO_PAREN(out, ')');
          if(!positive)
@@ -1069,6 +1081,7 @@ void EqnFOFPrint(FILE* out, Eqn_p eq, bool negated,  bool fullterms, bool pcl)
          PRINT_HO_PAREN(out, '(');
          TBPrintTerm(out, eq->bank, eq->rterm, fullterms);
          PRINT_HO_PAREN(out, ')');
+         PRINT_HO_PAREN(out, ')');
       }
       else
       {
@@ -1076,7 +1089,9 @@ void EqnFOFPrint(FILE* out, Eqn_p eq, bool negated,  bool fullterms, bool pcl)
          {
             fputc('~', out);
          }
+         PRINT_HO_PAREN(out, '(');
          TBPrintTerm(out, eq->bank, eq->lterm, fullterms);
+         PRINT_HO_PAREN(out, ')');
       }
    }
    else
@@ -2136,6 +2151,102 @@ bool LiteralUnifyOneWay(Eqn_p eq1, Eqn_p eq2, Subst_p subst, bool swapped)
 }
 
 
+/*-----------------------------------------------------------------------
+//
+// Function: EqnSyntaxCompare()
+//
+//   Induce a total ordering on equations (modulo  commutativity, but
+//   ignoring properties, including polarity). Assumes that terms are
+//   perfectly shared. Equality literals are smaller than
+//   non-equational literals, the rest is done by comparing term bank
+//   entry_no.
+//
+// Global Variables:
+//
+// Side Effects    :
+//
+/----------------------------------------------------------------------*/
+
+int EqnSyntaxCompare(const void* l1, const void* l2)
+{
+   const Eqn_p eq1 = (const Eqn_p) l1;
+   const Eqn_p eq2 = (const Eqn_p) l2;
+   long e1, e2;
+
+   //printf("EqnSyntaxCompare()\n");
+   //EqnPrint(stdout, eq1, false, true);
+   //printf("\n");
+   //EqnPrint(stdout, eq2, false, true);
+   //printf("\n");
+
+   if(EqnIsEquLit(eq1) && !EqnIsEquLit(eq2))
+   {
+      return -1;
+   }
+   if(EqnIsEquLit(eq2) &&  !EqnIsEquLit(eq1))
+   {
+      return 1;
+   }
+   e1 = MAX(eq1->lterm->entry_no,eq1->rterm->entry_no);
+   e2 = MAX(eq2->lterm->entry_no,eq2->rterm->entry_no);
+   if(e1<e2)
+   {
+      return -1;
+   }
+   if(e1>e2)
+   {
+      return 1;
+   }
+   e1 = MIN(eq1->lterm->entry_no,eq1->rterm->entry_no);
+   e2 = MIN(eq2->lterm->entry_no,eq2->rterm->entry_no);
+   if(e1<e2)
+   {
+      return -1;
+   }
+   if(e1>e2)
+   {
+      return 1;
+   }
+   return 0;
+}
+
+
+
+/*-----------------------------------------------------------------------
+//
+// Function: LiteralSyntaxCompare()
+//
+//   Induce a total ordering on literals (modulo
+//   commutativity). Assumes that terms are perfectly shared. Negative
+//   literals are bigger than positive ones, equality literals are
+//   smaller than non-equational literals, the rest is done by
+//   comparing term bank entry_no.
+//
+// Global Variables:
+//
+// Side Effects    :
+//
+/----------------------------------------------------------------------*/
+
+int LiteralSyntaxCompare(const void* l1, const void* l2)
+{
+   const Eqn_p eq1 = (const Eqn_p) l1;
+   const Eqn_p eq2 = (const Eqn_p) l2;
+
+   if(EqnIsPositive(eq1) && !EqnIsPositive(eq2))
+   {
+      return -1;
+   }
+   if(EqnIsPositive(eq2) && !EqnIsPositive(eq1))
+   {
+      return 1;
+   }
+   return EqnSyntaxCompare(l1, l2);
+}
+
+
+
+
 
 /*-----------------------------------------------------------------------
 //
@@ -2467,9 +2578,57 @@ double EqnWeight(Eqn_p eq, double max_multiplier, long vweight, long
          max_multiplier;
    }
    res = TERM_APPLY_APP_VAR_MULT(res, eq->rterm, app_var_mult);
-   res += TERM_APPLY_APP_VAR_MULT((double)TermWeight(eq->lterm, vweight, fweight) * max_multiplier,
-                                     eq->lterm, app_var_mult);
+   res += TERM_APPLY_APP_VAR_MULT((double)TermWeight(eq->lterm, vweight, fweight)
+                                  * max_multiplier,
+                                  eq->lterm, app_var_mult);
 
+   return res;
+}
+
+
+/*-----------------------------------------------------------------------
+//
+// Function: EqnDAGWeight()
+//
+//   Compute the DAG weight of an equation. Weights of potentially
+//   maximal sides are cpmputed first, and are multiplied by
+//   max_multiplier. If new_eqn is set, the equation is treated as a
+//   stand-alone structure. If new_terms is set, the two terms are
+//   treated as stand-alone structures.
+//
+// Global Variables: -
+//
+// Side Effects    : Sets TPOpFlag
+//
+/----------------------------------------------------------------------*/
+
+double  EqnDAGWeight(Eqn_p eq, double max_multiplier, long vweight, long
+                     fweight, long dup_weight, bool new_eqn, bool new_terms)
+{
+   double res;
+   long lweight, rweight;
+
+   if(new_eqn)
+   {
+      EqnTermDelProp(eq, TPOpFlag);
+   }
+   else if(new_terms)
+   {
+      TermDelPropOpt(eq->lterm, TPOpFlag);
+   }
+   lweight = TermDAGWeight(eq->lterm, fweight, vweight, dup_weight, false);
+   rweight = TermDAGWeight(eq->rterm, fweight, vweight, dup_weight, new_terms);
+   //printf("(%ld/%ld)\n", lweight, rweight);
+
+   if(EqnIsOriented(eq))
+   {
+      res = (double)rweight;
+   }
+   else
+   {
+      res = (double)rweight*max_multiplier;
+   }
+   res += (double)lweight*max_multiplier;
    return res;
 }
 
@@ -2503,9 +2662,10 @@ double EqnFunWeight(Eqn_p eq, double max_multiplier, long vweight,
       res *= max_multiplier;
    }
 
-   res += TERM_APPLY_APP_VAR_MULT((double)TermFsumWeight(eq->lterm, vweight, flimit, fweights,
-                                                            default_fweight, typefreqs) * max_multiplier,
-                                     eq->lterm, app_var_mult);
+   res += TERM_APPLY_APP_VAR_MULT(
+      (double)TermFsumWeight(eq->lterm, vweight, flimit, fweights,
+                             default_fweight, typefreqs) * max_multiplier,
+      eq->lterm, app_var_mult);
 
    return res;
 }

@@ -51,6 +51,16 @@ typedef enum
    ACKeepOrientable
 }ACHandlingType;
 
+typedef enum
+{
+   AllLits,
+   MaxLits,
+   NoLits
+}ExtInferenceType;
+
+#define EIT2STR(x) (((x) == AllLits) ? ("all") : (((x) == MaxLits) ? "max" : "off"))
+#define NO_EXT_SUP (-1)
+
 
 /* External parameters for heuristics and proof control. When this is
  * changed, remember to also adapt the Init, Print und
@@ -58,6 +68,9 @@ typedef enum
 
 typedef struct heuristic_parms_cell
 {
+   /* Ordering elements */
+   OrderParmsCell      order_params;
+
    /* Preprocessing */
    bool                no_preproc;
    long                eqdef_maxclauses;
@@ -67,9 +80,6 @@ typedef struct heuristic_parms_cell
    char                *heuristic_name;
    char                *heuristic_def;
    bool                prefer_initial_clauses;
-
-   /* Ordering elements */
-   OrderParmsCell      order_params;
 
    /* Elements controling literal selection */
    LiteralSelectionFun selection_strategy;
@@ -98,6 +108,8 @@ typedef struct heuristic_parms_cell
    bool                forward_context_sr;
    bool                forward_context_sr_aggressive;
    bool                backward_context_sr;
+
+   bool                forward_subsumption_aggressive;
 
    RewriteLevel        forward_demod;
    bool                prefer_general;
@@ -140,6 +152,14 @@ typedef struct heuristic_parms_cell
 
    bool                detsort_bw_rw;
    bool                detsort_tmpset;
+
+   /* Higher-order settings */
+   ExtInferenceType    arg_cong;
+   ExtInferenceType    neg_ext;
+   ExtInferenceType    pos_ext;
+   int                 ext_sup_max_depth;
+   bool                inverse_recognition;
+   bool                replace_inj_defs;
 }HeuristicParmsCell, *HeuristicParms_p;
 
 
@@ -195,7 +215,6 @@ typedef struct hcb_cell
 
 typedef Clause_p (*ClauseSelectFun)(HCB_p hcb, ClauseSet_p set);
 
-
 /*---------------------------------------------------------------------*/
 /*                Exported Functions and Variables                     */
 /*---------------------------------------------------------------------*/
@@ -214,7 +233,7 @@ void             HeuristicParmsFree(HeuristicParms_p junk);
 void             HeuristicParmsPrint(FILE* out, HeuristicParms_p handle);
 bool             HeuristicParmsParseInto(Scanner_p in, HeuristicParms_p handle,
                                          bool warn_missing);
-HeuristicParms_p HeuristicParmsParse(Scanner_p in);
+HeuristicParms_p HeuristicParmsParse(Scanner_p in, bool warn_missing);
 
 
 #define HCBCellAlloc() (HCBCell*)SizeMalloc(sizeof(HCBCell))

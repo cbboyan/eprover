@@ -1,25 +1,21 @@
 /*-----------------------------------------------------------------------
 
-File  : cte_typecheck.c
+  File  : cte_typecheck.c
 
-Author: Simon Cruanes
+  Author: Simon Cruanes, Petar Vucmirovic, Stephan Schulz
 
-Contents
+  Contents
 
   Type checking and inference for Simple types
 
-
-  Copyright 2011 by the author.
+  Copyright 2011-2020 by the author.
   This code is released under the GNU General Public Licence.
   See the file COPYING in the main CLIB directory for details.
   Run "eprover -h" for contact information.
 
-Changes
+  Created: Mon Jul  8 17:15:05 CEST 2013
 
-<1>   Mon Jul  8 17:15:05 CEST 2013
-      New
-
------------------------------------------------------------------------*/
+  -----------------------------------------------------------------------*/
 
 #include "cte_typecheck.h"
 #include "cte_termfunc.h"
@@ -88,6 +84,9 @@ Type_p term_determine_type(Term_p term, Type_p type, TypeBank_p bank)
 // Side Effects    : -
 //
 /----------------------------------------------------------------------*/
+
+
+
 Type_p infer_return_sort(Sig_p sig, FunCode f_code)
 {
    Type_p res;
@@ -133,6 +132,7 @@ Type_p infer_return_sort(Sig_p sig, FunCode f_code)
 // Side Effects    : -
 //
 /----------------------------------------------------------------------*/
+
 bool TypeCheckConsistent(Sig_p sig, Term_p term)
 {
    bool res = true;
@@ -172,9 +172,6 @@ bool TypeCheckConsistent(Sig_p sig, Term_p term)
                   break;
                }
             }
-
-
-
             /* Check subterms recursively */
             for(int i=0; i < type->arity; i++)
             {
@@ -188,13 +185,10 @@ bool TypeCheckConsistent(Sig_p sig, Term_p term)
          }
       }
    }
-
    PStackFree(stack);
 
    return res;
 }
-
-
 
 /*-----------------------------------------------------------------------
 //
@@ -210,9 +204,21 @@ bool TypeCheckConsistent(Sig_p sig, Term_p term)
 // Side Effects    : Modifies term and signature. May exit on type error.
 //
 /----------------------------------------------------------------------*/
+
+#define TI_ERROR(msg) do{ \
+   if(in)                                       \
+   {\
+      AktTokenError(in, msg, false);\
+   }\
+   else\
+   {\
+      Error(msg, SYNTAX_ERROR);\
+   }}while(false)
+
+
 void TypeInferSort(Sig_p sig, Term_p term, Scanner_p in)
 {
-   Type_p type;
+   Type_p type = NULL;
    Type_p sort, *args;
    int i;
 
@@ -226,8 +232,53 @@ void TypeInferSort(Sig_p sig, Term_p term, Scanner_p in)
    }
    else
    {
-      type = TermIsAppliedVar(term) ?
-         term->args[0]->type : SigGetType(sig, term->f_code);
+      if(TermIsPhonyApp(term))
+      {
+         type = term->args[0]->type;
+      }
+      else if(TermIsLambda(term))
+      {
+         // types have to be inferred only during parsing
+         assert(term->f_code == SIG_NAMED_LAMBDA_CODE);
+         assert(term->arity == 2);
+         // type of lambda is 'type of variable' -> 'type of body'
+         term->type =
+            TypeBankInsertTypeShared(sig->type_bank,
+                                     ArrowTypeFlattened(&(term->args[0]->type), 1,
+                                     term->args[1]->type));
+      }
+      else if(term->f_code == sig->eqn_code || term->f_code == sig->neqn_code)
+      {
+         if(term->arity == 0)
+         {
+            AktTokenError(in, "Equality must have at least one argument",
+                          SYNTAX_ERROR);
+         }
+         Type_p arg_type = term->args[0]->type;
+         Type_p eq_type_args[3] = {arg_type, arg_type, sig->type_bank->bool_type};
+         type = TypeBankInsertTypeShared(sig->type_bank,
+                                         AllocArrowTypeCopyArgs(3, eq_type_args));
+      }
+      else if(term->f_code == sig->qex_code || term->f_code == sig->qall_code)
+      {
+         if(term->arity == 0)
+         {
+            AktTokenError(in, "Equality must have at least one argument",
+                          SYNTAX_ERROR);
+         }
+         assert(TermIsVar(term->args[0]));
+         Type_p arg_type = term->args[0]->type;
+         Type_p quant_type_args[3] =
+            {arg_type,
+            sig->type_bank->bool_type,
+            sig->type_bank->bool_type};
+         type = TypeBankInsertTypeShared(sig->type_bank,
+                                         AllocArrowTypeCopyArgs(3, quant_type_args));
+      }
+      else
+      {
+         type = SigGetType(sig, term->f_code);
+      }
 
       /* Use type */
       if(type)
@@ -242,23 +293,28 @@ void TypeInferSort(Sig_p sig, Term_p term, Scanner_p in)
                fprintf(stderr, " and type ");
                TypePrintTSTP(stderr, sig->type_bank, type);
                fprintf(stderr, "\n");
-               in?AktTokenError(in, "Type error", false):Error("Type error", SYNTAX_ERROR);
+               TI_ERROR("Type error");
             }
 
-            if(!TermIsAppliedVar(term))
+            if(!TermIsPhonyApp(term))
             {
                for(i=0; SigIsFixedType(sig, term->f_code) && i < term->arity; i++)
                {
                   if(term->args[i]->type != type->args[i])
                   {
                      fprintf(stderr, "# Type mismatch in argument #%d of ", i+1);
-                     TermPrint(stderr, term, sig, DEREF_NEVER);
+#ifdef ENABLE_LFHO
+                     TermPrintDbgHO(stderr, term, sig, DEREF_NEVER);
+#else
+                     TermPrintFO(stderr, term, sig, DEREF_NEVER);
+#endif
                      fprintf(stderr, ": expected ");
                      TypePrintTSTP(stderr, sig->type_bank, type->args[i]);
                      fprintf(stderr, " but got ");
                      TypePrintTSTP(stderr, sig->type_bank, term->args[i]->type);
                      fprintf(stderr, "\n");
-                     in?AktTokenError(in, "Type error", false):Error("Type error", SYNTAX_ERROR);
+                     assert(false);
+                     TI_ERROR("Type error");
                   }
                }
             }
@@ -274,21 +330,21 @@ void TypeInferSort(Sig_p sig, Term_p term, Scanner_p in)
                      fprintf(stderr, "# Type mismatch in argument #%d of ", i+1);
                      TermPrint(stderr, term, sig, DEREF_NEVER);
                      fprintf(stderr, ": expected ");
-                     TypePrintTSTP(stderr, sig->type_bank, type->args[i]);
+                     TypePrintTSTP(stderr, sig->type_bank, type->args[i-1]);
                      fprintf(stderr, " but got ");
                      TypePrintTSTP(stderr, sig->type_bank, term->args[i]->type);
                      fprintf(stderr, "\n");
-                     in?AktTokenError(in, "Type error", false):Error("Type error", SYNTAX_ERROR);
+                     assert(false);
+                     TI_ERROR("Type error");
                   }
                }
             }
-
-
             term->type = term_determine_type(term, type, sig->type_bank);
             if(term->type==NULL)
             {
                fprintf(stderr, "# too many arguments supplied for %s\n",
                        SigFindName(sig, term->f_code));
+               assert(false);
                in?AktTokenError(in, "Type error", false):Error("Type error", SYNTAX_ERROR);
             }
          }
@@ -302,7 +358,7 @@ void TypeInferSort(Sig_p sig, Term_p term, Scanner_p in)
                TypePrintTSTP(stderr, sig->type_bank, type);
                fprintf(stderr, "\n");
                assert(false);
-               in?AktTokenError(in, "Type error", false):Error("Type error", SYNTAX_ERROR);
+               TI_ERROR("Type error");
             }
             else
             {
@@ -310,7 +366,7 @@ void TypeInferSort(Sig_p sig, Term_p term, Scanner_p in)
             }
          }
       }
-      else
+      else if(!TermIsLambda(term))
       {
          /* Infer type */
          sort = infer_return_sort(sig, term->f_code);
@@ -325,9 +381,9 @@ void TypeInferSort(Sig_p sig, Term_p term, Scanner_p in)
          }
 
          type = term->arity ?
-                     TypeBankInsertTypeShared(sig->type_bank,
-                                              AllocArrowType(term->arity+1, args))
-                     : sort;
+            TypeBankInsertTypeShared(sig->type_bank,
+                                     AllocArrowType(term->arity+1, args))
+            : sort;
 
          /* Declare the inferred type */
          SigDeclareType(sig, term->f_code, type);
@@ -335,7 +391,6 @@ void TypeInferSort(Sig_p sig, Term_p term, Scanner_p in)
       }
    }
 }
-
 
 /*-----------------------------------------------------------------------
 //
@@ -348,6 +403,7 @@ void TypeInferSort(Sig_p sig, Term_p term, Scanner_p in)
 // Side Effects    : Modifies sig, modifies term's sort
 //
 /----------------------------------------------------------------------*/
+
 void TypeDeclareIsPredicate(Sig_p sig, Term_p term)
 {
    assert(!TermIsVar(term));
@@ -369,6 +425,7 @@ void TypeDeclareIsPredicate(Sig_p sig, Term_p term)
 // Side Effects    : Modifies signature, update term's sort
 //
 /----------------------------------------------------------------------*/
+
 void TypeDeclareIsNotPredicate(Sig_p sig, Term_p term, Scanner_p in)
 {
    if(!TermIsVar(term))

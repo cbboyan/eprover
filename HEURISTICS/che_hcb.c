@@ -40,6 +40,36 @@ PERF_CTR_DEFINE(ClauseEvalTimer);
 
 /*-----------------------------------------------------------------------
 //
+// Function: str2eit()
+//
+//    Parse the value of ExtInferenceType parameter.
+//
+// Global Variables:
+//
+// Side Effects    :
+//
+/----------------------------------------------------------------------*/
+
+inline ExtInferenceType str2eit(char* value)
+{
+   if(!strcmp(value, "all"))
+   {
+      return AllLits;
+   }
+   if(!strcmp(value, "max"))
+   {
+      return MaxLits;
+   }
+   if(!strcmp(value, "off"))
+   {
+      return NoLits;
+   }
+   Error("Unknown ExtInferenceType identifier. Expected all, max or off.", USAGE_ERROR);
+   return NoLits; //will not return, stiffles compiler warning
+}
+
+/*-----------------------------------------------------------------------
+//
 // Function: get_next_clause()
 //
 //   Return the next clause from the selected EvalTreeTraverse-Stack,
@@ -87,6 +117,8 @@ void default_exit_fun(void* data)
 
 void HeuristicParmsInitialize(HeuristicParms_p handle)
 {
+   OrderParmsInitialize(&(handle->order_params));
+
    handle->no_preproc                    = false;
    handle->eqdef_maxclauses              = DEFAULT_EQDEF_MAXCLAUSES;
    handle->eqdef_incrlimit               = DEFAULT_EQDEF_INCRLIMIT;
@@ -94,8 +126,6 @@ void HeuristicParmsInitialize(HeuristicParms_p handle)
    handle->heuristic_name                = HCB_DEFAULT_HEURISTIC;
    handle->heuristic_def                 = NULL;
    handle->prefer_initial_clauses        = false;
-
-   OrderParmsInitialize(&(handle->order_params));
 
    handle->selection_strategy            = SelectNoLiterals;
    handle->pos_lit_sel_min               = 0;
@@ -121,6 +151,8 @@ void HeuristicParmsInitialize(HeuristicParms_p handle)
    handle->forward_context_sr            = false;
    handle->forward_context_sr_aggressive = false;
    handle->backward_context_sr           = false;
+
+   handle->forward_subsumption_aggressive = false;
 
    handle->forward_demod                 = FullRewrite;
    handle->prefer_general                = false;
@@ -158,7 +190,16 @@ void HeuristicParmsInitialize(HeuristicParms_p handle)
    handle->presat_interreduction         = false;
    handle->detsort_bw_rw                 = false;
    handle->detsort_tmpset                = false;
+
+   handle->arg_cong                      = AllLits;
+   handle->neg_ext                       = NoLits;
+   handle->pos_ext                       = NoLits;
+   handle->inverse_recognition           = false;
+   handle->replace_inj_defs              = false;
+   handle->ext_sup_max_depth             = NO_EXT_SUP;
 }
+
+
 
 
 /*-----------------------------------------------------------------------
@@ -226,122 +267,135 @@ void HeuristicParmsPrint(FILE* out, HeuristicParms_p handle)
 {
    fprintf(out, "{\n");
 
-   fprintf(out, "   no_preproc:                    %s\n", BOOL2STR(handle->no_preproc));
-   fprintf(out, "   eqdef_maxclauses:              %ld\n", handle->eqdef_maxclauses);
-   fprintf(out, "   eqdef_incrlimit:               %ld\n", handle->eqdef_incrlimit);
-
-   fprintf(out, "   heuristic_name:                %s\n", handle->heuristic_name);
-   fprintf(out, "   heuristic_def:                 \"%s\"\n",
-           handle->heuristic_def?handle->heuristic_def:"");
-   fprintf(out, "   prefer_initial_clauses:        %s\n",
-           BOOL2STR(handle->prefer_initial_clauses));
-
    OrderParmsPrint(out, &(handle->order_params));
 
-   fprintf(out, "   selection_strategy:            %s\n",
+   fprintf(out, "   no_preproc:                     %s\n", BOOL2STR(handle->no_preproc));
+   fprintf(out, "   eqdef_maxclauses:               %ld\n", handle->eqdef_maxclauses);
+   fprintf(out, "   eqdef_incrlimit:                %ld\n", handle->eqdef_incrlimit);
+
+   fprintf(out, "   heuristic_name:                 %s\n", handle->heuristic_name);
+   fprintf(out, "   heuristic_def:                  \"%s\"\n",
+           handle->heuristic_def?handle->heuristic_def:"");
+   fprintf(out, "   prefer_initial_clauses:         %s\n",
+           BOOL2STR(handle->prefer_initial_clauses));
+
+   fprintf(out, "   selection_strategy:             %s\n",
            GetLitSelName(handle->selection_strategy));
 
-   fprintf(out, "   pos_lit_sel_min:               %ld\n", handle->pos_lit_sel_min);
-   fprintf(out, "   pos_lit_sel_max:               %ld\n", handle->pos_lit_sel_max);
-   fprintf(out, "   neg_lit_sel_min:               %ld\n", handle->neg_lit_sel_min);
-   fprintf(out, "   neg_lit_sel_max:               %ld\n", handle->neg_lit_sel_max);
-   fprintf(out, "   all_lit_sel_min:               %ld\n", handle->all_lit_sel_min);
-   fprintf(out, "   all_lit_sel_max:               %ld\n", handle->all_lit_sel_max);
-   fprintf(out, "   weight_sel_min:                %ld\n", handle->weight_sel_min);
+   fprintf(out, "   pos_lit_sel_min:                %ld\n", handle->pos_lit_sel_min);
+   fprintf(out, "   pos_lit_sel_max:                %ld\n", handle->pos_lit_sel_max);
+   fprintf(out, "   neg_lit_sel_min:                %ld\n", handle->neg_lit_sel_min);
+   fprintf(out, "   neg_lit_sel_max:                %ld\n", handle->neg_lit_sel_max);
+   fprintf(out, "   all_lit_sel_min:                %ld\n", handle->all_lit_sel_min);
+   fprintf(out, "   all_lit_sel_max:                %ld\n", handle->all_lit_sel_max);
+   fprintf(out, "   weight_sel_min:                 %ld\n", handle->weight_sel_min);
 
-   fprintf(out, "   select_on_proc_only:           %s\n",
+   fprintf(out, "   select_on_proc_only:            %s\n",
            BOOL2STR(handle->select_on_proc_only));
-   fprintf(out, "   inherit_paramod_lit:           %s\n",
+   fprintf(out, "   inherit_paramod_lit:            %s\n",
            BOOL2STR(handle->inherit_paramod_lit));
-   fprintf(out, "   inherit_goal_pm_lit:           %s\n",
+   fprintf(out, "   inherit_goal_pm_lit:            %s\n",
            BOOL2STR(handle->inherit_goal_pm_lit));
-   fprintf(out, "   inherit_conj_pm_lit:           %s\n",
+   fprintf(out, "   inherit_conj_pm_lit:            %s\n",
            BOOL2STR(handle->inherit_conj_pm_lit));
 
-   fprintf(out, "   enable_eq_factoring:           %s\n",
+   fprintf(out, "   enable_eq_factoring:            %s\n",
            BOOL2STR(handle->enable_eq_factoring));
-   fprintf(out, "   enable_neg_unit_paramod:       %s\n",
+   fprintf(out, "   enable_neg_unit_paramod:        %s\n",
            BOOL2STR(handle->enable_neg_unit_paramod));
-   fprintf(out, "   enable_given_forward_simpl:    %s\n",
+   fprintf(out, "   enable_given_forward_simpl:     %s\n",
            BOOL2STR(handle->enable_given_forward_simpl));
 
-   fprintf(out, "   pm_type:                       %s\n", ParamodStr(handle->pm_type));
+   fprintf(out, "   pm_type:                        %s\n", ParamodStr(handle->pm_type));
 
-   fprintf(out, "   ac_handling:                   %d\n", handle->ac_handling);
-   fprintf(out, "   ac_res_aggressive:             %s\n",
+   fprintf(out, "   ac_handling:                    %d\n", handle->ac_handling);
+   fprintf(out, "   ac_res_aggressive:              %s\n",
            BOOL2STR(handle->ac_res_aggressive));
-   fprintf(out, "   forward_context_sr:            %s\n",
+   fprintf(out, "   forward_context_sr:             %s\n",
            BOOL2STR(handle->forward_context_sr));
-   fprintf(out, "   forward_context_sr_aggressive: %s\n",
+   fprintf(out, "   forward_context_sr_aggressive:  %s\n",
            BOOL2STR(handle->forward_context_sr_aggressive));
-   fprintf(out, "   backward_context_sr:           %s\n",
+   fprintf(out, "   backward_context_sr:            %s\n",
            BOOL2STR(handle->backward_context_sr));
 
-   fprintf(out, "   forward_demod:                 %d\n", handle->forward_demod);
-   fprintf(out, "   prefer_general:                %s\n",
+   fprintf(out, "   forward_subsumption_aggressive: %s\n",
+           BOOL2STR(handle->forward_subsumption_aggressive));
+
+   fprintf(out, "   forward_demod:                  %d\n", handle->forward_demod);
+   fprintf(out, "   prefer_general:                 %s\n",
            BOOL2STR(handle->prefer_general));
 
-   fprintf(out, "   condensing:                    %s\n",
+   fprintf(out, "   condensing:                     %s\n",
            BOOL2STR(handle->condensing));
-   fprintf(out, "   condensing_aggressive:         %s\n",
+   fprintf(out, "   condensing_aggressive:          %s\n",
            BOOL2STR(handle->condensing_aggressive));
 
-   fprintf(out, "   er_varlit_destructive:         %s\n",
+   fprintf(out, "   er_varlit_destructive:          %s\n",
            BOOL2STR(handle->er_varlit_destructive));
-   fprintf(out, "   er_strong_destructive:         %s\n",
+   fprintf(out, "   er_strong_destructive:          %s\n",
            BOOL2STR(handle->er_strong_destructive));
-   fprintf(out, "   er_aggressive:                 %s\n",
+   fprintf(out, "   er_aggressive:                  %s\n",
            BOOL2STR(handle->er_aggressive));
 
-   fprintf(out, "   split_clauses                  %d\n", handle->split_clauses);
-   fprintf(out, "   split_method                   %d\n", handle->split_method);
-   fprintf(out, "   split_aggressive:              %s\n",
+   fprintf(out, "   split_clauses:                  %d\n", handle->split_clauses);
+   fprintf(out, "   split_method:                   %d\n", handle->split_method);
+   fprintf(out, "   split_aggressive:               %s\n",
            BOOL2STR(handle->split_aggressive));
-   fprintf(out, "   split_fresh_defs:              %s\n",
+   fprintf(out, "   split_fresh_defs:               %s\n",
            BOOL2STR(handle->split_fresh_defs));
 
-   fprintf(out, "   rw_bw_index_types:             %s\n", handle->rw_bw_index_type);
-   fprintf(out, "   pm_from_index_type:            %s\n", handle->pm_from_index_type);
-   fprintf(out, "   pm_into_index_type:            %s\n", handle->pm_into_index_type);
+   fprintf(out, "   rw_bw_index_type:               %s\n", handle->rw_bw_index_type);
+   fprintf(out, "   pm_from_index_type:             %s\n", handle->pm_from_index_type);
+   fprintf(out, "   pm_into_index_type:             %s\n", handle->pm_into_index_type);
 
-   fprintf(out, "   sat_check_grounding:           %s\n",
+   fprintf(out, "   sat_check_grounding:            %s\n",
            GroundingStratNames[handle->sat_check_grounding]);
-   fprintf(out, "   sat_check_step_limit           %ld\n", handle->sat_check_step_limit);
-   fprintf(out, "   sat_check_size_limit           %ld\n", handle->sat_check_size_limit);
-   fprintf(out, "   sat_check_ttinsert_limit       %ld\n",
+   fprintf(out, "   sat_check_step_limit:           %ld\n", handle->sat_check_step_limit);
+   fprintf(out, "   sat_check_size_limit:           %ld\n", handle->sat_check_size_limit);
+   fprintf(out, "   sat_check_ttinsert_limit:       %ld\n",
            handle->sat_check_ttinsert_limit);
-   fprintf(out, "   sat_check_normconst:           %s\n",
+   fprintf(out, "   sat_check_normconst:            %s\n",
            BOOL2STR(handle->sat_check_normconst));
-   fprintf(out, "   sat_check_normalize:           %s\n",
+   fprintf(out, "   sat_check_normalize:            %s\n",
            BOOL2STR(handle->sat_check_normalize));
-   fprintf(out, "   sat_check_decision_limit       %d\n",
+   fprintf(out, "   sat_check_decision_limit:       %d\n",
            handle->sat_check_decision_limit);
 
-   fprintf(out, "   filter_orphans_limit:          %ld\n", handle->filter_orphans_limit);
-   fprintf(out, "   forward_contract_limit:        %ld\n", handle->forward_contract_limit);
-   fprintf(out, "   delete_bad_limit:              %lld\n", handle->delete_bad_limit);
-   fprintf(out, "   mem_limit:                     %" PRIuMAX "\n",
+   fprintf(out, "   filter_orphans_limit:           %ld\n", handle->filter_orphans_limit);
+   fprintf(out, "   forward_contract_limit:         %ld\n", handle->forward_contract_limit);
+   fprintf(out, "   delete_bad_limit:               %lld\n", handle->delete_bad_limit);
+   fprintf(out, "   mem_limit:                      %" PRIuMAX "\n",
            (uintmax_t)handle->mem_limit);
 
 
-   fprintf(out, "   watchlist_simplify:            %s\n",
+   fprintf(out, "   watchlist_simplify:             %s\n",
            BOOL2STR(handle->watchlist_simplify));
-   fprintf(out, "   watchlist_is_static:           %s\n",
+   fprintf(out, "   watchlist_is_static:            %s\n",
            BOOL2STR(handle->watchlist_is_static));
-   fprintf(out, "   use_tptp_sos:                  %s\n",
+   fprintf(out, "   use_tptp_sos:                   %s\n",
            BOOL2STR(handle->use_tptp_sos));
-   fprintf(out, "   presat_interreduction:         %s\n",
+   fprintf(out, "   presat_interreduction:          %s\n",
            BOOL2STR(handle->presat_interreduction));
-   fprintf(out, "   detsort_bw_rw:                 %s\n",
+   fprintf(out, "   detsort_bw_rw:                  %s\n",
            BOOL2STR(handle->detsort_bw_rw));
-   fprintf(out, "   detsort_tmpset:                %s\n",
+   fprintf(out, "   detsort_tmpset:                 %s\n",
            BOOL2STR(handle->detsort_tmpset));
+   fprintf(out, "   inverse_recognition:            %s\n",
+           BOOL2STR(handle->inverse_recognition));
+   fprintf(out, "   replace_inj_defs:               %s\n",
+           BOOL2STR(handle->replace_inj_defs));
+
+   fprintf(out, "   arg_cong:                       %s\n",
+           EIT2STR(handle->arg_cong));
+   fprintf(out, "   neg_ext:                        %s\n",
+           EIT2STR(handle->neg_ext));
+   fprintf(out, "   pos_ext:                        %s\n",
+           EIT2STR(handle->pos_ext));
+   fprintf(out, "   ext_sup_max_depth:              %d\n",
+           handle->ext_sup_max_depth);
 
    fprintf(out, "}\n");
 }
-
-
-
 
 
 
@@ -371,6 +425,8 @@ bool HeuristicParmsParseInto(Scanner_p in,
 
    AcceptInpTok(in, OpenCurly);
 
+   res = OrderParmsParseInto(in, &(handle->order_params), warn_missing);
+
    PARSE_BOOL(no_preproc);
    PARSE_INT(eqdef_maxclauses);
    PARSE_INT(eqdef_incrlimit);
@@ -378,30 +434,141 @@ bool HeuristicParmsParseInto(Scanner_p in,
    PARSE_STRING(heuristic_def);
    PARSE_BOOL(prefer_initial_clauses);
 
-   res = res && OrderParmsParseInto(in, &(handle->order_params), warn_missing);
-
-
-
-   if(TestInpId(in, "no_preproc"))
+   if(TestInpId(in, "selection_strategy"))
    {
       NextToken(in);
       AcceptInpTok(in, Colon);
-      handle->no_preproc = ParseBool(in);
+      CheckInpTok(in, Identifier);
+
+      handle->selection_strategy = GetLitSelFun(DStrView(AktToken(in)->literal));
+      if(!handle->selection_strategy)
+      {
+         DStr_p err = DStrAlloc();
+         DStrAppendStr(err, "One of ");
+         LitSelAppendNames(err);
+         DStrAppendStr(err, " expected");
+         AktTokenError(in, DStrView(err), false);
+         DStrFree(err);
+      }
+      NextToken(in);
    }
    else
    {
       res = false;
       if(warn_missing)
       {
-         Warning("Config misses %s\n", "no_preproc");
+         Warning("Config misses %s\n", "selection_strategy");
       }
    }
+   PARSE_INT(pos_lit_sel_min);
+   PARSE_INT(pos_lit_sel_max);
+   PARSE_INT(neg_lit_sel_min);
+   PARSE_INT(neg_lit_sel_max);
+   PARSE_INT(all_lit_sel_min);
+   PARSE_INT(all_lit_sel_max);
+   PARSE_INT(weight_sel_min);
+
+   PARSE_BOOL(select_on_proc_only);
+   PARSE_BOOL(inherit_paramod_lit);
+   PARSE_BOOL(inherit_goal_pm_lit);
+   PARSE_BOOL(inherit_conj_pm_lit);
+   PARSE_BOOL(enable_eq_factoring);
+   PARSE_BOOL(enable_neg_unit_paramod);
+   PARSE_BOOL(enable_given_forward_simpl);
+
+   if(TestInpId(in, "pm_type"))
+   {
+      NextToken(in);
+      AcceptInpTok(in, Colon);
+      CheckInpTok(in, Identifier);
+
+      handle->pm_type = ParamodType(DStrView(AktToken(in)->literal));
+      if(handle->pm_type == -1)
+      {
+         AktTokenError(in, "Proper paramod-specifier expected", false);
+      }
+      NextToken(in);
+   }
+   else
+   {
+      res = false;
+      if(warn_missing)
+      {
+         Warning("Config misses %s\n", "pm_type");
+      }
+   }
+   PARSE_INT(ac_handling);
+   PARSE_BOOL(ac_res_aggressive);
+   PARSE_BOOL(forward_context_sr);
+   PARSE_BOOL(forward_context_sr_aggressive);
+   PARSE_BOOL(backward_context_sr);
+   PARSE_BOOL(forward_subsumption_aggressive);
+   PARSE_INT_LIMITED(forward_demod,0,2);
+   PARSE_BOOL(prefer_general);
+   PARSE_BOOL(condensing);
+   PARSE_BOOL(condensing_aggressive);
+   PARSE_BOOL(er_varlit_destructive);
+   PARSE_BOOL(er_strong_destructive);
+   PARSE_BOOL(er_aggressive);
+   PARSE_INT(split_clauses);
+   PARSE_INT_LIMITED(split_method, 0, 2);
+   PARSE_BOOL(split_aggressive);
+   PARSE_BOOL(split_fresh_defs);
+   PARSE_IDENT_INTO(rw_bw_index_type, MAX_PM_INDEX_NAME_LEN);
+   PARSE_IDENT_INTO(pm_from_index_type, MAX_PM_INDEX_NAME_LEN);
+   PARSE_IDENT_INTO(pm_into_index_type, MAX_PM_INDEX_NAME_LEN);
+
+   PARSE_IDENT_NO(sat_check_grounding, GroundingStratNames);
+   PARSE_INT(sat_check_step_limit);
+   PARSE_INT(sat_check_size_limit);
+   PARSE_INT(sat_check_ttinsert_limit);
+   PARSE_BOOL(sat_check_normconst);
+   PARSE_BOOL(sat_check_normalize);
+   PARSE_INT(sat_check_decision_limit);
+
+   PARSE_INT(filter_orphans_limit);
+   PARSE_INT(forward_contract_limit);
+   PARSE_INT(delete_bad_limit);
+   PARSE_INTMAX(mem_limit);
+
+   PARSE_BOOL(watchlist_simplify);
+   PARSE_BOOL(watchlist_is_static);
+   PARSE_BOOL(use_tptp_sos);
+   PARSE_BOOL(presat_interreduction);
+   PARSE_BOOL(detsort_bw_rw);
+   PARSE_BOOL(detsort_tmpset);
+   PARSE_BOOL(inverse_recognition);
+   PARSE_BOOL(replace_inj_defs);
+   PARSE_STRING_AND_CONVERT(arg_cong, str2eit);
+   PARSE_STRING_AND_CONVERT(neg_ext, str2eit);
+   PARSE_STRING_AND_CONVERT(pos_ext, str2eit);
+   PARSE_INT(ext_sup_max_depth);
+
+
+
 
    AcceptInpTok(in, CloseCurly);
    return res;
 }
 
-HeuristicParms_p HeuristicParmsParse(Scanner_p in);
+/*-----------------------------------------------------------------------
+//
+// Function: HeuristicParmsParse()
+//
+//   Parse a (newly allocated) HeuristicParmsCell and return it.
+//
+// Global Variables: -
+//
+// Side Effects    : Memory, Input
+//
+/----------------------------------------------------------------------*/
+
+HeuristicParms_p HeuristicParmsParse(Scanner_p in, bool warn_missing)
+{
+   HeuristicParms_p res = HeuristicParmsAlloc();
+   HeuristicParmsParseInto(in, res, warn_missing);
+   return res;
+}
 
 
 

@@ -219,6 +219,31 @@ int EqnListQueryPropNumber(Eqn_p list, EqnProperties prop)
    return res;
 }
 
+/*-----------------------------------------------------------------------
+//
+// Function: EqnListExistsTermExcept()
+//
+//   Return number of equations with props set.
+//
+// Global Variables: -
+//
+// Side Effects    : -
+//
+/----------------------------------------------------------------------*/
+
+bool EqnListExistsTermExcept(Eqn_p list, Eqn_p except, TermPredicateFun_p predicate)
+{
+   for(Eqn_p lit = list; lit; lit = lit->next)
+   {
+      if (lit != except && (predicate(lit->lterm) || predicate(lit->rterm)))
+      {
+         return true;
+      }
+   }
+   return false;
+}
+
+
 
 
 /*-----------------------------------------------------------------------
@@ -281,9 +306,9 @@ Eqn_p EqnListFromArray(Eqn_p* array, int lenght)
 //   Push the literals onto a newly created stack and return it. Does
 //   not copy anything! The caller has to free the stack.
 //
-// Global Variables:
+// Global Variables: -
 //
-// Side Effects    :
+// Side Effects    : Allocates the stack.
 //
 /----------------------------------------------------------------------*/
 
@@ -298,6 +323,67 @@ PStack_p EqnListToStack(Eqn_p list)
    }
    return stack;
 }
+
+
+/*-----------------------------------------------------------------------
+//
+// Function: EqnListFromStack()
+//
+//   Create a list from a stack of equations. The stack is destroyed
+//   and freed!
+//
+// Global Variables: -
+//
+// Side Effects    : Frees the stack, links the literals.
+//
+/----------------------------------------------------------------------*/
+
+Eqn_p EqnListFromStack(PStack_p stack)
+{
+   Eqn_p res = NULL, handle;
+
+   assert(stack);
+
+   while(!PStackEmpty(stack))
+   {
+      handle = PStackPopP(stack);
+      EqnListInsertElement(&res, handle);
+   }
+   PStackFree(stack);
+
+   return res;
+}
+
+/*-----------------------------------------------------------------------
+//
+// Function: EqnListSplitToStacks()
+//
+//   Push the literals onto the provided stacks - those with prop set
+//   onto "pos", the others onto "neg".
+//
+// Global Variables: -
+//
+// Side Effects    : Memory operations
+//
+/----------------------------------------------------------------------*/
+
+void EqnListSplitToStacks(Eqn_p list, PStack_p pos, PStack_p neg, EqnProperties prop)
+{
+   while(list)
+   {
+      if(EqnQueryProp(list, prop))
+      {
+         PStackPushP(pos, list);
+      }
+      else
+      {
+         PStackPushP(neg, list);
+      }
+      list = list->next;
+   }
+}
+
+
 
 
 /*-----------------------------------------------------------------------
@@ -714,7 +800,7 @@ Eqn_p EqnListNegateEqns(Eqn_p list)
 //
 /----------------------------------------------------------------------*/
 
-int EqnListRemoveDuplicates(Eqn_p list)
+int EqnListRemoveDuplicates1(Eqn_p list)
 {
    EqnRef handle;
    int    removed = 0;
@@ -738,6 +824,35 @@ int EqnListRemoveDuplicates(Eqn_p list)
    }
    return removed;
 }
+
+int EqnListRemoveDuplicates(Eqn_p list)
+{
+   EqnRef handle;
+   int    removed = 0;
+   PObjTree_p litstore = NULL;
+
+   if(list && list->next) // Nothing to do for very short clause.
+   {
+      PTreeObjStore(&litstore, list, LiteralSyntaxCompare);
+
+      handle = &(list->next);
+      while(*handle)
+      {
+         if(PTreeObjStore(&litstore, *handle, LiteralSyntaxCompare))
+         {
+            EqnListDeleteElement(handle);
+            removed++;
+         }
+         else
+         {
+            handle = &((*handle)->next);
+         }
+      }
+      PObjTreeFree(litstore, DummyObjDelFun);
+   }
+   return removed;
+}
+
 
 
 /*-----------------------------------------------------------------------
@@ -897,7 +1012,7 @@ Eqn_p EqnListFindTrue(Eqn_p list)
 // Function: EqnListIsTrivial()
 //
 //   Return true if the list contains two equal literals with
-//   opposing signs or a literal that always evaluates to true.
+//   opposing signs.
 //
 // Global Variables: -
 //
@@ -909,12 +1024,10 @@ bool EqnListIsTrivial(Eqn_p list)
 {
    Eqn_p handle;
 
+   //printf("# EqnListIsTrivial(%d)\n", EqnListLength(list));
+
    while(list)
    {
-      if(EqnIsTrue(list))
-      {
-         return true;
-      }
       for(handle = list->next; handle; handle = handle->next)
       {
          if(!PropsAreEquiv(handle, list, EPIsPositive))
@@ -927,8 +1040,86 @@ bool EqnListIsTrivial(Eqn_p list)
       }
       list = list->next;
    }
+   //printf("# Done\n");
    return false;
 }
+
+
+
+/*-----------------------------------------------------------------------
+//
+// Function: EqnLongListIsTrivial()
+//
+//   As EqnListIsTrivial(), but with an algorithm optimised for long
+//   lists.
+//
+// Global Variables: -
+//
+// Side Effects    : Memory operations
+//
+/----------------------------------------------------------------------*/
+
+static int comp_stack_eqns(const void* v1, const void* v2)
+{
+   const IntOrP* e1 = (const IntOrP*) v1;
+   const IntOrP* e2 = (const IntOrP*) v2;
+
+   return EqnSyntaxCompare(e1->p_val, e2->p_val);
+}
+
+bool EqnLongListIsTrivial(Eqn_p list)
+{
+   PStack_p pos_lits;
+   PStack_p neg_lits;
+   bool res = false;
+   PStackPointer pp, np;
+   Eqn_p key, key2;
+   int cmpres;
+
+   pos_lits = PStackAlloc();
+   neg_lits = PStackAlloc();
+
+
+   EqnListSplitToStacks(list, pos_lits, neg_lits, EPIsPositive);
+   PStackSort(pos_lits, comp_stack_eqns);
+   PStackSort(neg_lits, comp_stack_eqns);
+
+   pp = 0;
+   np = 0;
+   while(pp < PStackGetSP(pos_lits))
+   {
+      key = PStackElementP(pos_lits, pp);
+      np = PStackBinSearch(neg_lits, key, np,
+                           PStackGetSP(neg_lits),
+                           EqnSyntaxCompare);
+      if(np >= PStackGetSP(neg_lits))
+      {
+         break;
+      }
+      key2 = PStackElementP(neg_lits, np);
+      cmpres = EqnSyntaxCompare(key, key2);
+      if(cmpres == 0)
+      {
+         res = true;
+         break;
+      }
+      else
+      {
+         if(np >= PStackGetSP(neg_lits))
+         {
+            break;
+         }
+         pp = PStackBinSearch(pos_lits, key2,
+                              pp, PStackGetSP(pos_lits),
+                              EqnSyntaxCompare);
+      }
+   }
+   PStackFree(pos_lits);
+   PStackFree(neg_lits);
+
+   return res;
+}
+
 
 
 /*-----------------------------------------------------------------------
@@ -1075,7 +1266,8 @@ int EqnListOrient(OCB_p ocb, Eqn_p list)
 //
 //   Determine for each literal wether it is maximal or not. Returns
 //   number of maximal literals. Also determines strictly maximal
-//   literals.
+//   literals. Returns number of maximal literals (although nobody
+//   seems to care ;-).
 //
 // Global Variables: -
 //
@@ -1083,12 +1275,13 @@ int EqnListOrient(OCB_p ocb, Eqn_p list)
 //
 /----------------------------------------------------------------------*/
 
-int EqnListMaximalLiterals(OCB_p ocb, Eqn_p list)
+int EqnListMaximalLiterals1(OCB_p ocb, Eqn_p list)
 {
    Eqn_p handle, stepper;
    CompareResult cmp;
    int res = 0;
 
+   printf("Drin\n");
    res = EqnListSetProp(list, EPIsMaximal|EPIsStrictlyMaximal);
    for(handle = list; handle; handle = handle->next)
    {
@@ -1119,8 +1312,72 @@ int EqnListMaximalLiterals(OCB_p ocb, Eqn_p list)
          }
       }
    }
+   printf("Draussen\n");
    return res;
 }
+
+int EqnListMaximalLiterals(OCB_p ocb, Eqn_p list)
+{
+   PStack_p archive;
+   Eqn_p cand, maxlits = NULL;
+   CompareResult cmp;
+   int res = 0;
+   EqnRef stepper;
+
+   archive = EqnListToStack(list);
+
+   res = EqnListSetProp(list, EPIsStrictlyMaximal);
+   EqnListDelProp(list, EPIsMaximal);
+   //printf("# Drinnen %d\n", res);
+
+   while(list)
+   {
+      cand = EqnListExtractElement(&list);
+      stepper = &list;
+
+      while(*stepper)
+      {
+         cmp = LiteralCompare(ocb, cand, *stepper);
+
+         if(cmp ==  to_greater)
+         {
+            // cand survives, *stepper is dead
+            EqnDelProp(*stepper, EPIsStrictlyMaximal);
+            EqnListExtractElement(stepper);
+         }
+         else if(cmp ==  to_lesser)
+         {
+            // cand is dead
+            EqnDelProp(cand, EPIsStrictlyMaximal);
+            cand = NULL;
+            break;
+         }
+         else if(cmp == to_equal)
+         {
+            // both survive, but neither is strictly maximal
+            EqnDelProp(*stepper, EPIsStrictlyMaximal);
+            EqnDelProp(cand, EPIsStrictlyMaximal);
+            stepper = &((*stepper)->next);
+         }
+         else
+         {
+            // Incomparable, both survive
+            stepper = &((*stepper)->next);
+         }
+      }
+      if(cand)
+      {
+         EqnListInsertElement(&maxlits, cand);
+      }
+   }
+   res = EqnListSetProp(maxlits, EPIsMaximal);
+   list = EqnListFromStack(archive);
+
+   //printf("# Draussen\n");
+   return res;
+}
+
+
 
 
 /*-----------------------------------------------------------------------
@@ -1598,9 +1855,10 @@ long EqnListAddFunOccs(Eqn_p list,
 
 /*-----------------------------------------------------------------------
 //
-// Function: EqnListTermSetProp()
+// Function: EqnListSignedTermSetProp()
 //
-//   Set prop in all terms in list.
+//   Set prop in all terms in the literals in list selected via the
+//   pos/neg parameters.
 //
 // Global Variables: -
 //
@@ -1608,14 +1866,52 @@ long EqnListAddFunOccs(Eqn_p list,
 //
 /----------------------------------------------------------------------*/
 
-void EqnListTermSetProp(Eqn_p list, TermProperties props)
+void EqnListSignedTermSetProp(Eqn_p list, TermProperties props, bool pos, bool neg)
 {
    while(list)
    {
-      EqnTermSetProp(list, props);
+      if(pos && EqnIsPositive(list))
+      {
+         EqnTermSetProp(list, props);
+      }
+      if(neg && EqnIsNegative(list))
+      {
+         EqnTermSetProp(list, props);
+      }
       list = list->next;
    }
 }
+
+
+/*-----------------------------------------------------------------------
+//
+// Function: EqnListSignedTermDelProp()
+//
+//   Delete prop in all terms in the literals in list selected via the
+//   pos/neg parameters.
+//
+// Global Variables: -
+//
+// Side Effects    : None beyond the purpose
+//
+/----------------------------------------------------------------------*/
+
+void EqnListSignedTermDelProp(Eqn_p list, TermProperties props, bool pos, bool neg)
+{
+   while(list)
+   {
+      if(pos && EqnIsPositive(list))
+      {
+         EqnTermDelProp(list, props);
+      }
+      if(neg && EqnIsNegative(list))
+      {
+         EqnTermDelProp(list, props);
+      }
+      list = list->next;
+   }
+}
+
 
 
 /*-----------------------------------------------------------------------
@@ -1638,32 +1934,6 @@ long EqnListTBTermDelPropCount(Eqn_p list, TermProperties props)
    while(list)
    {
       count += EqnTBTermDelPropCount(list, props);
-      list = list->next;
-   }
-   return count;
-}
-
-
-/*-----------------------------------------------------------------------
-//
-// Function: EqnListTermDelProp()
-//
-//   Delete prop in all terms in list, return number of termcells in
-//   which prop was set.
-//
-// Global Variables: -
-//
-// Side Effects    : As above
-//
-/----------------------------------------------------------------------*/
-
-long EqnListTermDelProp(Eqn_p list, TermProperties props)
-{
-   long count = 0;
-
-   while(list)
-   {
-      EqnTermDelProp(list, props);
       list = list->next;
    }
    return count;

@@ -222,6 +222,7 @@ ProofState_p ProofStateAlloc(FunctionProperties free_symb_prop)
    handle->backward_rewritten_count     = 0;
    handle->backward_rewritten_lit_count = 0;
    handle->generated_count              = 0;
+   handle->aggressive_forward_subsumed_count  = 0;
    handle->generated_lit_count          = 0;
    handle->non_trivial_generated_count  = 0;
    handle->frozen_count         = 0;
@@ -229,6 +230,7 @@ ProofState_p ProofStateAlloc(FunctionProperties free_symb_prop)
    handle->context_sr_count     = 0;
    handle->paramod_count        = 0;
    handle->factor_count         = 0;
+   handle->neg_ext_count        = 0;
    handle->resolv_count         = 0;
    handle->satcheck_count       = 0;
    handle->satcheck_success     = 0;
@@ -637,7 +639,7 @@ void ProofStateStatisticsPrint(FILE* out, ProofState_p state)
            state->backward_rewritten_count);
    fprintf(out, "# Generated clauses                    : %ld\n",
            state->generated_count - state->backward_rewritten_count);
-   fprintf(out, "# ...of the previous two non-trivial   : %ld\n",
+   fprintf(out, "# ...of the previous two non-redundant : %ld\n",
            state->non_trivial_generated_count);
    if (filter_generated) {
 	   fprintf(out, "# ...frozen by parental guidance       : %ld\n",
@@ -645,12 +647,16 @@ void ProofStateStatisticsPrint(FILE* out, ProofState_p state)
 	   fprintf(out, "# ...of these subsequently unfrozen    : %ld\n",
 			   state->unfrozen_count);
    }
+   fprintf(out, "# ...aggressively subsumed             : %ld\n",
+           state->aggressive_forward_subsumed_count);
    fprintf(out, "# Contextual simplify-reflections      : %ld\n",
            state->context_sr_count);
    fprintf(out, "# Paramodulations                      : %ld\n",
            state->paramod_count);
    fprintf(out, "# Factorizations                       : %ld\n",
            state->factor_count);
+   fprintf(out, "# NegExts                              : %ld\n",
+           state->neg_ext_count);
    fprintf(out, "# Equation resolutions                 : %ld\n",
            state->resolv_count);
    fprintf(out, "# Propositional unsat checks           : %ld\n",

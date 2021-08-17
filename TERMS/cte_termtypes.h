@@ -86,6 +86,11 @@ typedef enum
                                    this occurs with negative polarity. */
    TPIsDerefedAppVar  = 1<<20,  /* Is the object obtained as a cache
                                    for applied variables -- dbg purposes */
+   TPIsBetaReducible  = 1<<21,  /* Does the term have at least one subterm with 
+                                   lambda abstraction as term head */
+   TPIsEtaReducible   = 1<<22,  /* Does the term have at least one subterm which is
+                                   lambda abstraction and the last argument of body is
+                                   the abstracted variable */
 }TermProperties;
 
 
@@ -120,7 +125,6 @@ typedef struct termcell
    int              arity;         /* Redundant, but saves handing
                                       around the signature all the
                                       time */
-   struct termcell* *args;         /* Pointer to array of arguments */
    struct termcell* binding;       /* For variable bindings,
                                       potentially for temporary
                                       rewrites - it might be possible
@@ -143,9 +147,12 @@ typedef struct termcell
    struct termcell* binding_cache; /* For caching the term applied variable
                                       expands to. */
    struct tbcell* owner_bank;                /* Bank that owns this term cell and that
-                                      is responsible for lifetime management 
+                                      is responsible for lifetime management
                                       of the term */
 #endif
+
+   struct termcell* args[];         /* Flexible array member containing the arguments */
+
 }TermCell, *Term_p, **TermRef;
 
 
@@ -184,22 +191,22 @@ typedef uintptr_t DerefType, *DerefType_p;
                           (t)->binding == (t)->args[0]->binding)
 
 #ifdef ENABLE_LFHO
-/* Sometimes we are not interested in the arity of the term, but the 
+/* Sometimes we are not interested in the arity of the term, but the
    number of arguments the term has. Due to encoding of applied variables,
-   we have to discard argument 0, which is actually the head variable */ 
-#define ARG_NUM(term)    (TermIsAppliedVar(term) ? (term)->arity-1 : (term)->arity)
+   we have to discard argument 0, which is actually the head variable */
+#define ARG_NUM(term)    (TermIsPhonyApp(term) ? (term)->arity-1 : (term)->arity)
 /* If we have the term X a Y and bindings X -> f X Y and Y -> Z
    when we deref once we want to get f X Y a Z. When dereferencing applied
-   var X a Y we can behave like with variables and decrease deref (see TermDeref) 
+   var X a Y we can behave like with variables and decrease deref (see TermDeref)
    in which case we get term f X Y a Y as result. If we do not decrease deref
-   we get f (f X Y) a Z as result. Netiher are correct. Thus, there is 
+   we get f (f X Y) a Z as result. Netiher are correct. Thus, there is
    a part of term (up to DEREF_LIMIT) for which we do not follow pointers and
    then other part (after and including DEREF_LIMIT) for which we do follow pointers.  */
 #define DEREF_LIMIT(t,d) ((TermIsAppliedVar(t) && (t)->args[0]->binding && (d) == DEREF_ONCE) ? \
                           (t)->args[0]->binding->arity + ((TermIsVar((t)->args[0]->binding)) ? 1 : 0)  : 0)
 /* Sets derefs according to the previous comment and expects i to be an index
    into arugment array, l to be DEREF_LIMIT and d wanted deref mode*/
-#define CONVERT_DEREF(i, l, d) (((i) < (l) && (d) == DEREF_ONCE) ? DEREF_NEVER : (d)) 
+#define CONVERT_DEREF(i, l, d) (((i) < (l) && (d) == DEREF_ONCE) ? DEREF_NEVER : (d))
 #else
 /* making sure no compiler warnings are produced */
 #define ARG_NUM(term)          ((term)->arity)
@@ -220,9 +227,19 @@ typedef uintptr_t DerefType, *DerefType_p;
 #define TermIsVar(t) ((t)->f_code < 0)
 #define TermIsConst(t)(!TermIsVar(t) && ((t)->arity==0))
 #ifdef ENABLE_LFHO
-#define TermIsAppliedVar(term) ((term)->f_code == SIG_APP_VAR_CODE)
+#define TermIsPhonyApp(term) ((term)->f_code == SIG_PHONY_APP_CODE)
+#define TermIsAppliedVar(term) ((term)->f_code == SIG_PHONY_APP_CODE && \
+                                TermIsVar((term)->args[0]))
+#define TermIsLambda(term) ((term)->f_code == SIG_NAMED_LAMBDA_CODE || \
+                            (term)->f_code == SIG_DB_LAMBDA_CODE)
+#define TermIsPhonyAppTarget(term) (TermIsVar(term) || TermIsLambda(term) || \
+                                    (term)->f_code == SIG_ITE_CODE || \
+                                    (term)->f_code == SIG_LET_CODE)
 #else
+#define TermIsPhonyApp(term) (false)
 #define TermIsAppliedVar(term) (false)
+#define TermIsLambda(term) (false)
+#define TermIsPhonyAppTarget(term) (false)
 #endif
 #define TermIsTopLevelVar(term) (TermIsVar(term) || TermIsAppliedVar(term))
 
@@ -239,9 +256,13 @@ typedef uintptr_t DerefType, *DerefType_p;
 #define TermCellFlipProp(term, props) FlipProp((term),(props))
 
 #define TermCellAlloc() (TermCell*)SizeMalloc(sizeof(TermCell))
-#define TermCellFree(junk)         SizeFree(junk, sizeof(TermCell))
-#define TermArgArrayAlloc(arity) ((Term_p*)SizeMalloc((arity)*sizeof(Term_p)))
-#define TermArgArrayFree(junk, arity) SizeFree((junk),(arity)*sizeof(Term_p))
+#define TermCellArityAlloc(arity) (TermCell*)SizeMalloc(sizeof(TermCell) + (arity) * sizeof(Term_p))
+#define TermCellFree(junk, arity)         SizeFree(junk, sizeof(TermCell) + (arity) * sizeof(Term_p))
+
+/* ACHTUNG: To be used only when allocating/deallocating arrays that are of temporary nature
+   and will *not* be directly assigned to flexibly crated array */
+#define TermArgTmpArrayAlloc(n) ((TermCell**) ((n) == 0 ? NULL : SizeMalloc((n)*sizeof(Term_p))))
+#define TermArgTmpArrayFree(junk, n) (((n)==0) ? NULL : ( SizeFreeReal((junk), (n)*sizeof(Term_p)) ))
 
 #define TermIsRewritten(term) TermCellQueryProp((term), TPIsRewritten)
 #define TermIsRRewritten(term) TermCellQueryProp((term), TPIsRRewritten)
@@ -267,6 +288,7 @@ Term_p  MakeRewrittenTerm(Term_p orig, Term_p new, int orig_remains, struct tbce
 #define TermRWDemod(term) (TermIsRewritten(term)?TermRWDemodField(term):NULL)
 
 static inline Term_p TermDefaultCellAlloc(void);
+static inline Term_p TermDefaultCellArityAlloc(int arity);
 static inline Term_p TermConstCellAlloc(FunCode symbol);
 static inline Term_p TermTopAlloc(FunCode f_code, int arity);
 static inline Term_p TermTopCopy(Term_p source);
@@ -303,21 +325,25 @@ void    TermStackDelProps(PStack_p stack, TermProperties prop);
 #define TermSetCache(t,c)  ((t)->binding_cache = (c))
 #define TermGetBank(t)     ((t)->owner_bank)
 #define TermSetBank(t,b)   ((t)->owner_bank = (b))
+
+#define TermIsBetaReducible(t) TermCellQueryProp((t), TPIsBetaReducible)
+#define TermIsEtaReducible(t)  TermCellQueryProp((t), TPIsEtaReducible)
 #else
 #define TermGetCache(t)    (UNUSED(t), NULL)
 #define TermSetCache(t,c)  (UNUSED(t), UNUSED(c), UNUSED(NULL))
 #define TermGetBank(t)     (UNUSED(t), NULL)
 #define TermSetBank(t,b)   (UNUSED(t), UNUSED(b), UNUSED(NULL))
+#define TermIsBetaReducible(t) false
+#define TermIsEtaReducible(t)  false
 #endif
 
-void clear_stale_cache(Term_p app_var);
 
 /*---------------------------------------------------------------------*/
 /*                  Inline functions                                   */
 /*---------------------------------------------------------------------*/
 
 #ifdef ENABLE_LFHO
-// forward declaration of function used in inline functions 
+// forward declaration of function used in inline functions
 Term_p applied_var_deref(Term_p orig);
 #endif
 
@@ -336,19 +362,28 @@ Term_p applied_var_deref(Term_p orig);
 static inline Type_p GetHeadType(Sig_p sig, Term_p term)
 {
 #ifdef ENABLE_LFHO
-   if(TermIsAppliedVar(term))
+   if(term->f_code == SIG_ITE_CODE)
    {
-      assert(!sig || term->f_code == SIG_APP_VAR_CODE);
+      assert(term->arity==3);
+      return term->type;
+   }
+   else if(term->f_code == SIG_LET_CODE)
+   {
+      return term->type;
+   }
+   else if(TermIsAppliedVar(term))
+   {
+      assert(!sig || term->f_code == SIG_PHONY_APP_CODE);
       return term->args[0]->type;
    }
-   else if(TermIsVar(term))
+   else if(TermIsVar(term) || TermIsLambda(term))
    {
-      assert(term->arity == 0);
+      assert(!TermIsVar(term) || term->arity == 0);
       return term->type;
    }
    else
    {
-      assert(term->f_code != SIG_APP_VAR_CODE);
+      assert(term->f_code != SIG_PHONY_APP_CODE);
       return SigGetType(sig, term->f_code);
    }
 #else
@@ -422,7 +457,7 @@ static inline Term_p TermDerefAlways(Term_p term)
 //   Dereferencing applied variables creates new terms, which
 //   are cached in the original applied variable. Derefing applied
 //   variable will NOT decrease deref (just like it does not decrease
-//   deref for a normal term). Because of this, additional care 
+//   deref for a normal term). Because of this, additional care
 //   needs to be taken not to take into account substitution
 //   for the head of the applied variable (which is prefix of the
 //   expanded term) -- see macros DEREF_LIMIT and CONVERT_DEREF.
@@ -489,7 +524,16 @@ static Term_p inline TermDeref(Term_p term, DerefType_p deref)
 
 static inline Term_p TermTopCopyWithoutArgs(restrict Term_p source)
 {
-   Term_p handle = TermDefaultCellAlloc();
+   Term_p handle = NULL;
+
+   if(source->arity)
+   {
+      handle = TermDefaultCellArityAlloc(source->arity);
+   }
+   else
+   {
+      handle = TermDefaultCellAlloc();
+   }
 
    /* All other properties are tied to the specific term! */
    handle->properties = (source->properties&(TPPredPos));
@@ -501,7 +545,6 @@ static inline Term_p TermTopCopyWithoutArgs(restrict Term_p source)
    if(source->arity)
    {
       handle->arity = source->arity;
-      handle->args  = TermArgArrayAlloc(source->arity);
    }
 
    TermSetBank(handle, TermGetBank(source));
@@ -560,7 +603,41 @@ static inline Term_p TermDefaultCellAlloc(void)
    handle->arity      = 0;
    handle->type       = NULL;
    handle->binding    = NULL;
-   handle->args       = NULL;
+   handle->rw_data.nf_date[0] = SysDateCreationTime();
+   handle->rw_data.nf_date[1] = SysDateCreationTime();
+   handle->lson = NULL;
+   handle->rson = NULL;
+   TermSetCache(handle, NULL);
+   TermSetBank(handle, NULL);
+
+   return handle;
+}
+
+/*-----------------------------------------------------------------------
+//
+// Function: TermDefaultCellArityAlloc()
+//
+//   Allocate a term cell with default values.
+//   Furthermore allocates the arguments of the term using the given arity.
+//
+// Global Variables: -
+//
+// Side Effects    : Memory operations
+//
+/----------------------------------------------------------------------*/
+
+static inline Term_p TermDefaultCellArityAlloc(int arity)
+{
+   Term_p handle = TermCellArityAlloc(arity);
+
+   handle->properties = TPIgnoreProps;
+   handle->arity      = arity;
+   handle->type       = NULL;
+   handle->binding    = NULL;
+
+   for(int i = 0; i < arity; ++i)
+      handle->args[i] = NULL;
+
    handle->rw_data.nf_date[0] = SysDateCreationTime();
    handle->rw_data.nf_date[1] = SysDateCreationTime();
    handle->lson = NULL;
@@ -607,14 +684,8 @@ static inline Term_p TermConstCellAlloc(FunCode symbol)
 
 static inline Term_p TermTopAlloc(FunCode f_code, int arity)
 {
-   Term_p handle = TermDefaultCellAlloc();
-
+   Term_p handle = TermDefaultCellArityAlloc(arity);
    handle->f_code = f_code;
-   handle->arity  = arity;
-   if(arity)
-   {
-      handle->args = TermArgArrayAlloc(arity);
-   }
 
    return handle;
 }

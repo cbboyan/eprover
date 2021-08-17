@@ -353,7 +353,18 @@ static Token_p scan_token(Scanner_p in)
       DStrAppendChar(AktToken(in)->literal, CurrChar(in));
       NextChar(in);
       scan_ident(in);
-      AktToken(in)->tok = SemIdent;
+      if(!strcmp(DStrView(AktToken(in)->literal), "$let"))
+      {
+         AktToken(in)->tok = LetToken;
+      }
+      else if(!strcmp(DStrView(AktToken(in)->literal), "$ite"))
+      {
+         AktToken(in)->tok = IteToken;
+      }
+      else
+      {
+         AktToken(in)->tok = SemIdent;
+      }
    }
    else
    {
@@ -491,6 +502,9 @@ static Token_p scan_token(Scanner_p in)
             break;
       case '@':
             AktToken(in)->tok = Application;
+            break;
+      case '^':
+            AktToken(in)->tok = Carret;
             break;
       default:
             DStrAppendChar(AktToken(in)->literal, CurrChar(in));
@@ -687,8 +701,8 @@ bool str_n_element(char* str, char* ids, int len)
 
 char* PosRep(StreamType type, DStr_p source, long line, long column)
 {
-   static char buff[MAX_ERRMSG_LEN];
    char        tmp_str[MAX_ERRMSG_LEN];
+   static char buff[MAX_ERRMSG_LEN+128]; // make place for numbers
 
 
    if(type == StreamTypeFile)

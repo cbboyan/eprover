@@ -1,7 +1,27 @@
 This history describes the major differences between versions of the E
 equational theorem prover.
 
-Versopm 2.4 -> 2.5 Avongrove
+Version 2.5 -> 2/6 Floral Guranse
+
+- Much improved algorithm for finding maximal literals in long clauses
+- Much improved algorithm for identifying dual (conflicting) literals
+  in long clauses
+- Added max literal limit for full equational tautology check (we
+  should now really replace that with a congruence closure based
+  approach!)
+- Added DAGWeight() evaluation function (symbol-counts shared terms
+  only once, with different options for sharing regions (terms,
+  literals, clauses)
+- Improved support for THF: E can now parse most of TH0 syntax
+- (notable exceptions are symbols !!, ?? and @+), including lambdas.
+  Note that on the reasoning side, E still does not support any
+  advanced lambda reasoning, as lambdas are simply lifted and after
+  parsing E is not aware of them.
+- Improved support for TFX: E now supports $let and $ite expressions.
+
+
+
+Version 2.4 -> 2.5 Avongrove
 
 - Clausal problems are now classified before equational definitions
   expansion, which moves equational definition expansion under control

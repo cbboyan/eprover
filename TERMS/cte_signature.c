@@ -172,6 +172,8 @@ Sig_p SigAlloc(TypeBank_p bank)
    handle->newpred_count     = 0;
 
    handle->distinct_props = FPDistinctProp;
+   handle->let_scopes = PStackAlloc();
+   handle->let_names = PStackAlloc();
    return handle;
 }
 
@@ -199,6 +201,14 @@ void SigInsertInternalCodes(Sig_p sig)
    assert((SigSupportLists && sig->internal_symbols == SIG_CONS_CODE) ||
           (!SigSupportLists && sig->internal_symbols == SIG_FALSE_CODE));
 
+   Type_p bool2[2] = {sig->type_bank->bool_type, sig->type_bank->bool_type};
+   Type_p bool3[3] = {sig->type_bank->bool_type, sig->type_bank->bool_type,
+                      sig->type_bank->bool_type};
+   Type_p unary_log_op_type =
+      TypeBankInsertTypeShared(sig->type_bank, AllocArrowTypeCopyArgs(2, bool2));
+   Type_p binary_log_op_type =
+      TypeBankInsertTypeShared(sig->type_bank, AllocArrowTypeCopyArgs(3, bool3));
+
    sig->eqn_code    = SigInsertId(sig, "$eq",   2, true);
    SigSetPolymorphic(sig, sig->eqn_code, true);
 
@@ -211,26 +221,53 @@ void SigInsertInternalCodes(Sig_p sig)
    SigSetPolymorphic(sig, sig->qall_code, true);
 
    sig->not_code   = SigInsertFOFOp(sig, "$not",   1);
+   SigDeclareFinalType(sig, sig->not_code, unary_log_op_type);
    sig->and_code   = SigInsertFOFOp(sig, "$and",   2);
+   SigDeclareFinalType(sig, sig->and_code, binary_log_op_type);
    sig->or_code    = SigInsertFOFOp(sig, "$or",    2);
+   SigDeclareFinalType(sig, sig->or_code, binary_log_op_type);
    sig->impl_code  = SigInsertFOFOp(sig, "$impl",  2);
+   SigDeclareFinalType(sig, sig->impl_code, binary_log_op_type);
    sig->equiv_code = SigInsertFOFOp(sig, "$equiv", 2);
+   SigDeclareFinalType(sig, sig->equiv_code, binary_log_op_type);
    sig->nand_code  = SigInsertFOFOp(sig, "$nand",  2);
+   SigDeclareFinalType(sig, sig->nand_code, binary_log_op_type);
    sig->nor_code   = SigInsertFOFOp(sig, "$nor",   2);
+   SigDeclareFinalType(sig, sig->nor_code, binary_log_op_type);
    sig->bimpl_code = SigInsertFOFOp(sig, "$bimpl", 2);
+   SigDeclareFinalType(sig, sig->bimpl_code, binary_log_op_type);
    sig->xor_code   = SigInsertFOFOp(sig, "$xor",   2);
+   SigDeclareFinalType(sig, sig->xor_code, binary_log_op_type);
 
    sig->answer_code =  SigInsertId(sig, "$answer", 1, true);
    SigSetFuncProp(sig, sig->answer_code, FPInterpreted|FPPseudoPred);
 
-#ifdef ENABLE_LFHO
-   #ifndef NDEBUG
-      // surpressing compiler warning
-      FunCode app_var_code =
-   #endif
-      SigInsertId(sig, "$@_var", 1, true);
-      assert(app_var_code == SIG_APP_VAR_CODE); //for future code changes
+#ifndef NDEBUG
+   // surpressing compiler warning
+   FunCode f_code =
 #endif
+   SigInsertId(sig, "$@_var", 1, true);
+   assert(f_code == SIG_PHONY_APP_CODE); //for future code changes
+#ifndef NDEBUG
+   f_code =
+#endif
+   SigInsertId(sig, "$named_lam", 2, true);
+   assert(f_code == SIG_NAMED_LAMBDA_CODE); //for future code changes
+#ifndef NDEBUG
+   f_code =
+#endif
+   SigInsertId(sig, "$db_lam", 2, true);
+   assert(f_code == SIG_DB_LAMBDA_CODE); //for future code changes
+#ifndef NDEBUG
+   f_code =
+#endif
+   SigInsertId(sig, "$ite", 3, true);
+   assert(f_code == SIG_ITE_CODE); //for future code changes
+#ifndef NDEBUG
+   f_code =
+#endif
+   SigInsertId(sig, "$let", 3, true);
+   assert(f_code == SIG_LET_CODE); //for future code changes
 
    Type_p* args = TypeArgArrayAlloc(2);
    args[1] = sig->type_bank->bool_type;
@@ -272,6 +309,16 @@ void SigFree(Sig_p junk)
    {
       PDArrayFree(junk->orn_codes);
    }
+   // if everything is OK let scopes are closed at the end
+   assert(PStackEmpty(junk->let_scopes));
+   PStackFree(junk->let_scopes);
+
+   while(!PStackEmpty(junk->let_names))
+   {
+      char* name = PStackPopP(junk->let_names);
+      FREE(name);
+   }
+   PStackFree(junk->let_names);
 
    SigCellFree(junk);
 }
@@ -573,19 +620,40 @@ void SigSetAllSpecial(Sig_p sig, bool value)
 //
 /----------------------------------------------------------------------*/
 
+#define MULTI_ARITY_HACK
+
 FunCode SigInsertId(Sig_p sig, const char* name, int arity, bool special_id)
 {
    long      pos;
    StrTree_p new, test;
+   DStr_p    fix_name = NULL;
 
    pos = SigFindFCode(sig, name);
 
    if(pos) /* name is already known */
    {
-      if(sig->f_info[pos].arity != arity)
+      if(sig->f_info[pos].arity != arity && problemType == PROBLEM_FO)
       {
-         printf("Problem: %s %d != %d\n", name, arity, sig->f_info[pos].arity);
+         //printf("Problem: %s %d != %d\n", name, arity, sig->f_info[pos].arity);
+#ifdef MULTI_ARITY_HACK
+         fix_name = DStrAlloc();
+         DStrAppendStr(fix_name, name);
+         DStrAppendStr(fix_name, "_ARITYFIX");
+         DStrAppendInt(fix_name, arity);
+         DStrAppendStr(fix_name, " ");  /* Trailing space should ensure that it
+                               * cannot come from the real parser */
+         name = DStrView(fix_name);
+         pos = SigFindFCode(sig, name);
+#else
          return 0; /* ...but incompatible */
+#endif
+      }
+   }
+   if(pos)
+   {
+      if(fix_name)
+      {
+         DStrFree(fix_name);
       }
       if(special_id)
       {
@@ -617,6 +685,111 @@ FunCode SigInsertId(Sig_p sig, const char* name, int arity, bool special_id)
    test = StrTreeInsert(&(sig->f_index), new);
    UNUSED(test); assert(test == NULL);
    SigSetSpecial(sig,sig->f_count,special_id);
+   sig->alpha_ranks_valid = false;
+
+   if(fix_name)
+   {
+      DStrFree(fix_name);
+   }
+   return sig->f_count;
+}
+
+
+/*-----------------------------------------------------------------------
+//
+// Function: SigPopId()
+//
+//   Remove the last symbol from the signature. This should only be
+//   done when no structures use it - otherwise the behaviour is
+//   undefined. This also ignores the Let-Id-Stack. The function
+//   returns the old sig->f_count (equivalent to the removed
+//   identifier), or 0 if the signature is empty.
+//
+// Global Variables: -
+//
+// Side Effects    : Memory operations
+//
+/----------------------------------------------------------------------*/
+
+FunCode SigPopId(Sig_p sig)
+{
+   FunCode res = 0;
+
+   if(sig->f_count)
+   {
+      res = sig->f_count;
+      StrTreeDeleteEntry(&(sig->f_index), sig->f_info[sig->f_count].name);
+      // Identifier is freed (unexpectedly?) in StrTreeDeleteEntry()
+      //FREE(sig->f_info[sig->f_count].name);
+      sig->f_count--;
+   }
+   return res;
+}
+
+
+/*-----------------------------------------------------------------------
+//
+// Function: SigBacktrack()
+//
+//    Remove all symbols with f_codes > f_count from the signature. See
+//    SigPopId() for caveats. Returns the number of symbols popped.
+//
+// Global Variables: -
+//
+// Side Effects    : -
+//
+/----------------------------------------------------------------------*/
+
+long SigBacktrack(Sig_p sig, FunCode f_count)
+{
+   long res = 0;
+
+   while(sig->f_count > f_count)
+   {
+      res++;
+      SigPopId(sig);
+   }
+   printf("Signature backtracked to %ld\n", f_count);
+   return res;
+}
+
+
+/*-----------------------------------------------------------------------
+//
+// Function: SigInsertLetId()
+//
+//   Insert symbol with the given name and type whose name is of local
+//   character -- it will not be stored in f_index, and it will not be
+//   checked if the symbol already exists.
+//
+// Global Variables: -
+//
+// Side Effects    : Potential memory operations.
+//
+/----------------------------------------------------------------------*/
+
+FunCode SigInsertLetId(Sig_p sig, const char* name, Type_p type)
+{
+   assert(type);
+   if(sig->f_count == sig->size-1)
+   {
+      /* sig->size+= DEFAULT_SIGNATURE_SIZE; */
+      sig->size *= DEFAULT_SIGNATURE_GROW;
+      sig->f_info  = SecureRealloc(sig->f_info,
+                                   sizeof(FuncCell)*sig->size);
+   }
+
+   /* Insert the element in f_index and f_info */
+   sig->f_count++;
+   sig->f_info[sig->f_count].name
+      = SecureStrdup(name);
+   PStackPushP(sig->let_names, sig->f_info[sig->f_count].name);
+   sig->f_info[sig->f_count].arity = TypeGetMaxArity(type);
+   sig->f_info[sig->f_count].properties = FPIgnoreProps;
+   sig->f_info[sig->f_count].type = type;
+   sig->f_info[sig->f_count].feature_offset = -1;
+   FuncSetProp(&(sig->f_info[sig->f_count]), FPTypeFixed);
+
    sig->alpha_ranks_valid = false;
 
    return sig->f_count;
@@ -1257,6 +1430,39 @@ FunCode SigGetNewSkolemCode(Sig_p sig, int arity)
 
 /*-----------------------------------------------------------------------
 //
+// Function: SigGetNewTypedSkolem ()
+//
+//   Return a new typed Skolem symbol based on the type of
+//   given free variables and return type.
+//
+// Global Variables: -
+//
+// Side Effects    : Extends signature
+//
+/----------------------------------------------------------------------*/
+
+FunCode SigGetNewTypedSkolem(Sig_p sig, Type_p* args, int num_args, Type_p ret_type)
+{
+   Type_p sk_type =
+      TypeBankInsertTypeShared(sig->type_bank,
+                               ArrowTypeFlattened(args, num_args, ret_type));
+   int max_arity = TypeGetMaxArity(sk_type);
+   FunCode res = SigGetNewSkolemCode(sig, max_arity);
+   SigDeclareType(sig,res,sk_type);
+   if (UNLIKELY(TypeIsPredicate(sk_type)))
+   {
+      SigDeclareIsPredicate(sig, res);
+   }
+   else
+   {
+      SigDeclareIsFunction(sig, res);
+   }
+   return res;
+}
+
+
+/*-----------------------------------------------------------------------
+//
 // Function: SigGetNewPredicateCode()
 //
 //   Return a new predicate symbol with arity n. The symbol will be of
@@ -1406,7 +1612,6 @@ void SigDeclareIsFunction(Sig_p sig, FunCode f_code)
    }
 }
 
-
 /*-----------------------------------------------------------------------
 //
 // Function: SigDeclareIsPredicate()
@@ -1442,7 +1647,6 @@ void SigDeclareIsPredicate(Sig_p sig, FunCode f_code)
    }
 }
 
-
 /*-----------------------------------------------------------------------
 //
 // Function: SigPrintTypes()
@@ -1470,6 +1674,7 @@ void SigPrintTypes(FILE* out, Sig_p sig)
 
       fun = &sig->f_info[i];
       fprintf(out, "%s:", fun->name);
+      fflush(out);
       if (!fun->type)
       {
          fputs("<no type>", out);
@@ -1480,7 +1685,6 @@ void SigPrintTypes(FILE* out, Sig_p sig)
       }
    }
 }
-
 
 /*-----------------------------------------------------------------------
 //
@@ -1512,9 +1716,6 @@ void SigPrintTypeDeclsTSTP(FILE* out, Sig_p sig)
       }
    }
 }
-
-
-
 
 /*-----------------------------------------------------------------------
 //
@@ -1762,6 +1963,89 @@ bool SigSymbolUnifiesWithVar(Sig_p sig, FunCode f_code)
           f_code <= 0 ||
           !SigIsPredicate(sig,f_code);
 }
+
+#define TMP_LET_ID (-1)
+
+/*-----------------------------------------------------------------------
+//
+// Function: SigEnterLetScope()
+//
+//   Enters a new scope in which the symbols from type decls will
+//   override the ones already present in the signature
+//
+// Global Variables: -
+//
+// Side Effects    : -
+//
+/----------------------------------------------------------------------*/
+
+void SigEnterLetScope(Sig_p sig, PStack_p type_decls)
+{
+   PStack_p scope = PStackAlloc();
+   PStackPushP(sig->let_scopes, scope);
+
+   for(PStackPointer i=1; i<PStackGetSP(type_decls); i += 2)
+   {
+      FunCode id = PStackElementInt(type_decls, i);
+      char* name = SigFindName(sig, id);
+
+      FunCode old_id = SigFindFCode(sig, name);
+      if(old_id)
+      {
+         PStackPushInt(scope, old_id);
+         PStackPushP(scope, name);
+
+         StrTree_p node = StrTreeFind(&(sig->f_index), name);
+         node->val1.i_val = id;
+      }
+      else
+      {
+         PStackPushInt(scope, TMP_LET_ID);
+         PStackPushP(scope, name);
+
+         IntOrP id_tree = {.i_val = id}, dummy = {.i_val = 0};
+
+         StrTreeStore(&(sig->f_index), name, id_tree, dummy);
+      }
+   }
+}
+
+/*-----------------------------------------------------------------------
+//
+// Function: SigExitLetScope()
+//
+//   Enters a new scope in which the symbols from type decls will
+//   override the ones already present in the signature
+//
+// Global Variables: -
+//
+// Side Effects    : -
+//
+/----------------------------------------------------------------------*/
+
+void SigExitLetScope(Sig_p sig)
+{
+   PStack_p scope = PStackPopP(sig->let_scopes);
+
+   while(!PStackEmpty(scope))
+   {
+      char* name = PStackPopP(scope);
+      FunCode id = PStackPopInt(scope);
+
+      if(id != TMP_LET_ID)
+      {
+         StrTree_p node = StrTreeFind(&(sig->f_index), name);
+         node->val1.i_val = id;
+      }
+      else
+      {
+         StrTreeDeleteEntry(&(sig->f_index), name);
+      }
+
+   }
+   PStackFree(scope);
+}
+
 
 /*---------------------------------------------------------------------*/
 /*                        End of File                                  */

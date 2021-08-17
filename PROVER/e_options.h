@@ -43,6 +43,7 @@ typedef enum
    OPT_PRINT_SATURATED,
    OPT_PRINT_SAT_INFO,
    OPT_FILTER_SATURATED,
+   OPT_SYNTAX_ONLY,
    OPT_PRUNE_ONLY,
    OPT_CNF_ONLY,
    OPT_PRINT_PID,
@@ -66,6 +67,7 @@ typedef enum
    OPT_CPU_LIMIT,
    OPT_SOFTCPU_LIMIT,
    OPT_RUSAGE_INFO,
+   OPT_PRINT_STRATEGY,
    OPT_STEP_LIMIT,
    OPT_PROC_LIMIT,
    OPT_UNPROC_LIMIT,
@@ -90,6 +92,7 @@ typedef enum
    OPT_SATAUTODEV,
    OPT_AUTO_SCHED,
    OPT_SATAUTO_SCHED,
+   OPT_AUTOSCHEDULE_KIND,
    OPT_NO_PREPROCESSING,
    OPT_EQ_UNFOLD_LIMIT,
    OPT_EQ_UNFOLD_MAXCLAUSES,
@@ -166,6 +169,7 @@ typedef enum
    OPT_WATCHLIST,
    OPT_STATIC_WATCHLIST,
    OPT_WATCHLIST_NO_SIMPLIFY,
+   OPT_FW_SUMBSUMPTION_AGGRESSIVE,
    OPT_NO_INDEXED_SUBSUMPTION,
    OPT_FVINDEX_STYLE,
    OPT_FVINDEX_FEATURETYPES,
@@ -191,6 +195,12 @@ typedef enum
    OPT_PRINT_TYPES,
    OPT_APP_ENCODE,
    OPT_DELAYED_EVAL,
+   OPT_ARG_CONG,
+   OPT_NEG_EXT,
+   OPT_POS_EXT,
+   OPT_EXT_SUP,
+   OPT_INVERSE_RECOGNITION,
+   OPT_REPLACE_INJ_DEFS,
    OPT_DUMMY
 }OptionCodes;
 
@@ -388,6 +398,12 @@ OptCell opts[] =
     " lower case counterparts, but with non-unit-subsumption enabled"
     " as well)."},
 
+   {OPT_SYNTAX_ONLY,
+    '\0', "syntax-only",
+    NoArg, NULL,
+    "Stop after parsing, i.e. only check if the input can be parsed "
+    "correcly."},
+
    {OPT_PRUNE_ONLY,
     '\0', "prune",
     NoArg, NULL,
@@ -480,6 +496,12 @@ OptCell opts[] =
     "You will usually get CPU time information. On systems returning "
     "more information with the rusage() system call, you will also "
     "get information about memory consumption."},
+
+   {OPT_PRINT_STRATEGY,
+    '\0', "print-strategy",
+    NoArg, NULL,
+    "Print a representation of all search parameters and their setting. "
+    "Then terminate."},
 
    {OPT_STEP_LIMIT,
     'C', "processed-clauses-limit",
@@ -663,6 +685,14 @@ OptCell opts[] =
     NoArg, NULL,
     "Use the (experimental) strategy scheduling without SInE, thus "
     "maintaining completeness."},
+
+   {OPT_AUTOSCHEDULE_KIND,
+    '\0', "schedule-kind",
+    ReqArg, NULL,
+    "Choose a schedule kind that is more optimized for different purposes: "
+    "CASC is optimized for general-purpose theorem proving, while SH "
+    "is optimized for theorem low-timeout theorem proving."
+    },
 
    {OPT_NO_PREPROCESSING,
     '\0', "no-preprocessing",
@@ -1270,6 +1300,13 @@ OptCell opts[] =
     "to the current processed clause set and certain simplifications. "
     "This option disables simplification for the watchlist."},
 
+   {OPT_FW_SUMBSUMPTION_AGGRESSIVE,
+    '\0', "fw-subsumption-aggressive",
+    NoArg, NULL,
+    "Perform forward subsumption on newly generated clauses before they "
+    "are evaluated. This is particularly useful if heuristic evaluation is "
+    "very expensive, e.g. via externally connected neural networks."},
+
    {OPT_NO_INDEXED_SUBSUMPTION,
     '\0', "conventional-subsumption",
     NoArg, NULL,
@@ -1450,6 +1487,46 @@ OptCell opts[] =
     ReqArg, NULL,
     "Delay evaluation and further processing of generated clauses until "
     "they reach the count specified as an argument (if possible)."},
+
+   {OPT_ARG_CONG,
+    '\0', "arg-cong",
+    ReqArg, NULL,
+    "Turns on ArgCong inference rule. Excepts an argument \"all\" or \"max\" "
+    "that applies the rule to all or only literals that are eligible "
+    "for resolution."},
+
+   {OPT_NEG_EXT,
+    '\0', "neg-ext",
+    ReqArg, NULL,
+    "Turns on NegExt inference rule. Excepts an argument \"all\" or \"max\" "
+    "that applies the rule to all or only literals that are eligible "
+    "for resolution."},
+
+   {OPT_POS_EXT,
+    '\0', "pos-ext",
+    ReqArg, NULL,
+    "Turns on PosExt inference rule. Excepts an argument \"all\" or \"max\" "
+    "that applies the rule to all or only literals that are eligible "
+    "for resolution."},
+
+   {OPT_EXT_SUP,
+    '\0', "ext-sup-max-depth",
+    ReqArg, NULL,
+    "Sets the maximal proof depth of the clause which will be considered for "
+    " ExtSup inferences. Negative value disables the rule."},
+
+   {OPT_INVERSE_RECOGNITION,
+    '\0', "inverse-recognition",
+    NoArg, NULL,
+    "Enables the recognition of injective function symbols. If such a symbol is "
+    "recognized, existence of the inverse function is asserted by adding a "
+    "corresponding axiom."},
+
+   {OPT_REPLACE_INJ_DEFS,
+    '\0', "replace-inj-defs",
+    NoArg, NULL,
+    "After CNF and before saturation, replaces all clauses that are definitions "
+    " of injectivity by axiomatization of inverse function."},
 
    {OPT_NOOPT,
     '\0', NULL,

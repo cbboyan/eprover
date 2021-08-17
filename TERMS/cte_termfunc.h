@@ -55,10 +55,13 @@ void   VarPrint(FILE* out, FunCode var);
 void TermPrintFO(FILE* out, Term_p term, Sig_p sig, DerefType deref);
 #ifdef ENABLE_LFHO
 void TermPrintHO(FILE* out, Term_p term, Sig_p sig, DerefType deref);
+void TermPrintDbgHO(FILE* out, Term_p term, Sig_p sig, DerefType deref);
 #define TermPrint(out, term, sig, deref) (problemType == PROBLEM_HO ? \
         TermPrintHO(out, term, sig, deref) : TermPrintFO(out, term, sig, deref))
+#define TermPrintDbg(out, term, sig, deref)  TermPrintDbgHO(out, term, sig, deref)
 #else
 #define TermPrint(out, term, sig, deref) TermPrintFO(out, term, sig, deref)
+#define TermPrintDbg(out, term, sig, deref)  TermPrintFO(out, term, sig, deref)
 #endif
 void   TermPrintArgList(FILE* out, Term_p *args, int arity, Sig_p sig, DerefType deref);
 void   TermFOOLPrint(FILE* out, Sig_p sig, Term_p form);
@@ -66,8 +69,7 @@ FuncSymbType TermParseOperator(Scanner_p in, DStr_p id);
 FunCode       TermSigInsert(Sig_p sig, const char* name, int arity, bool
                             special_id, FuncSymbType type);
 Term_p TermParse(Scanner_p in, Sig_p sig, VarBank_p vars);
-int    TermParseArgList(Scanner_p in, Term_p** arg_anchor, Sig_p sig,
-                         VarBank_p vars);
+Term_p TermParseArgList(Scanner_p in, Sig_p sig, VarBank_p vars);
 Term_p TermCopy(Term_p source, VarBank_p vars, DerefType deref);
 Term_p TermCopyKeepVars(Term_p source, DerefType deref);
 static inline Term_p TermEquivCellAlloc(Term_p source, VarBank_p vars);
@@ -156,6 +158,8 @@ Term_p TermCreatePrefix(Term_p orig, int up_to);
 Term_p TermAppEncode(Term_p orig, Sig_p sig);
 
 bool TermFindFOOLSubterm(Term_p t, PStack_p pos);
+bool TermFindIteSubterm(Term_p t, PStack_p pos);
+
 
 #define TERM_APPLY_APP_VAR_MULT(w, t, p) (TermIsAppliedVar(t) ? (w)*(p) : (w))
 
@@ -166,6 +170,10 @@ Term_p TermCopyRenameVars(NumTree_p* renaming, Term_p term);
 Term_p TermCopyNormalizeVarsAlpha(VarBank_p vars, Term_p term);
 Term_p TermCopyNormalizeVars(VarBank_p vars, Term_p term,
                              VarNormStyle var_norm);
+long    TermDAGWeight(Term_p term, long fweight, long vweight,
+                      long dup_weight, bool new_term);
+
+
 
 /*-----------------------------------------------------------------------
 //

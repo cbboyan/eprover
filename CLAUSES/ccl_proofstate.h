@@ -100,6 +100,7 @@ typedef struct proofstatecell
    unsigned long backward_rewritten_count;
    unsigned long backward_rewritten_lit_count;
    unsigned long generated_count;
+   unsigned long aggressive_forward_subsumed_count;
    unsigned long generated_lit_count;
    unsigned long non_trivial_generated_count;
    unsigned long frozen_count; /* Number of clauses filtered
@@ -111,6 +112,7 @@ typedef struct proofstatecell
    unsigned long context_sr_count;
    unsigned long paramod_count;
    unsigned long factor_count;
+   unsigned long neg_ext_count;
    unsigned long resolv_count;
    unsigned long satcheck_count;
    unsigned long satcheck_success;

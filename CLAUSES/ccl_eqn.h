@@ -208,6 +208,7 @@ void    EqnFree(Eqn_p junk);
    TermDelProp((eqn)->lterm, DEREF_NEVER, (prop));      \
    TermDelProp((eqn)->rterm, DEREF_NEVER, (prop))
 
+bool    EqnParseInfix(Scanner_p in, TB_p bank, Term_p *lref, Term_p *rref);
 Eqn_p   EqnParse(Scanner_p in, TB_p bank);
 Eqn_p   EqnFOFParse(Scanner_p in, TB_p bank);
 Eqn_p   EqnHOFParse(Scanner_p in, TB_p terms, bool *continue_parsing);
@@ -284,7 +285,10 @@ bool    EqnUnifyP(Eqn_p eq1, Eqn_p eq2);
 
 bool    LiteralUnifyOneWay(Eqn_p eq1, Eqn_p eq2, Subst_p subst, bool swapped);
 
-bool          EqnOrient(OCB_p ocb, Eqn_p eq);
+int     EqnSyntaxCompare(const void* l1, const void* l2);
+int     LiteralSyntaxCompare(const void* l1, const void* l2);
+
+bool    EqnOrient(OCB_p ocb, Eqn_p eq);
 
 CompareResult EqnCompare(OCB_p ocb, Eqn_p eq1, Eqn_p eq2);
 bool          EqnGreater(OCB_p ocb, Eqn_p eq1, Eqn_p eq2);
@@ -295,6 +299,9 @@ PStackPointer SubstNormEqn(Eqn_p eq, Subst_p subst, VarBank_p vars);
 
 double  EqnWeight(Eqn_p eq, double max_multiplier, long vweight, long
                   fweight, double app_var_mult);
+double  EqnDAGWeight(Eqn_p eq, double max_multiplier, long vweight, long
+                     fweight, long dup_weight, bool new_eqn, bool new_terms);
+
 #define EqnStandardWeight(eqn)             \
    (TermStandardWeight((eqn)->lterm)+      \
     TermStandardWeight((eqn)->rterm))

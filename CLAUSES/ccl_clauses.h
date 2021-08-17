@@ -49,7 +49,7 @@ typedef enum
                                            * while ClauseIsIRVictim
                                            * blow marks the logical
                                            * clause (i.e. it is
-1                                           * inherited by the alive
+                                           * inherited by the alive
                                            * copy.  */
    CPIsProcessed       = 2*CPIsDead ,     /* Clause has been processed
                                             * previously */
@@ -77,6 +77,7 @@ typedef enum
    CPTypeMask          = CPType1|CPType2|CPType3,
    CPTypeUnknown       = 0,               /* Also used as wildcard */
    CPTypeAxiom         = CPType1,         /* Clause is Axiom */
+   // CPTypeHoDefinition  = CPType1|CPType4, /* Clause is a higher-order definition */
    CPTypeHypothesis    = CPType2,         /* Clause is Hypothesis */
    CPTypeConjecture    = CPType1|CPType2, /* Clause is Conjecture */
    CPTypeLemma         = CPType3,         /* Clause is Lemma */
@@ -121,9 +122,13 @@ typedef enum
                                            * and hence can only be
                                            * rewritten in limited
                                            * ways. */
-   CPIsRelevant     = 2*CPLimitedRW       /* Clause is selected as
+   CPIsRelevant     = 2*CPLimitedRW,       /* Clause is selected as
                                            * relevant for a proof
                                            * attempt (used by SInE). */
+   CPIsPureInjectivity = 2*CPIsRelevant,    /* Clause is non-instantiated
+                                              injectivity axiom */
+   CPIsLambdaDef = 2*CPIsPureInjectivity  /* Formula is recognized as a
+                                             lambda definition */
 }FormulaProperties;
 
 
@@ -139,8 +144,8 @@ typedef struct clause_cell
    SysDate               date;        /* ...at which this clause
                                          became a demodulator */
    Eqn_p                 literals;    /* List of literals */
-   short                 neg_lit_no;  /* Negative literals */
-   short                 pos_lit_no;  /* Positive literals */
+   int                   neg_lit_no;  /* Negative literals */
+   int                   pos_lit_no;  /* Positive literals */
    FormulaProperties     properties;  /* Anything we want to note at
                                          the clause? */
    long                  weight;      /* ClauseStandardWeight()
@@ -250,8 +255,7 @@ bool     ClauseIsSemEmpty(Clause_p clause);
 
 #define  ClauseFindNegPureVarLit(clause)                \
    EqnListFindNegPureVarLit((clause)->literals)
-#define  ClauseIsTrivial(clause)                \
-   EqnListIsTrivial(clause->literals)
+bool     ClauseIsTrivial(Clause_p clause);
 
 bool     ClauseHasMaxPosEqLit(Clause_p clause);
 
@@ -327,9 +331,6 @@ void     ClauseMarkMaximalTerms(OCB_p ocb, Clause_p clause);
    EqnListOrient((ocb), (clause)->literals)
 #define  ClauseMarkMaximalLiterals(ocb, clause)                 \
    EqnListMaximalLiterals((ocb), (clause)->literals)
-
-#define  ClauseDeleteTermProperties(clause, props)              \
-   EqnListDeleteTermProperties((clause)->literals, props)
 
 //bool     ClauseParentsAreSubset(Clause_p clause1, Clause_p clause2);
 
