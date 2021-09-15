@@ -1688,14 +1688,17 @@ Clause_p ProcessClause(ProofState_p state, ProofControl_p control,
    /* Now on to backward simplification. */
    clausedate = ClauseSetListGetMaxDate(state->demods, FullRewrite);
 
-   eliminate_backward_rewritten_clauses(state, control, pclause->clause, &clausedate);
-   eliminate_backward_subsumed_clauses(state, pclause,
+   if (!NoSubsumption)
+   {
+      eliminate_backward_rewritten_clauses(state, control, pclause->clause, &clausedate);
+      eliminate_backward_subsumed_clauses(state, pclause,
+                                          control->heuristic_parms.lambda_demod);
+      eliminate_unit_simplified_clauses(state, pclause->clause,
                                        control->heuristic_parms.lambda_demod);
-   eliminate_unit_simplified_clauses(state, pclause->clause,
-                                    control->heuristic_parms.lambda_demod);
-   eliminate_context_sr_clauses(state, control, pclause->clause,
-                                control->heuristic_parms.lambda_demod);
-   ClauseSetSetProp(state->tmp_store, CPIsIRVictim);
+      eliminate_context_sr_clauses(state, control, pclause->clause,
+                                   control->heuristic_parms.lambda_demod);
+      ClauseSetSetProp(state->tmp_store, CPIsIRVictim);
+   }
 
    clause = pclause->clause;
 

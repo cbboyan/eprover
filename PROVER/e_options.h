@@ -175,6 +175,7 @@ typedef enum
    OPT_WATCHLIST_NO_SIMPLIFY,
    OPT_FW_SUMBSUMPTION_AGGRESSIVE,
    OPT_NO_INDEXED_SUBSUMPTION,
+   OPT_NO_SUBSUMPTION,
    OPT_FVINDEX_STYLE,
    OPT_FVINDEX_FEATURETYPES,
    OPT_FVINDEX_MAXFEATURES,
@@ -1383,6 +1384,12 @@ OptCell opts[] =
     '\0', "conventional-subsumption",
     NoArg, NULL,
     "Equivalent to --subsumption-indexing=None."},
+
+   {OPT_NO_SUBSUMPTION,
+    '\0', "no-subsumption",
+    NoArg, NULL,
+    "Completely turn off subsumption."
+   },
 
    {OPT_FVINDEX_STYLE,
     '\0', "subsumption-indexing",

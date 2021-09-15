@@ -116,6 +116,8 @@ double             clausification_time_part=0.02;
 FunctionProperties free_symb_prop = FPIgnoreProps;
 
 
+bool NoSubsumption = false;
+
 /*---------------------------------------------------------------------*/
 /*                      Forward Declarations                           */
 /*---------------------------------------------------------------------*/
@@ -1903,6 +1905,9 @@ CLState_p process_options(int argc, char* argv[])
             break;
       case OPT_FW_SUMBSUMPTION_AGGRESSIVE:
             h_parms->forward_subsumption_aggressive = true;
+            break;
+      case OPT_NO_SUBSUMPTION:
+            NoSubsumption = true;
             break;
       case OPT_NO_INDEXED_SUBSUMPTION:
             fvi_parms->cspec.features = FVINoFeatures;
