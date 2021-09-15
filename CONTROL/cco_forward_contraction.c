@@ -176,6 +176,10 @@ FVPackedClause_p ForwardSubsumption(ProofState_p state,
 
    clause->weight = ClauseStandardWeight(clause);
    pclause = FVIndexPackClause(clause, state->processed_non_units->fvindex);
+   if (NoSubsumption)
+   {
+      return pclause;
+   }
 
    if(clause->pos_lit_no)
    {

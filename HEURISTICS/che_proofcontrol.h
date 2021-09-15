@@ -66,6 +66,7 @@ typedef HCB_p (*HCBCreateFun)(HCBARGUMENTS);
 
 extern  char* DefaultWeightFunctions;
 extern  char* DefaultHeuristics;
+extern  bool  NoSubsumption;
 
 #define ProofControlCellAlloc() \
    (ProofControlCell*)SizeMalloc(sizeof(ProofControlCell))
