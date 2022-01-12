@@ -2921,6 +2921,7 @@ Term_p TermCheckConsistency(Term_p term, DerefType deref)
 
 void TermAssertSameSort(Sig_p sig, Term_p t1, Term_p t2)
 {
+#ifndef DISABLE_TYPE_CHECKING
    if(t1->type != t2->type)
    {
       fprintf(stderr, "# Error: terms ");
@@ -2935,6 +2936,7 @@ void TermAssertSameSort(Sig_p sig, Term_p t1, Term_p t2)
       assert(false);
       Error("Type error", SYNTAX_ERROR);
    }
+#endif
 }
 
 

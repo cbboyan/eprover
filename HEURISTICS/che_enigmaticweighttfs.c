@@ -150,7 +150,8 @@ static void tfs_init(EnigmaticWeightTfsParam_p data)
    anchor = data->proofstate->axioms->anchor;
    for (clause=anchor->succ; clause!=anchor; clause=clause->succ)
    {
-      if (ClauseQueryTPTPType(clause) == CPTypeNegConjecture) 
+      if ((ClauseQueryTPTPType(clause) == CPTypeNegConjecture) ||
+          (ClauseQueryTPTPType(clause) == CPTypeHypothesis))
       {
          EnigmaticTensorsUpdateClause(clause, data->tensors);
          PStackPushP(data->conj_clauses, clause);
