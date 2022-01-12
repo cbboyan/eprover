@@ -296,6 +296,7 @@ void TypeInferSort(Sig_p sig, Term_p term, Scanner_p in)
                TI_ERROR("Type error");
             }
 
+#ifndef DISABLE_TYPE_CHECKING            
             if(!TermIsPhonyApp(term))
             {
                for(i=0; SigIsFixedType(sig, term->f_code) && i < term->arity; i++)
@@ -339,6 +340,7 @@ void TypeInferSort(Sig_p sig, Term_p term, Scanner_p in)
                   }
                }
             }
+#endif
             term->type = term_determine_type(term, type, sig->type_bank);
             if(term->type==NULL)
             {
