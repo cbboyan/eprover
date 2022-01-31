@@ -232,6 +232,15 @@ static long number_term(Term_p term, long b, EnigmaticTensors_p data)
    // 1. variables (id<0)
    // 2. positive terms (even)
    // 3. negated terms (odd)
+ 
+   // handle type map
+   long t_node = 0;
+   if ((data->type_map) && TermIsVar(term))
+   {
+      NumTree_p item = NumTreeFind(&data->type_map, term->type->f_code);
+      t_node = item ? item->val1.i_val : 2; // 2 is for uknown types
+   }
+
    long id = 2*term->entry_no; 
    if (b == -1)
    {
@@ -252,14 +261,38 @@ static long number_term(Term_p term, long b, EnigmaticTensors_p data)
          node->val2.p_val = term;
          if (data->conj_mode)
          {
-            node->val1.i_val = data->conj_fresh_t;
-            data->conj_fresh_t++;
+            if (t_node) 
+            {
+               node->val1.i_val = t_node; // a typed variable
+            }
+            else
+            {
+               // non-variable terms
+               node->val1.i_val = data->conj_fresh_t;
+               data->conj_fresh_t++;
+            }
+            if ((data->type_map) && (data->conj_fresh_t == 2)) 
+            {
+               // nodes from `2` to `type_last` are reserved for typed variables
+               data->conj_fresh_t = data->type_last + 1;
+            }
             NumTreeInsert(&data->conj_terms, node);
          }
          else
          {
-            node->val1.i_val = data->fresh_t;
-            data->fresh_t++;
+            if (t_node)
+            {
+               node->val1.i_val = t_node;
+            }
+            else
+            {
+               node->val1.i_val = data->fresh_t;
+               data->fresh_t++;
+            }
+            if ((data->type_map) && (data->fresh_t == 2))
+            {
+               data->fresh_t = data->type_last + 1;
+            }
             NumTreeInsert(&data->terms, node);
          }
       }
@@ -796,6 +829,8 @@ EnigmaticTensors_p EnigmaticTensorsAlloc(void)
    
    res->maxvar = 0;
    res->tmp_bank = NULL;
+   res->type_map = NULL;
+   res->type_last = 0;
 
    return res;
 }
@@ -841,6 +876,11 @@ void EnigmaticTensorsFree(EnigmaticTensors_p junk)
       junk->tmp_bank->sig = NULL;
       TBFree(junk->tmp_bank);
       junk->tmp_bank = NULL;
+   }
+   if (junk->type_map)
+   {
+      NumTreeFree(junk->type_map);
+      junk->type_map = NULL;
    }
    
    EnigmaticTensorsCellFree(junk);

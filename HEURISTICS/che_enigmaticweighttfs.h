@@ -50,6 +50,7 @@ typedef struct enigmaticweighttfparamcell
    long context_size_variable;
    int weight_type;
    double threshold;
+   char* type_map_file;
 
    // fluent context handling
    PStack_p conj_clauses;
@@ -96,6 +97,7 @@ WFCB_p EnigmaticWeightTfsInit(
    double context_fixed_ratio,
    int weight_type,
    double threshold,
+   char* type_map_file,
    EnigmaticWeightLgbParam_p lgb);
 
 double EnigmaticWeightTfsCompute(void* data, Clause_p clause);
