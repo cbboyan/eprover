@@ -134,6 +134,55 @@ static void debug_edges(EnigmaticWeightTfsParam_p data)
 
 static EnigmaticWeightTfsParam_p local_data = NULL;
 
+static void tfs_init_type_map(EnigmaticWeightTfsParam_p data)
+{
+   int known = 0;
+   int unknown = 0;
+
+   if (data->type_map_file[0] == '\0')
+   {
+      return;
+   }
+
+   data->tensors->type_last = 0;
+   Scanner_p in = CreateScanner(StreamTypeFile, data->type_map_file, true, NULL, true);
+   ScannerSetFormat(in, TSTPFormat);
+   while (TestInpTok(in, Ident))
+   {
+      char* str = DStrView(AktToken(in)->literal);
+      //fprintf(GlobalOut, "type item: %s ", str);
+      TypeConsCode t_code = TypeBankFindTCCode(data->proofstate->type_bank, str);
+      NextToken(in);
+      long t_node = ParseInt(in);
+      //fprintf(GlobalOut, "%ld [%ld]\n", t_node, t_code);
+      if (t_code != NAME_NOT_FOUND)
+      {
+         bool ok = NumTreeStore(&data->tensors->type_map, t_code, (IntOrP)(long)t_node, (IntOrP)0L);
+         if (!ok)
+         {
+            Warning("ENIGMATIC: Duplicate entry in the type map for type '%s'! (f_code=%ld, t_node=%ld)", 
+               TypeBankFindTCName(data->proofstate->type_bank, t_code),
+               t_code, 
+               t_node);
+         }
+         known++;
+      }
+      else
+      {
+         unknown++;
+      }
+      data->tensors->type_last = MAX(data->tensors->type_last, t_node);
+   }
+   DestroyScanner(in);
+
+   fprintf(GlobalOut, "# ENIGMATIC: Type map '%s' loaded with %d types (%d unknowns; last=%ld)\n", 
+      data->type_map_file, known, unknown, data->tensors->type_last);
+   if (!data->tensors->type_map)
+   { 
+      Warning("ENIGMATIC: Type map does not contain any known type.  Types will be ignored!");
+   }
+}
+
 static void tfs_init(EnigmaticWeightTfsParam_p data)
 {
    Clause_p clause;
@@ -143,6 +192,8 @@ static void tfs_init(EnigmaticWeightTfsParam_p data)
    {
       return;
    }
+
+   tfs_init_type_map(data);
 
    // process conjectures
    data->tensors->tmp_bank = TBAlloc(data->proofstate->signature);
@@ -459,6 +510,7 @@ EnigmaticWeightTfsParam_p EnigmaticWeightTfsParamAlloc(void)
 void EnigmaticWeightTfsParamFree(EnigmaticWeightTfsParam_p junk)
 {
    FREE(junk->server_ip);
+   FREE(junk->type_map_file);
    EnigmaticSocketFree(junk->sock);
    EnigmaticTensorsFree(junk->tensors);
    PStackFree(junk->conj_clauses);
@@ -490,7 +542,8 @@ WFCB_p EnigmaticWeightTfsParse(
    OCB_p ocb, 
    ProofState_p state)
 {   
-   /* EnigmaticTfs(prio_fun, server_ip, server_port, context_size, weight_type, threshold
+   /* EnigmaticTfs(prio_fun, server_ip, server_port, context_size, 
+    *    context_ratio, weight_type, threshold, type_map_file,
     *    [, lgb_model_dir, lgb_weight_type, lgb_threshold])
    */
 
@@ -511,6 +564,8 @@ WFCB_p EnigmaticWeightTfsParse(
    int weight_type = ParseInt(in);
    AcceptInpTok(in, Comma);
    double threshold = ParseFloat(in);
+   AcceptInpTok(in, Comma);
+   char* type_map_file = ParseFilename(in);
    if (TestInpTok(in, Comma))
    {
       NextToken(in);
@@ -534,6 +589,7 @@ WFCB_p EnigmaticWeightTfsParse(
       context_fixed_ratio,
       weight_type,
       threshold,
+      type_map_file,
       lgb);
 }
 
@@ -547,6 +603,7 @@ WFCB_p EnigmaticWeightTfsInit(
    double context_fixed_ratio,
    int weight_type,
    double threshold,
+   char* type_map_file,
    EnigmaticWeightLgbParam_p lgb)
 {
    EnigmaticWeightTfsParam_p data = EnigmaticWeightTfsParamAlloc();
@@ -566,6 +623,7 @@ WFCB_p EnigmaticWeightTfsInit(
    data->context_fixed_ratio = context_fixed_ratio;
    data->weight_type = weight_type;
    data->threshold = threshold;
+   data->type_map_file = type_map_file;
    data->lgb = lgb;
 
    data->context_size_fixed = data->context_size * data->context_fixed_ratio;

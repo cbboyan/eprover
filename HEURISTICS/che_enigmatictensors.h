@@ -71,6 +71,8 @@ typedef struct enigmatictensorsparamcell
 {
    TB_p         tmp_bank;
    long         tmp_bank_vars;
+   NumTree_p    type_map;
+   long         type_last;
 
    // clause edges
    NumTree_p terms;
