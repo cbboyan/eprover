@@ -1726,7 +1726,6 @@ void SigPrintTypeDeclsTSTP(FILE* out, Sig_p sig)
    }
 }
 
-
 /*-----------------------------------------------------------------------
 //
 // Function: SigPrintTypeDeclsTSTPSelective()
@@ -1755,12 +1754,11 @@ void SigPrintTypeDeclsTSTPSelective(FILE* out, Sig_p sig, NumTree_p *symbols)
          {
             fprintf(out, "%s(decl_%ld, type, %s: ", tag, i, fun->name);
             TypePrintTSTP(out, sig->type_bank, fun->type);
-            fprintf(out, ").\n");
+            fprintf(out, ").#traintype\n");
          }
       }
    }
 }
-
 
 /*-----------------------------------------------------------------------
 //

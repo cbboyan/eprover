@@ -137,7 +137,7 @@ FILE* BucketsOut = NULL;
 FunctionProperties free_symb_prop = FPIgnoreProps;
 EnigmaticFeatures_p features;
 char* problem_file = NULL;
-ProblemType problemType = PROBLEM_FO;
+ProblemType problemType = PROBLEM_NOT_INIT;
 bool app_encode = false;
 char* prefix = "";
 bool compute_avg = false;
@@ -169,7 +169,8 @@ static void process_problem(char* problem_file, EnigmaticVector_p vector, Enigma
    ScannerSetFormat(in, TSTPFormat);
    ClauseSet_p wlset = ClauseSetAlloc(); // should stay empty all the time
    FormulaSet_p fset = FormulaSetAlloc();
-   FormulaAndClauseSetParse(in, fset, wlset, info->bank, NULL, NULL);
+   StrTree_p skip_includes = NULL;
+   FormulaAndClauseSetParse(in, fset, wlset, info->bank, NULL, &skip_includes);
    CheckInpTok(in, NoToken);
 
    EnigmaticInitProblem(vector, info, fset, wlset);
@@ -240,7 +241,7 @@ static void process_clauses(FILE* out, char* filename, EnigmaticVector_p vector,
    ClauseSet_p merge_set = ClauseSetAlloc();
   
    int count = 0;
-   while (TestInpId(in, "input_formula|input_clause|fof|cnf|tff|tcf"))
+   while (TestInpId(in, "input_formula|input_clause|fof|cnf|tff|tcf|thf"))
    {
 	  clause = read_clause(in, info);
       if (merge_clauses)

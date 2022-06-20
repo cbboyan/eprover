@@ -305,6 +305,7 @@ void    SigDeclareIsFunction(Sig_p sig, FunCode f);
 void    SigDeclareIsPredicate(Sig_p sig, FunCode f);
 void    SigPrintTypes(FILE* out, Sig_p sig);
 void    SigPrintTypeDeclsTSTP(FILE* out, Sig_p sig);
+void    SigPrintSkolemTypesTSTP(FILE* out, Sig_p sig);
 void    SigParseTFFTypeDeclaration(Scanner_p in, Sig_p sig);
 void    SigPrintTypeDeclsTSTPSelective(FILE* out, Sig_p sig, NumTree_p *symbols);
 bool    SigHasUnimplementedInterpretedSymbols(Sig_p sig);
