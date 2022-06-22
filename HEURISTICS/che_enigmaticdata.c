@@ -275,6 +275,7 @@ static EnigmaticParams_p parse_block(char** spec)
          case 'p': params->use_prios = true; break;
          case 'a': params->anonymous = true; break;
          case 'u': params->unified_hashing = true; break;
+         case 't': params->use_types = true; break;
          case 'x': parse_one(spec, 'c', &params->count_var, &default_count); break;
          case 's': parse_one(spec, 'c', &params->count_sym, &default_count); break;
          case 'r': parse_one(spec, 'c', &params->count_arity, &default_count); break;
@@ -391,6 +392,7 @@ static void info_settings(FILE* out, char* name, EnigmaticParams_p params)
    INFO_SETTING(out, name, params, features);
    INFO_SETTING(out, name, params, anonymous);
    INFO_SETTING(out, name, params, unified_hashing);
+   INFO_SETTING(out, name, params, use_types);
    INFO_SETTING(out, name, params, use_len);
    INFO_SETTING(out, name, params, use_prios);
    INFO_SETTING(out, name, params, count_var);
@@ -608,6 +610,7 @@ EnigmaticParams_p EnigmaticParamsAlloc(void)
    params->features = -1;
    params->anonymous = false;
    params->unified_hashing = false;
+   params->use_types = false;
    params->use_len = false;
    params->use_prios = false;
    params->count_var = -1;
@@ -642,6 +645,7 @@ EnigmaticParams_p EnigmaticParamsCopy(EnigmaticParams_p source)
    params->features = source->features;
    params->anonymous = source->anonymous;
    params->unified_hashing = source->unified_hashing;
+   params->use_types = source->use_types;
    params->use_len = source->use_len;
    params->use_prios = source->use_prios;
    params->count_var = source->count_var;

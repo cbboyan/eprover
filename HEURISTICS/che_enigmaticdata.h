@@ -84,9 +84,10 @@ typedef struct enigmaticparamscell
    long features;
    bool anonymous;
    bool unified_hashing;
+   bool use_types;
 
    bool use_len;
-   bool use_minimal;
+   //bool use_minimal;
    bool use_prios;
    long count_var;
    long count_sym;
