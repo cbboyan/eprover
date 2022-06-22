@@ -223,7 +223,7 @@ static void fill_max(void* data, long idx, float val)
    info->avgs[idx] = MAX(val, info->avgs[idx]);
 }
 
-static Clause_p read_clause(Scanner_p in, EnigmaticInfo_p info)
+static Clause_p read_clause(Scanner_p in, EnigmaticInfo_p info, ProofState_p state)
 {
 	Clause_p clause;
 	WFormula_p formula = NULL;
@@ -244,7 +244,7 @@ static Clause_p read_clause(Scanner_p in, EnigmaticInfo_p info)
        {
          tform = tform->args[1];
        }
-       clause = TFormulaCollectClause(tform, info->bank, NULL);
+       clause = TFormulaCollectClause(tform, info->bank, state->freshvars);
        WFormulaFree(formula);
     }
     return clause;
@@ -271,7 +271,7 @@ static void print_vector(FILE* out, EnigmaticVector_p vector, EnigmaticInfo_p in
 	  }
 }
 
-static void process_clauses(FILE* out, char* filename, EnigmaticVector_p vector, EnigmaticInfo_p info)
+static void process_clauses(FILE* out, char* filename, EnigmaticVector_p vector, EnigmaticInfo_p info, ProofState_p state)
 {
    Scanner_p in = CreateScanner(StreamTypeFile, filename, true, NULL, true);
    ScannerSetFormat(in, TSTPFormat);
@@ -282,7 +282,7 @@ static void process_clauses(FILE* out, char* filename, EnigmaticVector_p vector,
    int count = 0;
    while (TestInpId(in, "input_formula|input_clause|fof|cnf|tff|tcf|thf"))
    {
-	  clause = read_clause(in, info);
+	  clause = read_clause(in, info, state);
       if (merge_clauses)
       {
     	  ClauseSetInsert(merge_set, clause);
@@ -302,7 +302,7 @@ static void process_clauses(FILE* out, char* filename, EnigmaticVector_p vector,
 	  {
 		  if (concat_clauses)
 		  {
-			 clause2 = read_clause(in, info);
+			 clause2 = read_clause(in, info, state);
 			 AcceptInpTok(in, Semicolon);
 			 EnigmaticClause(vector->clause, clause, info);
 			 EnigmaticClause(vector->co_parent, clause2, info);
@@ -370,7 +370,7 @@ int main(int argc, char* argv[])
 
    process_problem(problem_file, vector, info);
    process_types(types_file, info);
-   process_clauses(GlobalOut, args->argv[0], vector, info);
+   process_clauses(GlobalOut, args->argv[0], vector, info, state);
   
    if (MapOut)
    {
