@@ -91,11 +91,14 @@ bool    TermIsSubtermDeref(Term_p super, Term_p test, DerefType
             deref_super, DerefType deref_test);
 
 long    TermWeightCompute(Term_p term, long vweight, long fweight);
+#define TermWeight(term, vweight, fweight) TermWeightCompute((term), (vweight), (fweight)) 
+/*
 #define TermWeight(term, vweight, fweight) \
         (TermIsShared(term)? \
          (assert(((term)->v_count*vweight + (term)->f_count*fweight) == TermWeightCompute((term),(vweight),(fweight))), \
           ((term)->v_count*vweight + (term)->f_count*fweight)) : \
-         TermWeightCompute((term),(vweight),(fweight)))
+         TermWeightCompute((term),(vweight),(fweight))) 
+*/
 
 #define TermDefaultWeight(term) TermWeightCompute((term), DEFAULT_VWEIGHT, DEFAULT_FWEIGHT)
 #define TermStandardWeight(term) \
