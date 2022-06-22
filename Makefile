@@ -19,7 +19,8 @@ include Makefile.vars
 
 # Project specific variables
 
-PROJECT  = E
+
+PROJECT  = $(shell basename `pwd`)
 
 LIBS     = CONTRIB BASICS INOUT TERMS ORDERINGS CLAUSES PROPOSITIONAL LEARN \
            PCL2 HEURISTICS CONTROL
@@ -73,6 +74,7 @@ commit_id:
 
 # Build a distribution
 distrib: default_config commit_id man documentation cleandist
+	@echo $(MYVAR)
 	@echo "Did you think about: "
 	@echo " - Changing the bibliographies to local version"
 	@echo " - increasing the dev version number and committing to git?"
@@ -106,8 +108,6 @@ starexec:
 	./configure --prefix=$(STAREXECPATH) --enable-ho
 	make install
 
-	# Special hack for CASC-28
-	-cp ../E-2.5/PROVER/eprover $(STAREXECPATH)/bin/eprover-25
 	cp etc/STAREXEC2.2/starexec_run* $(STAREXECPATH)/bin
 	$(eval E_VERSION=`$$(STAREXECPATH)/bin/eprover --version | cut -d' ' -f1-2| sed -e 's/ /-/'`)
 	cd $(STAREXECPATH); zip -r $(E_VERSION).zip bin man

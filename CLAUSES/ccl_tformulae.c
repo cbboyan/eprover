@@ -880,8 +880,7 @@ static void tformula_reset_freevars(TB_p bank, TFormula_p form)
 Term_p EncodePredicateAsEqn(TB_p bank, TFormula_p f)
 {
    Sig_p sig = bank->sig;
-   if(problemType == PROBLEM_HO &&
-      (f->f_code > sig->internal_symbols ||
+   if((f->f_code > sig->internal_symbols ||
        f->f_code == SIG_TRUE_CODE ||
        f->f_code == SIG_FALSE_CODE ||
        f->f_code == SIG_ITE_CODE ||
@@ -1161,9 +1160,8 @@ void TFormulaTPTPPrint(FILE* out, TB_p bank, TFormula_p form, bool fullterms, bo
             TypePrintTSTP(out, bank->sig->type_bank, form->args[0]->type);
          }
       }
-      fputs("]:(", out);
+      fputs("]:", out);
       TFormulaTPTPPrint(out, bank, form->args[1], fullterms, pcl);
-      fputs(")", out);
    }
    else if(TFormulaIsUnary(form))
    {
@@ -1519,6 +1517,12 @@ TFormula_p TcfTSTPParse(Scanner_p in, TB_p terms)
 
    CheckInpTok(in, TermStartToken|TildeSign|UnivQuantor|OpenBracket);
 
+   bool in_parens = false;
+   if(TestInpTok(in, OpenBracket))
+   {
+      AcceptInpTok(in, OpenBracket);
+      in_parens = true;
+   }
    if(TestInpTok(in, UnivQuantor))
    {
       FunCode quantor;
@@ -1529,17 +1533,11 @@ TFormula_p TcfTSTPParse(Scanner_p in, TB_p terms)
    }
    else
    {
-      bool in_parens = false;
-      if(TestInpTok(in, OpenBracket))
-      {
-         AcceptInpTok(in, OpenBracket);
-         in_parens = true;
-      }
       res = clause_tform_tstp_parse(in, terms);
-      if(in_parens)
-      {
-         AcceptInpTok(in, CloseBracket);
-      }
+   }
+   if(in_parens)
+   {
+      AcceptInpTok(in, CloseBracket);
    }
    return res;
 }

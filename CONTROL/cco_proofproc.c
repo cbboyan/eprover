@@ -952,7 +952,7 @@ static Clause_p cleanup_unprocessed_clauses(ProofState_p state,
       {
          state->state_is_complete = false;
       }
-      GCCollect(state->terms->gc);
+      TBGCCollect(state->terms);
       current_storage = ProofStateStorage(state);
    }
    return unsatisfiable;

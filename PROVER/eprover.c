@@ -58,6 +58,7 @@ FVIndexParms_p    fvi_parms;
 bool              print_sat = false,
    print_full_deriv = false,
    print_statistics = false,
+   proof_statistics = false,
    filter_sat = false,
    print_rusage = false,
    print_strategy = false,
@@ -86,6 +87,7 @@ long              step_limit = LONG_MAX,
    proc_limit = LONG_MAX,
    unproc_limit = LONG_MAX,
    total_limit = LONG_MAX,
+   cores       = 1,
    generated_limit = LONG_MAX,
    relevance_prune_level = 0,
    miniscope_limit = 1048576;
@@ -436,7 +438,8 @@ int main(int argc, char* argv[])
 
    if(strategy_scheduling)
    {
-      ExecuteSchedule(chosen_schedule, h_parms, print_rusage);
+      // ExecuteSchedule(chosen_schedule, h_parms, print_rusage);
+      ExecuteScheduleMultiCore(chosen_schedule, h_parms, print_rusage, cores);
    }
 
    FormulaSetDocInital(GlobalOut, OutputLevel, proofstate->f_axioms);
@@ -472,7 +475,6 @@ int main(int argc, char* argv[])
                                 proofstate->axioms,
                                 proofstate->terms,
                                 proofstate->freshvars,
-                                proofstate->gc_terms,
                                 miniscope_limit);
    }
    else
@@ -481,8 +483,7 @@ int main(int argc, char* argv[])
                                proofstate->f_ax_archive,
                                proofstate->axioms,
                                proofstate->terms,
-                               proofstate->freshvars,
-                               proofstate->gc_terms);
+                               proofstate->freshvars);
    }
    VERBOUT("Clausification done.\n");
 
@@ -587,6 +588,15 @@ int main(int argc, char* argv[])
    assert(problemType != PROBLEM_HO || proofcontrol->ocb->type == KBO6);
 #endif
 
+   if(SigHasUnimplementedInterpretedSymbols(proofstate->signature)||
+      (proofcontrol->heuristic_parms.selection_strategy ==  SelectNoGeneration) ||
+      (proofcontrol->heuristic_parms.order_params.lit_cmp == LCTFOEqMax)||
+      (!h_parms->enable_eq_factoring)||
+      (!h_parms->enable_neg_unit_paramod))
+   {
+      inf_sys_complete = false;
+   }
+
    if(!success)
    {
       success = Saturate(proofstate, proofcontrol, step_limit,
@@ -594,11 +604,6 @@ int main(int argc, char* argv[])
                          generated_limit, tb_insert_limit, answer_limit);
    }
    PERF_CTR_EXIT(SatTimer);
-
-   if(SigHasUnimplementedInterpretedSymbols(proofstate->signature))
-   {
-      inf_sys_complete = false;
-   }
 
    out_of_clauses = ClauseSetEmpty(proofstate->unprocessed);
    if(filter_sat)
@@ -660,7 +665,7 @@ int main(int argc, char* argv[])
                                     deriv,
                                     proofstate->signature,
                                     print_derivation,
-                                    OutputLevel||print_statistics);
+                                    proof_statistics);
          ProofStateAnalyseGC(proofstate);
          if(proc_training_data)
          {
@@ -721,7 +726,7 @@ int main(int argc, char* argv[])
             }
             retval = INCOMPLETE_PROOFSTATE;
          }
-         else if(problemType == PROBLEM_FO && proofstate->state_is_complete && inf_sys_complete)
+         else if(problemType != PROBLEM_HO && proofstate->state_is_complete && inf_sys_complete)
          {
             fprintf(GlobalOut, "\n# No proof found!\n");
             TSTPOUT(GlobalOut, neg_conjectures?"CounterSatisfiable":"Satisfiable");
@@ -771,7 +776,7 @@ int main(int argc, char* argv[])
                                    proofstate->extract_roots,
                                    proofstate->signature,
                                    print_derivation,
-                                   OutputLevel||print_statistics);
+                                   proof_statistics);
       }
 
    }
@@ -942,6 +947,9 @@ CLState_p process_options(int argc, char* argv[])
             PrintProofObject = MAX(CLStateGetIntArgCheckRange(handle, arg, 0, 3),
                                    PrintProofObject);
             print_derivation = MAX(print_derivation, POList);
+            break;
+      case OPT_PROOF_STATS:
+            proof_statistics = true;
             break;
       case OPT_PROOF_GRAPH:
             PrintProofObject = MAX(1, PrintProofObject);
@@ -1182,6 +1190,9 @@ CLState_p process_options(int argc, char* argv[])
                Error("There are only two schedules available: SH and CASC", USAGE_ERROR);
             }
             break;
+      case OPT_MULTI_CORE:
+            cores = CLStateGetIntArgCheckRange(handle, arg, 0, INT_MAX);
+            break;
       case OPT_NO_PREPROCESSING:
             h_parms->no_preproc = true;
             break;
@@ -1193,6 +1204,25 @@ CLState_p process_options(int argc, char* argv[])
             break;
       case OPT_NO_EQ_UNFOLD:
             h_parms->eqdef_incrlimit = LONG_MIN;
+            break;
+      case OPT_INTRO_GOAL_DEFS:
+            if(strcmp(arg, "All")==0)
+            {
+               h_parms->add_goal_defs_pos = true;
+               h_parms->add_goal_defs_neg = true;
+            }
+            else if(strcmp(arg, "Neg")==0)
+            {
+               h_parms->add_goal_defs_neg = true;
+            }
+            else
+            {
+                Error("Option --goal-defs accepts only All or Neg.",
+                     USAGE_ERROR);
+            }
+            break;
+      case OPT_FINE_GOAL_DEFS:
+            h_parms->add_goal_defs_subterms = true;
             break;
       case OPT_SINE:
             sine = arg;
@@ -1259,10 +1289,7 @@ CLState_p process_options(int argc, char* argv[])
                Error(DStrView(err), USAGE_ERROR);
                DStrFree(err);
             }
-            if(h_parms->selection_strategy == SelectNoGeneration)
-            {
-               inf_sys_complete = false;
-            }
+            // Incomplete selection is noted later
             break;
       case OPT_POS_LITSEL_MIN:
             h_parms->pos_lit_sel_min = CLStateGetIntArg(handle, arg);
