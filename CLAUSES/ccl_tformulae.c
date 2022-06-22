@@ -1227,6 +1227,26 @@ Term_p lift_lambda(TB_p terms, PStack_p bound_vars, Term_p body,
    return lifted;
 }
 
+static void tformula_reset_freevars(TB_p bank, TFormula_p form)
+{
+
+   if(form->f_code == SIG_LET_CODE)
+   {
+      tformula_reset_freevars(bank, form->args[form->arity-1]);
+   }
+   else if(TermIsVar(form))
+   {
+      TermCellSetProp(form, TPIsFreeVar);
+   }
+   else
+   {
+      for(int i=0; i<form->arity; i++)
+      {
+         tformula_reset_freevars(bank, form->args[i]);
+      }
+   }
+}
+
 /*---------------------------------------------------------------------*/
 /*                         Exported Functions                          */
 /*---------------------------------------------------------------------*/
@@ -2054,7 +2074,8 @@ bool TFormulaVarIsFree(TB_p bank, TFormula_p form, Term_p var)
 
 void TFormulaCollectFreeVars(TB_p bank, TFormula_p form, PTree_p *vars)
 {
-   VarBankVarsSetProp(bank->vars, TPIsFreeVar);
+   //VarBankVarsSetProp(bank->vars, TPIsFreeVar);
+   tformula_reset_freevars(bank, form);
    tformula_collect_freevars(bank, form, vars);
 }
 
