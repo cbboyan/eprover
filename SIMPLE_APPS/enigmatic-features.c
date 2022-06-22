@@ -39,6 +39,7 @@ typedef enum
    OPT_OUTPUT_BUCKETS,
    OPT_FREE_NUMBERS,
    OPT_PROBLEM,
+   OPT_TYPES,
    OPT_FEATURES,
    OPT_PREFIX,
    OPT_PREFIX_POS,
@@ -91,6 +92,10 @@ OptCell opts[] =
       'p', "problem",
       ReqArg, NULL,
       "TPTP problem file goal/theory/problem features embedding."},
+   {OPT_TYPES,
+      't', "types",
+      ReqArg, NULL,
+      "TPTP file with additional type definitions (eg. skolem types)."},
    {OPT_PREFIX,
       '\0', "prefix",
       ReqArg, NULL,
@@ -137,6 +142,7 @@ FILE* BucketsOut = NULL;
 FunctionProperties free_symb_prop = FPIgnoreProps;
 EnigmaticFeatures_p features;
 char* problem_file = NULL;
+char* types_file = NULL;
 ProblemType problemType = PROBLEM_NOT_INIT;
 bool app_encode = false;
 char* prefix = "";
@@ -175,6 +181,29 @@ static void process_problem(char* problem_file, EnigmaticVector_p vector, Enigma
 
    EnigmaticInitProblem(vector, info, fset, wlset);
 
+   DestroyScanner(in);
+   ClauseSetFreeClauses(wlset);
+   ClauseSetFree(wlset);
+   FormulaSetFreeFormulas(fset);
+   FormulaSetFree(fset);
+}
+
+static void process_types(char* types_file, EnigmaticInfo_p info)
+{
+   if (!types_file)
+   {
+      return;
+   }
+   
+   // read &
+   Scanner_p in = CreateScanner(StreamTypeFile, types_file, true, NULL, true);
+   ScannerSetFormat(in, TSTPFormat);
+   ClauseSet_p wlset = ClauseSetAlloc(); // should stay empty all the time
+   FormulaSet_p fset = FormulaSetAlloc();
+   StrTree_p skip_includes = NULL;
+   FormulaAndClauseSetParse(in, fset, wlset, info->bank, NULL, &skip_includes);
+   CheckInpTok(in, NoToken);
+   // & destroy
    DestroyScanner(in);
    ClauseSetFreeClauses(wlset);
    ClauseSetFree(wlset);
@@ -340,6 +369,7 @@ int main(int argc, char* argv[])
    }
 
    process_problem(problem_file, vector, info);
+   process_types(types_file, info);
    process_clauses(GlobalOut, args->argv[0], vector, info);
   
    if (MapOut)
@@ -423,6 +453,9 @@ CLState_p process_options(int argc, char* argv[])
          break;
       case OPT_PROBLEM:
          problem_file = arg;
+         break;
+      case OPT_TYPES:
+         types_file = arg;
          break;
       case OPT_PREFIX:
          prefix = arg;
