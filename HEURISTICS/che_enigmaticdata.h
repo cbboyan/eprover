@@ -64,6 +64,14 @@ extern ClausePrioFun ecb_prios[];
 #define ENIGMATIC_SKO       "?"
 #define ENIGMATIC_EQ        "="
 
+#define ENIGMATIC_HORIZ     "."
+#define ENIGMATIC_VERT      "|"
+#define ENIGMATIC_COUNT     "#"
+#define ENIGMATIC_DEPTH     "%"
+
+#define ENIGMATIC_TYPE      ":"
+#define ENIGMATIC_ANY       "_"
+
 /* Enigmatic weigths */
 #define EW_POS 1.0
 #define EW_NEG 10.0
@@ -211,7 +219,7 @@ typedef struct enigmaticinfocell
    TB_p bank;        // term bank
    PStack_p path;    // current symbol path with a literal
    bool pos;         // is current literal positive?
-   StrTree_p name_cache; // stores enigmatized symbol names (skolems & anonymous)
+   NumTree_p symbol_cache; // stores enigmatized symbol names (skolems & anonymous)
    bool collect_hashes;  // collect feature hash statistics in the below:
    StrTree_p hashes;     //   (hash map :: festure string -> feature hashed id)
    float* avgs;          // computing the average vector
