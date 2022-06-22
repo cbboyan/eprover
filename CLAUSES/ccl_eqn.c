@@ -557,10 +557,20 @@ bool EqnParseInfix(Scanner_p in, TB_p bank, Term_p *lref, Term_p *rref)
             DStrAppendStr(err, " interpreted both as function and predicate (check parentheses).");
             AktTokenError(in, DStrView(err), SYNTAX_ERROR);
          }
-         rterm = bank->true_term; /* Non-Equational literal */
-         if(lterm->f_code > bank->sig->internal_symbols)
+         if(TypeIsBool(lterm->type) ||
+            (!TermIsVar(lterm) &&
+             lterm->f_code > bank->sig->internal_symbols &&
+             !SigIsFixedType(bank->sig, lterm->f_code))) // can be special symbol like $ite and $let
          {
-            TypeDeclareIsPredicate(bank->sig, lterm);
+            rterm = bank->true_term; /* Non-Equational literal */
+            if(lterm->f_code > bank->sig->internal_symbols)
+            {
+               TypeDeclareIsPredicate(bank->sig, lterm);
+            }
+         }
+         else
+         {
+            rterm = NULL;
          }
       }
    }
@@ -716,7 +726,7 @@ Eqn_p EqnFOFParse(Scanner_p in, TB_p bank)
    Term_p lterm, rterm;
    Eqn_p handle;
 
-   
+
    positive = eqn_parse_real(in, bank, &lterm, &rterm, true);
    handle = EqnAlloc(lterm, rterm, bank, positive);
 
@@ -2602,8 +2612,9 @@ double EqnWeight(Eqn_p eq, double max_multiplier, long vweight, long
 //
 /----------------------------------------------------------------------*/
 
-double  EqnDAGWeight(Eqn_p eq, double max_multiplier, long vweight, long
-                     fweight, long dup_weight, bool new_eqn, bool new_terms)
+double  EqnDAGWeight(Eqn_p eq, double uniqmax_multiplier,
+                     double max_multiplier, long vweight, long fweight,
+                     long dup_weight, bool new_eqn, bool new_terms)
 {
    double res;
    long lweight, rweight;
@@ -2622,13 +2633,48 @@ double  EqnDAGWeight(Eqn_p eq, double max_multiplier, long vweight, long
 
    if(EqnIsOriented(eq))
    {
-      res = (double)rweight;
+      res = uniqmax_multiplier*max_multiplier*(double)lweight;
+      res += (double)rweight;
    }
    else
    {
-      res = (double)rweight*max_multiplier;
+      res = max_multiplier*(double)lweight;
+      res += max_multiplier*(double)rweight;
    }
-   res += (double)lweight*max_multiplier;
+   return res;
+}
+
+/*-----------------------------------------------------------------------
+//
+// Function: EqnDAGWeight2()
+//
+//   Alternative DAG weight of an equation, inspired by Twee
+//   (Smallbone:CADE-202, but details via personal email): Terms are
+//   treated as individual DAGs, the bigger weight of both terms is
+//   boosted by a multiplier. Term order is not considered.
+//
+// Global Variables: -
+//
+// Side Effects    : Sets TPOpFlag
+//
+/----------------------------------------------------------------------*/
+
+double EqnDAGWeight2(Eqn_p eq, double maxw_multiplier,
+                     long vweight, long fweight, long dup_weight)
+{
+   double res;
+   long lweight, rweight;
+
+   lweight = TermDAGWeight(eq->lterm, fweight, vweight, dup_weight, true);
+   rweight = TermDAGWeight(eq->rterm, fweight, vweight, dup_weight, true);
+   //printf("(%ld/%ld)\n", lweight, rweight);
+
+   if(rweight > lweight)
+   {
+      SWAP(lweight, rweight);
+   }
+   res = maxw_multiplier*lweight+rweight;
+
    return res;
 }
 

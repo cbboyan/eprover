@@ -52,6 +52,7 @@ typedef enum
    OPT_SILENT,
    OPT_OUTPUTLEVEL,
    OPT_PROOF_OBJECT,
+   OPT_PROOF_STATS,
    OPT_PROOF_GRAPH,
    OPT_FULL_DERIV,
    OPT_FORCE_DERIV,
@@ -93,10 +94,13 @@ typedef enum
    OPT_AUTO_SCHED,
    OPT_SATAUTO_SCHED,
    OPT_AUTOSCHEDULE_KIND,
+   OPT_MULTI_CORE,
    OPT_NO_PREPROCESSING,
    OPT_EQ_UNFOLD_LIMIT,
    OPT_EQ_UNFOLD_MAXCLAUSES,
    OPT_NO_EQ_UNFOLD,
+   OPT_INTRO_GOAL_DEFS,
+   OPT_FINE_GOAL_DEFS,
    OPT_SINE,
    OPT_REL_PRUNE_LEVEL,
    OPT_PRESAT_SIMPLIY,
@@ -270,6 +274,11 @@ OptCell opts[] =
     "syntax, depending on input format and explicit settings. The "
     "following option will suppress normal output of the proof "
     "object in favour of a graphial representation."},
+
+   {OPT_PROOF_STATS,
+    '\0', "proof-statistics",
+    NoArg, NULL,
+    "Print various statistics of the proof object."},
 
    {OPT_PROOF_GRAPH,
     '\0', "proof-graph",
@@ -692,8 +701,16 @@ OptCell opts[] =
     ReqArg, NULL,
     "Choose a schedule kind that is more optimized for different purposes: "
     "CASC is optimized for general-purpose theorem proving, while SH "
-    "is optimized for theorem low-timeout theorem proving."
+    "is optimized for low-timeout theorem proving."
     },
+
+   {OPT_MULTI_CORE,
+   '\0', "multi-core",
+   OptArg, "4",
+   "Set the number of cores to use for strategy scheduling. Currently, the "
+   "existing (originally linear) schedules will be recomputed for "
+   "(near-)optimal use of the cores. If more than one core is activated, it "
+   "is assumed that any cpu-limit is a per-core limit."},
 
    {OPT_NO_PREPROCESSING,
     '\0', "no-preprocessing",
@@ -723,6 +740,20 @@ OptCell opts[] =
     NoArg, NULL,
     "During preprocessing, abstain from unfolding (and removing) "
     "equational definitions."},
+
+   {OPT_INTRO_GOAL_DEFS,
+    '\0', "goal-defs",
+    OptArg, "All",
+    "Introduce Twee-style equational definitions for ground terms "
+    "in conjecture clauses. The argument can be All or Neg, which will"
+    " only consider ground terms from negative literals."},
+
+   {OPT_FINE_GOAL_DEFS,
+    '\0', "goal-subterm-defs",
+    NoArg, NULL,
+    "Introduce goal definitions for all conjecture ground subterms. "
+    "The default is to only introduce them for the maximal (with respect "
+    "to the subterm relation) ground terms in conjecture clauses."},
 
    {OPT_SINE,
     '\0', "sine",
@@ -1141,7 +1172,8 @@ OptCell opts[] =
     "Modify how literal comparisons are done. 'None' is equivalent to the "
     "previous option, 'Normal' uses the normal lifting of the term ordering, "
     "'TFOEqMax' uses the equivalent of a transfinite ordering deciding on the "
-    "predicate symbol and making equational literals maximal, and 'TFOEqMin' "
+    "predicate symbol and making equational literals maximal (note that this "
+    "setting makes the prover incomplere), and 'TFOEqMin' "
     "modifies this by making equational symbols minimal."},
 
    {OPT_TPTP_SOS,

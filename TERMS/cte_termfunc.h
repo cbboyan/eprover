@@ -8,7 +8,7 @@
 
   Most of the user-level functionality for unshared terms.
 
-  Copyright 1998-2017 by the author.
+  Copyright 1998-2021 by the author.
   This code is released under the GNU General Public Licence and
   the GNU Lesser General Public License.
   See the file COPYING in the main E directory for details..
@@ -63,7 +63,9 @@ void TermPrintDbgHO(FILE* out, Term_p term, Sig_p sig, DerefType deref);
 #define TermPrint(out, term, sig, deref) TermPrintFO(out, term, sig, deref)
 #define TermPrintDbg(out, term, sig, deref)  TermPrintFO(out, term, sig, deref)
 #endif
+void TermPrintSimple(FILE* out, Term_p term, Sig_p sig);
 void   TermPrintArgList(FILE* out, Term_p *args, int arity, Sig_p sig, DerefType deref);
+void   TermPrintArgListRaw(FILE* out, Term_p *args, int arity, Sig_p sig, DerefType deref);
 void   TermFOOLPrint(FILE* out, Sig_p sig, Term_p form);
 FuncSymbType TermParseOperator(Scanner_p in, DStr_p id);
 FunCode       TermSigInsert(Sig_p sig, const char* name, int arity, bool
@@ -146,6 +148,7 @@ long    TermCollectPropVariables(Term_p term, PTree_p *tree,
                                  TermProperties prop);
 long    TermCollectVariables(Term_p term, PTree_p *tree);
 
+long    TermCollectGroundTerms(Term_p term, PTree_p *result, bool top_only);
 long    TermAddFunOcc(Term_p term, PDArray_p f_occur, PStack_p res_stack);
 
 long    TermLinearize(PStack_p stack, Term_p term);

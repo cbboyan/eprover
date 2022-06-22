@@ -299,8 +299,11 @@ PStackPointer SubstNormEqn(Eqn_p eq, Subst_p subst, VarBank_p vars);
 
 double  EqnWeight(Eqn_p eq, double max_multiplier, long vweight, long
                   fweight, double app_var_mult);
-double  EqnDAGWeight(Eqn_p eq, double max_multiplier, long vweight, long
-                     fweight, long dup_weight, bool new_eqn, bool new_terms);
+double  EqnDAGWeight(Eqn_p eq, double uniqmax_multiplier,
+                     double max_multiplier, long vweight, long fweight,
+                     long dup_weight, bool new_eqn, bool new_terms);
+double  EqnDAGWeight2(Eqn_p eq, double maxw_multiplier,
+                      long vweight, long fweight, long dup_weight);
 
 #define EqnStandardWeight(eqn)             \
    (TermStandardWeight((eqn)->lterm)+      \
@@ -411,6 +414,9 @@ void    EqnAddSymbolFeatures(Eqn_p eq, PStack_p mod_stack, long *feature_array);
     TermAddFunOcc((eqn)->rterm, (f_occur), (res_stack)))
 
 long    EqnCollectSubterms(Eqn_p eqn, PStack_p collector);
+#define EqnCollectGroundTerms(eqn, res, top_only) \
+   (TermCollectGroundTerms((eqn)->lterm, (res), (top_only))+     \
+    TermCollectGroundTerms((eqn)->rterm, (res), (top_only)))
 
 void EqnAppEncode(FILE* out, Eqn_p eq, bool negated);
 bool EqnHasAppVar(Eqn_p eq);

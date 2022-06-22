@@ -8,7 +8,7 @@
 
   Most of the user-level functionality for unshared terms.
 
-  Copyright 1998-2017 by the author.
+  Copyright 1998-2021 by the author.
   This code is released under the GNU General Public Licence and
   the GNU Lesser General Public License.
   See the file COPYING in the main E directory for details..
@@ -417,6 +417,7 @@ void TermPrintFO(FILE* out, Term_p term, Sig_p sig, DerefType deref)
    }
 }
 
+
 #define PRINT_AT
 
 #ifdef ENABLE_LFHO
@@ -578,6 +579,55 @@ void TermPrintArgList(FILE* out, Term_p *args, int arity, Sig_p sig,
       TermPrintFO(out, args[i], sig, deref);
    }
    putc(')', out);
+}
+
+
+
+/*-----------------------------------------------------------------------
+//
+// Function: TermPrintSimple()
+//
+//   Print a FO term without giving any special semantics to
+//   symbols -- basically prints the serialized syntax tree.
+//
+// Global Variables: TermPrintLists
+//
+// Side Effects    : Output
+//
+/----------------------------------------------------------------------*/
+
+void TermPrintSimple(FILE* out, Term_p term, Sig_p sig)
+{
+   assert(term);
+   assert(sig||TermIsVar(term));
+   // no need to change derefs here -- FOL
+
+   if(TermIsVar(term))
+   {
+      VarPrint(out, term->f_code);
+   }
+   else
+   {
+      fputs(SigFindName(sig, term->f_code), out);
+      if(!TermIsConst(term))
+      {
+         assert(term->args);
+         int i;
+
+         assert(term->arity>=1);
+         putc('(', out);
+
+         TermPrintSimple(out, term->args[0], sig);
+
+         for(i=1; i<term->arity; i++)
+         {
+            putc(',', out);
+            /* putc(' ', out); */
+            TermPrintSimple(out, term->args[i], sig);
+         }
+         putc(')', out);
+      }
+   }
 }
 
 
@@ -2244,6 +2294,53 @@ long TermCollectVariables(Term_p term, PTree_p *tree)
    return res;
 }
 
+
+/*-----------------------------------------------------------------------
+//
+// Function: TermCollectGroundTerms()
+//
+//   Add no-constant ground subterms of term to result. If top_only is
+//   set, only add maximal (in the subterm relation sense) terms,
+//   otherwise add all non-constant ground terms. Returns number of
+//   terms newly added.
+//
+// Global Variables: -
+//
+// Side Effects    : Memory operations per PTreeInsert()
+//
+/----------------------------------------------------------------------*/
+
+long TermCollectGroundTerms(Term_p term, PTree_p *result, bool top_only)
+{
+   PStack_p stack = PStackAlloc();
+   long count = 0;
+   int i;
+
+   PStackPushP(stack, term);
+
+   while(!PStackEmpty(stack))
+   {
+      term = PStackPopP(stack);
+      if(!TermIsVar(term))
+      {
+         if(TermIsGround(term))
+         {
+            if(!TermIsConst(term) && PTreeStore(result, term))
+            {
+               count++;
+            }
+         }
+         if(!TermIsGround(term) || !top_only)
+         {
+            for(i=0; i<term->arity; i++)
+            {
+               PStackPushP(stack, term->args[i]);
+            }
+         }
+      }
+   }
+   return count;
+}
 
 
 /*-----------------------------------------------------------------------
