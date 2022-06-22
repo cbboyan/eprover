@@ -1064,14 +1064,14 @@ EnigmaticInfo_p EnigmaticInfoAlloc()
    info->occs = NULL;
    info->sig = NULL;
    info->path = PStackAlloc();
-   info->name_cache = NULL;
+   info->symbol_cache = NULL;
    info->collect_hashes = false;
    info->hashes = NULL;
    info->avgs = NULL;
    return info;
 }
 
-// reset between clauses; does not reset: name_cache and hashes stats
+// reset between clauses; does not reset: symbol_cache and hashes stats
 void EnigmaticInfoReset(EnigmaticInfo_p info)
 {
    if (info->occs)
@@ -1086,9 +1086,16 @@ void EnigmaticInfoFree(EnigmaticInfo_p junk)
 {
    EnigmaticInfoReset(junk);
    PStackFree(junk->path);
-   if (junk->name_cache)
+   if (junk->symbol_cache)
    {
-      StrTreeFree(junk->name_cache);
+      PStack_p stack = NumTreeTraverseInit(junk->symbol_cache);
+      NumTree_p node;
+      while ((node = NumTreeTraverseNext(stack)))
+      {
+         DStrFree((DStr_p)node->val1.p_val);
+      }
+      NumTreeTraverseExit(stack);
+      NumTreeFree(junk->symbol_cache);
    }
    if (junk->hashes)
    {

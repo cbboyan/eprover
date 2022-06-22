@@ -147,7 +147,8 @@ typedef enum
 {
    TSPrintPos = 1,
    TSPrintNeg = 2,
-   TSAverageData = 4
+   TSAverageData = 4,
+   TSPrintSkolemTypes = 8
 }TrainingSelector;
 
 typedef void (*DelayedEvalCallback)(ClauseSet_p, void*);
@@ -202,7 +203,7 @@ void ProofStateAnalyseGC(ProofState_p state);
 void ProofStatePickTrainingExamples(ProofState_p state,
                                     PStack_p pos_examples,
                                     PStack_p neg_examples);
-void ProofStateTrain(ProofState_p state, bool print_pos, bool print_neg);
+void ProofStateTrain(ProofState_p state, bool print_pos, bool print_neg, bool print_skotypes);
 void ProofStateStatisticsPrint(FILE* out, ProofState_p state);
 void ProofStatePrint(FILE* out, ProofState_p state);
 void ProofStatePropDocQuote(FILE* out, int level,

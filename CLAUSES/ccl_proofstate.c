@@ -575,7 +575,7 @@ void ProofStatePickTrainingExamples(ProofState_p state,
 //
 /----------------------------------------------------------------------*/
 
-void ProofStateTrain(ProofState_p state, bool print_pos, bool print_neg)
+void ProofStateTrain(ProofState_p state, bool print_pos, bool print_neg, bool print_skotypes)
 {
    PStack_p
       pos_examples = PStackAlloc(),
@@ -588,7 +588,7 @@ void ProofStateTrain(ProofState_p state, bool print_pos, bool print_neg)
    if(print_pos)
    {
       fprintf(GlobalOut, "# Training: Positive examples begin\n");
-      PStackClausePrint(GlobalOut, pos_examples, "# trainpos");
+      PStackClausePrint(GlobalOut, pos_examples, "#trainpos");
       fprintf(GlobalOut, "# Training: Positive examples end\n");
    }
    if(print_neg)
@@ -596,6 +596,12 @@ void ProofStateTrain(ProofState_p state, bool print_pos, bool print_neg)
       fprintf(GlobalOut, "# Training: Negative examples begin\n");
       PStackClausePrint(GlobalOut, neg_examples, "#trainneg");
       fprintf(GlobalOut, "# Training: Negative examples end\n");
+   }
+   if(print_skotypes)
+   {
+      fprintf(GlobalOut, "# Training: Skolem types begin\n");
+      SigPrintSkolemTypesTSTP(GlobalOut, state->signature);
+      fprintf(GlobalOut, "# Training: Skolem types end\n");
    }
 
    PStackFree(pos_examples);

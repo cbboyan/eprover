@@ -951,7 +951,8 @@ int main(int argc, char* argv[])
          if(proc_training_data)
          {
             ProofStateTrain(proofstate, proc_training_data&TSPrintPos,
-                        proc_training_data&TSPrintNeg);
+                            proc_training_data&TSPrintNeg,
+                            proc_training_data&TSPrintSkolemTypes);
          }
       }
       DerivationFree(deriv);

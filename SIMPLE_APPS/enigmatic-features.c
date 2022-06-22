@@ -205,7 +205,17 @@ static Clause_p read_clause(Scanner_p in, EnigmaticInfo_p info)
     else
     {
        formula = WFormulaParse(in, info->bank);
-       clause = EnigmaticFormulaToClause(formula, info);
+       //printf("PARSED: ");
+       //WFormulaPrint(GlobalOut, formula, true);
+       //printf("\n");
+       WTFormulaConjunctiveNF(formula, info->bank);
+       //clause = EnigmaticFormulaToClause(formula, info);
+       TFormula_p tform = formula->tformula;
+       while(tform->f_code == info->sig->qall_code && tform->arity == 2)
+       {
+         tform = tform->args[1];
+       }
+       clause = TFormulaCollectClause(tform, info->bank, NULL);
        WFormulaFree(formula);
     }
     return clause;
