@@ -49,8 +49,7 @@ static __inline__ bool is_goal(FormulaProperties props)
 
 static int hist_cmp(const long* x, const long* y, long* hist)
 {
-   //return hist[(*y)-1] - hist[(*x)-1];
-   return - (hist[(*y)-1] - hist[(*x)-1]);
+   return hist[(*y)-1] - hist[(*x)-1];
 }
 
 static __inline__ unsigned long hash_sdbm(unsigned long hash, int c)
@@ -172,47 +171,69 @@ void DStrAppendType(DStr_p dstdes, TypeBank_p bank, Type_p type)
    }
 }
 
-
 static char* symbol_string(EnigmaticClause_p enigma, EnigmaticInfo_p info, FunCode f_code)
 {
-   //static char str[128];
-   //static char postfix[16] = "\0";
-      
    if (f_code == SIG_TRUE_CODE)  { return ENIGMATIC_POS; }
    if (f_code == SIG_FALSE_CODE) { return ENIGMATIC_NEG; }
-   
+
+   char* name = NULL;
+   bool skolem = false;
+   if (f_code < 0)
+   {
+      if (!enigma->params->use_types)
+      {
+         return ENIGMATIC_VAR;
+      }
+   }
+   else 
+   {
+      name = SigFindName(info->sig, f_code);
+      skolem = symbol_skolem(name);
+      if (symbol_internal(name))
+      {
+         return name;
+      }
+      if ((!enigma->params->anonymous) && (!enigma->params->use_types) && (!skolem))
+      {
+         return name;
+      }
+   }
 
    NumTree_p node = NumTreeFind(&info->symbol_cache, f_code);
    if (node) 
    {
       return DStrView((DStr_p)node->val1.p_val);
    }
-   
+  
+   Type_p type = NULL;
    DStr_p dstr = DStrAlloc();
-   if (f_code < 0) { 
+   if (f_code < 0) 
+   { 
       Term_p var = VarBankFCodeFind(info->bank->vars, f_code);
       DStrAppendStr(dstr, ENIGMATIC_VAR);
-      DStrAppendStr(dstr, ENIGMATIC_TYPE);
-      DStrAppendType(dstr, info->sig->type_bank, var->type);
-      //return ENIGMATIC_VAR; 
+      type = var->type;
    }
    else 
    {
-      char* name = SigFindName(info->sig, f_code);
-      Type_p type = SigGetType(info->sig, f_code);
-      bool skolem = symbol_skolem(name);
-      if ((!(skolem || enigma->params->anonymous)) || (symbol_internal(name)))
+      if (skolem)
       {
-         return name;
+         DStrAppendStr(dstr, ENIGMATIC_SKO);
       }
-
-      char* sk = skolem ? ENIGMATIC_SKO : "";
-      //char prefix = SigIsPredicate(info->sig, f_code) ? 'p' : 'f'; 
-      int arity = SigFindArity(info->sig, f_code);
-      
-      DStrAppendStr(dstr, sk);
-      //DStrAppendChar(dstr, prefix);
-      DStrAppendInt(dstr, arity);
+      if (skolem || enigma->params->anonymous)
+      {
+         int arity = SigFindArity(info->sig, f_code);
+         char* prefix = SigIsPredicate(info->sig, f_code) ? "p" : "f"; 
+         DStrAppendStr(dstr, prefix);
+         DStrAppendInt(dstr, arity);
+      }
+      else 
+      {
+         DStrAppendStr(dstr, name);
+      }
+      type = SigGetType(info->sig, f_code);
+   }
+   if (enigma->params->use_types)
+   {
       DStrAppendStr(dstr, ENIGMATIC_TYPE);
       DStrAppendType(dstr, info->sig->type_bank, type);
    }
@@ -220,20 +241,6 @@ static char* symbol_string(EnigmaticClause_p enigma, EnigmaticInfo_p info, FunCo
    NumTreeStore(&info->symbol_cache, f_code, (IntOrP)(void*)dstr, (IntOrP)0L);
 
    return DStrView(dstr);
-  
-   /*
-   // TODO: if enigma->params->anonymous_sine
-   //          && f_code < info->sine_symb_count:
-   //          snprintf(postfix, 16, "^%ld", info->sine_symb_rank[f_code]);
-   sprintf(str, "%s%c%d%s", sk, prefix, arity, postfix);
-   
-   StrTree_p node = StrTreeFind(&info->name_cache, str);
-   if (!node)
-   {
-      node = StrTreeStore(&info->name_cache, str, (IntOrP)0L, (IntOrP)0L);
-   }
-   return node->key; // node->key is now a ("global") copy of str
-   */
 }
 
 static void update_occurrences(EnigmaticClause_p enigma, EnigmaticInfo_p info, Term_p term)
@@ -527,18 +534,14 @@ static void update_count(long* count, long* hist, long len)
    int i;
    for (i=0; i<len; i++)
    {
-      count[i] = hist[i] ? i+1 : 0;
-      printf("c[%d] = %ld   h[%d] = %ld\n", i, count[i], i, hist[i]);
+      count[i] = i+1;
    }
    qsort_r(count, len, sizeof(long), 
       (int (*)(const void*, const void*, void*))hist_cmp, hist);
-   printf("sorted: ");
    for (i=0; i<len; i++)
    {
-      printf("%ld,", count[i]); 
+      count[i] = (hist[count[i]-1]) ? count[i] : 0; 
    }
-   printf("\n");
-
 }
 
 static void update_hists(EnigmaticClause_p enigma, EnigmaticInfo_p info)
