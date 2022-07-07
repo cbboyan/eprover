@@ -164,14 +164,14 @@ void print_help(FILE* out);
 /*                         Internal Functions                          */
 /*---------------------------------------------------------------------*/
 
-static void process_problem(char* problem_file, EnigmaticVector_p vector, EnigmaticInfo_p info)
+static void process_file(char* filename, EnigmaticInfo_p info, EnigmaticVector_p vector)
 {
-   if (!problem_file)
+   if (!filename)
    {
       return;
    }
 
-   Scanner_p in = CreateScanner(StreamTypeFile, problem_file, true, NULL, true);
+   Scanner_p in = CreateScanner(StreamTypeFile, filename, true, NULL, true);
    ScannerSetFormat(in, TSTPFormat);
    ClauseSet_p wlset = ClauseSetAlloc(); // should stay empty all the time
    FormulaSet_p fset = FormulaSetAlloc();
@@ -179,7 +179,10 @@ static void process_problem(char* problem_file, EnigmaticVector_p vector, Enigma
    FormulaAndClauseSetParse(in, fset, wlset, info->bank, NULL, &skip_includes);
    CheckInpTok(in, NoToken);
 
-   EnigmaticInitProblem(vector, info, fset, wlset);
+   if (vector)
+   {
+      EnigmaticInitProblem(vector, info, fset, wlset);
+   }
 
    DestroyScanner(in);
    ClauseSetFreeClauses(wlset);
@@ -188,27 +191,14 @@ static void process_problem(char* problem_file, EnigmaticVector_p vector, Enigma
    FormulaSetFree(fset);
 }
 
+static void process_problem(char* problem_file, EnigmaticVector_p vector, EnigmaticInfo_p info)
+{
+   process_file(problem_file, info, vector);
+}
+
 static void process_types(char* types_file, EnigmaticInfo_p info)
 {
-   if (!types_file)
-   {
-      return;
-   }
-   
-   // read &
-   Scanner_p in = CreateScanner(StreamTypeFile, types_file, true, NULL, true);
-   ScannerSetFormat(in, TSTPFormat);
-   ClauseSet_p wlset = ClauseSetAlloc(); // should stay empty all the time
-   FormulaSet_p fset = FormulaSetAlloc();
-   StrTree_p skip_includes = NULL;
-   FormulaAndClauseSetParse(in, fset, wlset, info->bank, NULL, &skip_includes);
-   CheckInpTok(in, NoToken);
-   // & destroy
-   DestroyScanner(in);
-   ClauseSetFreeClauses(wlset);
-   ClauseSetFree(wlset);
-   FormulaSetFreeFormulas(fset);
-   FormulaSetFree(fset);
+   process_file(types_file, info, NULL);
 }
 
 static void fill_sum(void* data, long idx, float val)

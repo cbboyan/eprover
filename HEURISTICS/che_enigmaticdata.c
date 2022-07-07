@@ -1069,6 +1069,7 @@ EnigmaticInfo_p EnigmaticInfoAlloc()
    info->sig = NULL;
    info->path = PStackAlloc();
    info->symbol_cache = NULL;
+   //info->hash_cache = NULL;
    info->collect_hashes = false;
    info->hashes = NULL;
    info->avgs = NULL;
@@ -1101,6 +1102,10 @@ void EnigmaticInfoFree(EnigmaticInfo_p junk)
       NumTreeTraverseExit(stack);
       NumTreeFree(junk->symbol_cache);
    }
+   //if (junk->hash_cache)
+   //{
+   //   NumTreeFree(junk->hash_cache);
+   //}
    if (junk->hashes)
    {
       StrTreeFree(junk->hashes);
