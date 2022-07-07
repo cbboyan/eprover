@@ -60,7 +60,12 @@ static __inline__ unsigned long hash_sdbm(unsigned long hash, int c)
 // TODO: use this
 static __inline__ unsigned long hash_hash(unsigned long hash, unsigned long c)
 {
-   return (c + (hash << 6) + (hash << 16) - hash);
+   while (c) 
+   {
+      hash = hash_sdbm(hash, c & 0xFFFF);
+      c = (c >> 16);
+   }
+   return hash;
 }
 
 static unsigned long hash_update(unsigned long *hash, char* str, DStr_p out)
@@ -102,7 +107,7 @@ static bool symbol_internal(char* name)
    return (name[0] == '$');
 }
 
-void DStrAppendType(DStr_p dstdes, TypeBank_p bank, Type_p type)
+void DStrAppendType(DStr_p dstdes, Type_p type, TypeBank_p bank, bool anonymous)
 {
    assert(type);
    if(TypeIsArrow(type))
@@ -113,22 +118,22 @@ void DStrAppendType(DStr_p dstdes, TypeBank_p bank, Type_p type)
 
          if(nr_of_args == 1)
          {
-            DStrAppendType(dstdes, bank, type->args[0]);
+            DStrAppendType(dstdes, type->args[0], bank, anonymous);
             DStrAppendStr(dstdes, ">");
-            DStrAppendType(dstdes, bank, type->args[1]);
+            DStrAppendType(dstdes, type->args[1], bank, anonymous);
          }
          else
          {
             DStrAppendStr(dstdes, "(");
             for(int i=0; i<nr_of_args-1; i++)
             {
-               DStrAppendType(dstdes, bank, type->args[i]);
+               DStrAppendType(dstdes, type->args[i], bank, anonymous);
                DStrAppendStr(dstdes, "*");
             }
-            DStrAppendType(dstdes, bank, type->args[nr_of_args-1]);
+            DStrAppendType(dstdes, type->args[nr_of_args-1], bank, anonymous);
             DStrAppendStr(dstdes, ")>");
 
-            DStrAppendType(dstdes, bank, type->args[type->arity-1]);
+            DStrAppendType(dstdes, type->args[type->arity-1], bank, anonymous);
          }
       }
       else
@@ -139,20 +144,20 @@ void DStrAppendType(DStr_p dstdes, TypeBank_p bank, Type_p type)
             {
                DStrAppendStr(dstdes, "(");
             }
-            DStrAppendType(dstdes, bank, type->args[i]);
+            DStrAppendType(dstdes, type->args[i], bank, anonymous);
             if(TypeIsArrow(type->args[i]))
             {
                DStrAppendStr(dstdes, ")");
             }
             DStrAppendStr(dstdes, ">");
          }
-         DStrAppendType(dstdes, bank, type->args[type->arity-1]);
+         DStrAppendType(dstdes, type->args[type->arity-1], bank, anonymous);
       }
    }
    else
    {
       char* tname = (char*) TypeBankFindTCName(bank, type->f_code);
-      if (!symbol_internal(tname))
+      if (anonymous && !symbol_internal(tname))
       {
          tname = ENIGMATIC_ANY;
       }
@@ -162,10 +167,10 @@ void DStrAppendType(DStr_p dstdes, TypeBank_p bank, Type_p type)
          DStrAppendStr(dstdes, "(");
          for(int i=0; i<type->arity-1; i++)
          {
-            DStrAppendType(dstdes, bank, type->args[i]);
+            DStrAppendType(dstdes, type->args[i], bank, anonymous);
             DStrAppendStr(dstdes, ",");
          }
-         DStrAppendType(dstdes, bank, type->args[type->arity-1]);
+         DStrAppendType(dstdes, type->args[type->arity-1], bank, anonymous);
          DStrAppendStr(dstdes, ")");
       }
    }
@@ -235,13 +240,61 @@ static char* symbol_string(EnigmaticClause_p enigma, EnigmaticInfo_p info, FunCo
    if (enigma->params->use_types)
    {
       DStrAppendStr(dstr, ENIGMATIC_TYPE);
-      DStrAppendType(dstr, info->sig->type_bank, type);
+      DStrAppendType(dstr, type, info->sig->type_bank, enigma->params->anonymous);
    }
 
    NumTreeStore(&info->symbol_cache, f_code, (IntOrP)(void*)dstr, (IntOrP)0L);
 
    return DStrView(dstr);
 }
+
+/*
+static unsigned long hash_symbol(unsigned long *hash, FunCode f_code, 
+   EnigmaticClause_p enigma, EnigmaticInfo_p info, DStr_p out)
+{
+   return hash_update(hash, symbol_string(enigma, info, f_code), out);
+
+   if ((f_code == SIG_TRUE_CODE) || 
+      (f_code == SIG_FALSE_CODE) ||
+      ((f_code < 0) && (!enigma->params->use_types)))
+   {
+      return hash_update(hash, symbol_string(enigma, info, f_code), out);
+   }
+   else
+   {
+      NumTree_p node = NumTreeFind(&info->hash_cache, f_code);
+      unsigned long f_hash;
+      if (node)
+      {
+         f_hash = (unsigned long)node->val1.i_val;
+         if (out)
+         {
+            NumTree_p node0 = NumTreeFind(&info->symbol_cache, f_code);
+            if (node0) 
+            {
+               DStrAppendDStr(out, (DStr_p)node0->val1.p_val);
+            }
+            else
+            {
+               DStrAppendStr(out, SigFindName(info->sig, f_code));
+            }
+            //DStrAppendChar(out, '<');
+            //DStrAppendInt(out, f_hash);
+            //DStrAppendChar(out, '>');
+         }
+      }
+      else
+      {
+         f_hash = 0L;
+         f_hash = hash_update(&f_hash, symbol_string(enigma, info, f_code), out);
+         NumTreeStore(&info->hash_cache, f_code, (IntOrP)(long)f_hash, (IntOrP)0L);
+      }
+      *hash = hash_hash(*hash, f_hash);
+      return *hash;
+   }
+}
+*/
+
 
 static void update_occurrences(EnigmaticClause_p enigma, EnigmaticInfo_p info, Term_p term)
 {
@@ -342,6 +395,7 @@ static void update_verts(EnigmaticClause_p enigma, EnigmaticInfo_p info, Term_p 
    {
       FunCode f_code = info->path->stack[begin+i].i_val;
       hash_update(&fid, symbol_string(enigma, info, f_code), fstr);
+      //hash_symbol(&fid, f_code, enigma, info, fstr);
       hash_update(&fid, ENIGMATIC_VERT, fstr);
    }
    hash_base(&fid, enigma->params->base_vert);
@@ -349,7 +403,7 @@ static void update_verts(EnigmaticClause_p enigma, EnigmaticInfo_p info, Term_p 
    update_stats(fid, info, fstr);
    if (fstr) { DStrFree(fstr); }
 }
-
+   
 static void update_horiz(EnigmaticClause_p enigma, EnigmaticInfo_p info, Term_p term)
 {
    if (enigma->params->offset_horiz < 0) { return; }
@@ -358,10 +412,12 @@ static void update_horiz(EnigmaticClause_p enigma, EnigmaticInfo_p info, Term_p 
    DStr_p fstr = info->collect_hashes ? DStrAlloc() : NULL;
    hash_update(&fid, ENIGMATIC_HORIZ, fstr);
    hash_update(&fid, symbol_string(enigma, info, term->f_code), fstr);
+   //hash_symbol(&fid, term->f_code, enigma, info, fstr);
    hash_update(&fid, ENIGMATIC_HORIZ, fstr);
    for (int i=0; i<term->arity; i++)
    {
       hash_update(&fid, symbol_string(enigma, info, term->args[i]->f_code), fstr);
+      //hash_symbol(&fid, term->args[i]->f_code, enigma, info, fstr);
       hash_update(&fid, ENIGMATIC_HORIZ, fstr);
    }
    hash_base(&fid, enigma->params->base_horiz);
@@ -380,6 +436,7 @@ static void update_counts(EnigmaticClause_p enigma, EnigmaticInfo_p info, Term_p
    hash_update(&fid, ENIGMATIC_COUNT, fstr);
    hash_update(&fid, sign , fstr);
    hash_update(&fid, symbol_string(enigma, info, term->f_code), fstr);
+   //hash_symbol(&fid, term->f_code, enigma, info, fstr);
    hash_base(&fid, enigma->params->base_count);
    update_feature_inc(HASHMAP(enigma,counts), fid);
    update_stats(fid, info, fstr);
@@ -396,6 +453,7 @@ static void update_depths(EnigmaticClause_p enigma, EnigmaticInfo_p info, Term_p
    hash_update(&fid, ENIGMATIC_DEPTH, fstr);
    hash_update(&fid, sign , fstr);
    hash_update(&fid, symbol_string(enigma, info, term->f_code), fstr);
+   //hash_symbol(&fid, term->f_code, enigma, info, fstr);
    hash_base(&fid, enigma->params->base_depth);
    update_feature_max(HASHMAP(enigma,depths), fid, DEPTH(info));
    update_stats(fid, info, fstr);

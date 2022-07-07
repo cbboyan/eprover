@@ -221,6 +221,7 @@ typedef struct enigmaticinfocell
    PStack_p path;    // current symbol path with a literal
    bool pos;         // is current literal positive?
    NumTree_p symbol_cache; // stores enigmatized symbol names (skolems & anonymous)
+   //NumTree_p hash_cache; // stores hash codes of symbols
    bool collect_hashes;  // collect feature hash statistics in the below:
    StrTree_p hashes;     //   (hash map :: festure string -> feature hashed id)
    float* avgs;          // computing the average vector
