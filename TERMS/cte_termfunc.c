@@ -32,6 +32,7 @@
 
 bool      TermPrintLists = true;
 bool      TermPrintTypes = false;
+bool      TermPrintRawFO = false;
 
 /*---------------------------------------------------------------------*/
 /*                      Forward Declarations                           */
@@ -435,6 +436,18 @@ void TermPrintFO(FILE* out, Term_p term, Sig_p sig, DerefType deref)
 //
 /----------------------------------------------------------------------*/
 
+void TermPrint(FILE* out, Term_p term, Sig_p sig, DerefType deref)
+{
+   if ((problemType == PROBLEM_HO) && (!TermPrintRawFO))
+   {
+      TermPrintHO(out, term, sig, deref);
+   }
+   else
+   {
+      TermPrintFO(out, term, sig, deref);
+   }
+}
+
 void TermPrintHO(FILE* out, Term_p term, Sig_p sig, DerefType deref)
 {
    assert(term);
@@ -490,6 +503,7 @@ void TermPrintHO(FILE* out, Term_p term, Sig_p sig, DerefType deref)
          TermPrint(out, term->args[i], sig, c_deref);
       }
    }
+   
 }
 
 
@@ -2693,6 +2707,10 @@ void TermFOOLPrint(FILE* out, Sig_p sig, TFormula_p form)
       fputs("]:(", out);
       TermFOOLPrint(out, sig, form->args[1]);
       fputs(")", out);
+   }
+   else if(form->arity == 0)
+   {
+      fputs(SigFindName(sig, form->f_code), out);
    }
    else if(form->f_code == sig->not_code)
    {

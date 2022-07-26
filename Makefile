@@ -218,7 +218,8 @@ benchpress-quick:
 	benchpress run -j $(J) -c benchpress.sexp --task eprover-quick-test --progress
 
 deploy:
-	scp PROVER/eprover cluster:~/atp/bin/eprover-current
-	scp SIMPLE_APPS/enigmatic-features cluster:~/atp/bin/enigmatic-features-current
+	test -f PROVER/eprover && scp PROVER/eprover cluster:~/atp/bin/eprover-current || true
+	test -f PROVER/eprover-ho && scp PROVER/eprover-ho cluster:~/atp/bin/eprover-ho-current || true 
+	test -f SIMPLE_APPS/enigmatic-features && scp SIMPLE_APPS/enigmatic-features cluster:~/atp/bin/enigmatic-features-current || true
 
 .PHONY: benchpress

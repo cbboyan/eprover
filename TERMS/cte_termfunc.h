@@ -46,6 +46,7 @@ typedef enum
 
 extern bool      TermPrintLists; /* Using [...] notation */
 extern bool      TermPrintTypes;
+extern bool      TermPrintRawFO;
 
 #define TermStartToken (SigSupportLists?                        \
                         (FuncSymbStartToken|OpenSquare|Mult):   \
@@ -56,8 +57,11 @@ void TermPrintFO(FILE* out, Term_p term, Sig_p sig, DerefType deref);
 #ifdef ENABLE_LFHO
 void TermPrintHO(FILE* out, Term_p term, Sig_p sig, DerefType deref);
 void TermPrintDbgHO(FILE* out, Term_p term, Sig_p sig, DerefType deref);
+void TermPrint(FILE* out, Term_p term, Sig_p sig, DerefType deref);
+/*
 #define TermPrint(out, term, sig, deref) (problemType == PROBLEM_HO ? \
         TermPrintHO(out, term, sig, deref) : TermPrintFO(out, term, sig, deref))
+*/
 #define TermPrintDbg(out, term, sig, deref)  TermPrintDbgHO(out, term, sig, deref)
 #else
 #define TermPrint(out, term, sig, deref) TermPrintFO(out, term, sig, deref)

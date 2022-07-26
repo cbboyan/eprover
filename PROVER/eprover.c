@@ -1126,6 +1126,9 @@ CLState_p process_options(int argc, char* argv[])
       case OPT_PCL_PRINT:
             DocOutputFormat = pcl_format;
             break;
+      case OPT_FO_OUTPUT:
+            TermPrintRawFO = true;
+            break;
       case OPT_TPTP_PRINT:
             OutputFormat = TPTPFormat;
             EqnFullEquationalRep = false;
