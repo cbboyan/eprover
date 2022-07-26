@@ -34,6 +34,7 @@
 
 bool      TermPrintLists = true;
 bool      TermPrintTypes = false;
+bool      TermPrintRawFO = false;
 
 /*---------------------------------------------------------------------*/
 /*                      Forward Declarations                           */
@@ -731,6 +732,18 @@ void TermPrintFO(FILE* out, Term_p term, Sig_p sig, DerefType deref)
 // Side Effects    : Output
 //
 /----------------------------------------------------------------------*/
+
+void TermPrint(FILE* out, Term_p term, Sig_p sig, DerefType deref)
+{
+   if ((problemType == PROBLEM_HO) && (!TermPrintRawFO))
+   {
+      TermPrintHO(out, term, sig, deref);
+   }
+   else
+   {
+      TermPrintFO(out, term, sig, deref);
+   }
+}
 
 void TermPrintHO(FILE* out, Term_p term, Sig_p sig, DerefType deref)
 {
