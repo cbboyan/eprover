@@ -551,12 +551,12 @@ int main(int argc, char* argv[])
 
    if (filter_generated)
    {
-       EnigmaticGenerationLgbModelInit(enigmaceo_filename,
-                                       "model.lgb",
-                                       filter_generated_threshold,
-                                       proofcontrol->ocb,
-                                       proofstate,
-                                       proofcontrol->enigma_gen_model);
+	   EnigmaticGenerationLgbModelInit(enigmaceo_filename,
+										 "model.lgb",
+										 filter_generated_threshold,
+										 proofcontrol->ocb,
+										 proofstate,
+										 proofcontrol->enigma_gen_model);
 	}
 
    VERBOUT2("Prover state initialized\n");

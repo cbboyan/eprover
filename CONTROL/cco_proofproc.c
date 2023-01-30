@@ -653,7 +653,6 @@ static Clause_p insert_new_clauses(ProofState_p state, ProofControl_p control, b
    long     clause_count;
    bool     filter_child = false;
 
-   // The frozen children are revived and inserted as if they were freshly generated.
    if (revive_children)
    {
 	   state->unfrozen_count+=state->frozen_store->members;
@@ -671,7 +670,6 @@ static Clause_p insert_new_clauses(ProofState_p state, ProofControl_p control, b
          ClausePrint(stdout, handle, true);
          printf("\n"); */
 
-	  // Filter children here.
 	  if (filter_generated && !revive_children)
 	  {
 		 filter_child = EnigmaticLgbFilterGenerationCompute(control->enigma_gen_model, handle);
