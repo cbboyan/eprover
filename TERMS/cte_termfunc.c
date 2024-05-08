@@ -564,9 +564,12 @@ void do_fool_print(FILE* out, Sig_p sig, TFormula_p form, int depth)
    else if(form->f_code == sig->not_code)
    {
       assert(form->f_code == sig->not_code);
-      fputs("~(", out);
-      do_fool_print(out, sig, form->args[0], depth);
-      fputs(")", out);
+      if (form->arity) 
+      {
+         fputs("~(", out);
+         do_fool_print(out, sig, form->args[0], depth);
+         fputs(")", out);
+      }
    }
    else
    {
@@ -663,6 +666,7 @@ void VarPrint(FILE* out, FunCode var)
 /----------------------------------------------------------------------*/
 void TermPrintFO(FILE* out, Term_p term, Sig_p sig, DerefType deref)
 {
+   setbuf(out, NULL);
    assert(term);
    assert(sig||TermIsFreeVar(term));
    // no need to change derefs here -- FOL
@@ -699,7 +703,7 @@ void TermPrintFO(FILE* out, Term_p term, Sig_p sig, DerefType deref)
       {
          fputs(SigFindName(sig, term->f_code), out);
          // fprintf(out, "(%ld)", term->f_code);
-         if(!TermIsConst(term))
+         if((!TermIsConst(term))&&(term->f_code)&&(term->arity))
          {
             assert(term->args);
             TermPrintArgList(out, term->args, term->arity, sig, deref);
