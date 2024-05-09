@@ -143,7 +143,7 @@ FunctionProperties free_symb_prop = FPIgnoreProps;
 EnigmaticFeatures_p features;
 char* problem_file = NULL;
 char* types_file = NULL;
-ProblemType problemType = PROBLEM_NOT_INIT;
+//ProblemType problemType = PROBLEM_NOT_INIT;
 bool app_encode = false;
 char* prefix = "";
 bool compute_avg = false;

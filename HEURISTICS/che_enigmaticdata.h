@@ -63,6 +63,7 @@ extern ClausePrioFun ecb_prios[];
 #define ENIGMATIC_NEG       "-"
 #define ENIGMATIC_SKO       "?"
 #define ENIGMATIC_EQ        "="
+#define ENIGMATIC_DB        "^"
 
 #define ENIGMATIC_HORIZ     "."
 #define ENIGMATIC_VERT      "|"

@@ -75,7 +75,7 @@ OptCell opts[] =
 char *outname = NULL;
 char *enigmapname= NULL;
 FunctionProperties free_symb_prop = FPIgnoreProps;
-ProblemType problemType  = PROBLEM_FO;
+//ProblemType problemType  = PROBLEM_FO;
 bool app_encode = false;
 
 /*---------------------------------------------------------------------*/

@@ -32,6 +32,8 @@ Changes
 #define ARITY_IDX(f_code)  (MIN(SigFindArity(info->sig,(f_code)), enigma->params->count_arity-1))
 #define HASHMAP(enigma,count) (((enigma)->params->unified_hashing) ? (&((enigma)->unified)) : (&((enigma)->count)))
 
+#define FCODE(term) (TermIsDBVar(term) ? 0 : (term)->f_code)
+
 /*---------------------------------------------------------------------*/
 /*                      Forward Declarations                           */
 /*---------------------------------------------------------------------*/
@@ -180,6 +182,7 @@ static char* symbol_string(EnigmaticClause_p enigma, EnigmaticInfo_p info, FunCo
 {
    if (f_code == SIG_TRUE_CODE)  { return ENIGMATIC_POS; }
    if (f_code == SIG_FALSE_CODE) { return ENIGMATIC_NEG; }
+   if (!f_code) { return ENIGMATIC_DB; }
 
    char* name = NULL;
    bool skolem = false;
@@ -411,12 +414,12 @@ static void update_horiz(EnigmaticClause_p enigma, EnigmaticInfo_p info, Term_p 
    unsigned long fid = 0;
    DStr_p fstr = info->collect_hashes ? DStrAlloc() : NULL;
    hash_update(&fid, ENIGMATIC_HORIZ, fstr);
-   hash_update(&fid, symbol_string(enigma, info, term->f_code), fstr);
+   hash_update(&fid, symbol_string(enigma, info, FCODE(term)), fstr);
    //hash_symbol(&fid, term->f_code, enigma, info, fstr);
    hash_update(&fid, ENIGMATIC_HORIZ, fstr);
-   for (int i=0; i<term->arity; i++)
+   for (int i = 0; i<term->arity; i++)
    {
-      hash_update(&fid, symbol_string(enigma, info, term->args[i]->f_code), fstr);
+      hash_update(&fid, symbol_string(enigma, info, FCODE(term->args[i])), fstr);
       //hash_symbol(&fid, term->args[i]->f_code, enigma, info, fstr);
       hash_update(&fid, ENIGMATIC_HORIZ, fstr);
    }
@@ -435,7 +438,7 @@ static void update_counts(EnigmaticClause_p enigma, EnigmaticInfo_p info, Term_p
    char* sign = info->pos ? ENIGMATIC_POS : ENIGMATIC_NEG;
    hash_update(&fid, ENIGMATIC_COUNT, fstr);
    hash_update(&fid, sign , fstr);
-   hash_update(&fid, symbol_string(enigma, info, term->f_code), fstr);
+   hash_update(&fid, symbol_string(enigma, info, FCODE(term)), fstr);
    //hash_symbol(&fid, term->f_code, enigma, info, fstr);
    hash_base(&fid, enigma->params->base_count);
    update_feature_inc(HASHMAP(enigma,counts), fid);
@@ -452,7 +455,7 @@ static void update_depths(EnigmaticClause_p enigma, EnigmaticInfo_p info, Term_p
    char* sign = info->pos ? ENIGMATIC_POS : ENIGMATIC_NEG;
    hash_update(&fid, ENIGMATIC_DEPTH, fstr);
    hash_update(&fid, sign , fstr);
-   hash_update(&fid, symbol_string(enigma, info, term->f_code), fstr);
+   hash_update(&fid, symbol_string(enigma, info, FCODE(term)), fstr);
    //hash_symbol(&fid, term->f_code, enigma, info, fstr);
    hash_base(&fid, enigma->params->base_depth);
    update_feature_max(HASHMAP(enigma,depths), fid, DEPTH(info));
@@ -502,7 +505,7 @@ static void update_arities(EnigmaticClause_p enigma, EnigmaticInfo_p info, Term_
 
 static void update_term(EnigmaticClause_p enigma, EnigmaticInfo_p info, Term_p term)
 {
-   PStackPushInt(info->path, term->f_code);
+   PStackPushInt(info->path, FCODE(term));
    if (TermIsAnyVar(term) || TermIsConst(term))
    {
       enigma->width++;
