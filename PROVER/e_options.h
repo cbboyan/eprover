@@ -201,7 +201,6 @@ typedef enum
    OPT_MINISCOPE_LIMIT,
    OPT_PRINT_TYPES,
    OPT_APP_ENCODE,
-   OPT_DELAYED_EVAL,
    OPT_ARG_CONG,
    OPT_NEG_EXT,
    OPT_POS_EXT,
@@ -1572,12 +1571,6 @@ OptCell opts[] =
     NoArg, NULL,
     "Encodes terms in the proof state using applicative encoding, "
     "prints encoded input problem and exits."},
-
-   {OPT_DELAYED_EVAL,
-    '\0', "delayed-eval-cache",
-    ReqArg, NULL,
-    "Delay evaluation and further processing of generated clauses until "
-    "they reach the count specified as an argument (if possible)."},
 
    {OPT_ARG_CONG,
     '\0', "arg-cong",

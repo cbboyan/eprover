@@ -85,7 +85,7 @@ static Term_p fresh_term(Term_p term, EnigmaticTensors_p data, DerefType deref)
 
    Term_p fresh;
 
-   if (TermIsVar(term))
+   if (TermIsAnyVar(term))
    {
       fresh = VarBankVarAssertAlloc(data->tmp_bank->vars, 
          term->f_code - data->maxvar, term->type);      
@@ -113,7 +113,7 @@ static void fresh_clause(Clause_p clause, EnigmaticTensors_p data)
 
 static void free_term(Term_p term)
 {
-   if (!TermIsVar(term))
+   if (!TermIsAnyVar(term))
    {
       for(int i=0; i<term->arity; i++)
       {
@@ -235,7 +235,7 @@ static long number_term(Term_p term, long b, EnigmaticTensors_p data)
  
    // handle type map
    long t_node = 0;
-   if ((data->type_map) && TermIsVar(term))
+   if ((data->type_map) && TermIsAnyVar(term))
    {
       NumTree_p item = NumTreeFind(&data->type_map, term->type->f_code);
       t_node = item ? item->val1.i_val : 2; // 2 is for uknown types
@@ -319,7 +319,7 @@ static void edge_clause(long cid, long tid, EnigmaticTensors_p data)
 static long names_update_term(Term_p term, EnigmaticTensors_p data, long b)
 {
    long tid = number_term(term, b, data);
-   if (TermIsVar(term))
+   if (TermIsAnyVar(term))
    {
       data->maxvar = MAX(data->maxvar, -term->f_code);
       return tid;

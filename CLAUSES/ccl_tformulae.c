@@ -1234,7 +1234,7 @@ static void tformula_reset_freevars(TB_p bank, TFormula_p form)
    {
       tformula_reset_freevars(bank, form->args[form->arity-1]);
    }
-   else if(TermIsVar(form))
+   else if(TermIsFreeVar(form))
    {
       TermCellSetProp(form, TPIsFreeVar);
    }

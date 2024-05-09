@@ -299,7 +299,7 @@ static unsigned long hash_symbol(unsigned long *hash, FunCode f_code,
 static void update_occurrences(EnigmaticClause_p enigma, EnigmaticInfo_p info, Term_p term)
 {
    FunCode f_code = term->f_code;
-   if (TermIsVar(term))
+   if (TermIsAnyVar(term))
    {
       f_code -= info->var_offset; // clause variable offset
    }
@@ -319,7 +319,7 @@ static void update_occurrences(EnigmaticClause_p enigma, EnigmaticInfo_p info, T
       vnode->key = f_code;
       vnode->val1.i_val = 1;
       NumTreeInsert(&(info->occs), vnode);
-      if (TermIsVar(term))
+      if (TermIsAnyVar(term))
       {
          info->var_distinct++;
       }
@@ -370,7 +370,7 @@ static void update_verts(EnigmaticClause_p enigma, EnigmaticInfo_p info, Term_p 
    if (enigma->params->offset_vert < 0) { return; }
 
    long len = enigma->params->length_vert;
-   if ((!TermIsVar(term)) && 
+   if ((!TermIsAnyVar(term)) && 
        (!TermIsConst(term)) && 
        ((info->path->current < len) || (len == 0)))
    { 
@@ -484,7 +484,7 @@ static void update_arity(EnigmaticClause_p enigma, EnigmaticInfo_p info, long* a
 
 static void update_arities(EnigmaticClause_p enigma, EnigmaticInfo_p info, Term_p term)
 {
-   if (TermIsVar(term)) 
+   if (TermIsAnyVar(term)) 
    {
       enigma->vars_occs++;
    }
@@ -503,7 +503,7 @@ static void update_arities(EnigmaticClause_p enigma, EnigmaticInfo_p info, Term_
 static void update_term(EnigmaticClause_p enigma, EnigmaticInfo_p info, Term_p term)
 {
    PStackPushInt(info->path, term->f_code);
-   if (TermIsVar(term) || TermIsConst(term))
+   if (TermIsAnyVar(term) || TermIsConst(term))
    {
       enigma->width++;
       enigma->depth = MAX(enigma->depth, DEPTH(info));
@@ -728,7 +728,8 @@ void EnigmaticGoal(EnigmaticVector_p vector, ClauseSet_p goal, EnigmaticInfo_p i
 void EnigmaticProblem(EnigmaticVector_p vector, ClauseSet_p problem, EnigmaticInfo_p info)
 {
    SpecFeature_p spec = SpecFeatureCellAlloc();
-   SpecFeaturesCompute(spec, problem, info->sig);
+   // TODO:
+   //SpecFeaturesCompute(spec, problem, info->sig);
    SpecLimits_p limits = CreateDefaultSpecLimits();
    SpecFeaturesAddEval(spec, limits);
 
