@@ -118,6 +118,8 @@ FunctionProperties free_symb_prop = FPIgnoreProps;
 
 bool NoSubsumption = false;
 
+bool NoSubsumption = false;
+
 /*---------------------------------------------------------------------*/
 /*                      Forward Declarations                           */
 /*---------------------------------------------------------------------*/
@@ -2053,6 +2055,9 @@ CLState_p process_options(int argc, char* argv[])
             break;
       case OPT_APP_ENCODE:
             app_encode = true;
+            break;
+      case OPT_DELAYED_EVAL:
+            DelayedEvalSize = CLStateGetIntArg(handle, arg);
             break;
       case OPT_ARG_CONG:
             if(!strcmp(arg, "all"))

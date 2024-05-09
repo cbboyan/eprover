@@ -747,6 +747,18 @@ void TermPrint(FILE* out, Term_p term, Sig_p sig, DerefType deref)
 
 void TermPrintHO(FILE* out, Term_p term, Sig_p sig, DerefType deref)
 {
+   if ((problemType == PROBLEM_HO) && (!TermPrintRawFO))
+   {
+      TermPrintHO(out, term, sig, deref);
+   }
+   else
+   {
+      TermPrintFO(out, term, sig, deref);
+   }
+}
+
+void TermPrintHO(FILE* out, Term_p term, Sig_p sig, DerefType deref)
+{
    do_ho_print(out, term, sig, deref, 0);
 }
 

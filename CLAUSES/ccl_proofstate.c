@@ -647,6 +647,12 @@ void ProofStateStatisticsPrint(FILE* out, ProofState_p state)
            state->generated_count - state->backward_rewritten_count);
    fprintf(out, "# ...of the previous two non-redundant : %ld\n",
            state->non_trivial_generated_count);
+   if (filter_generated) {
+	   fprintf(out, "# ...frozen by parental guidance       : %ld\n",
+			   state->frozen_count);
+	   fprintf(out, "# ...of these subsequently unfrozen    : %ld\n",
+			   state->unfrozen_count);
+   }
    fprintf(out, "# ...aggressively subsumed             : %ld\n",
            state->aggressive_forward_subsumed_count);
    if (filter_generated) {
