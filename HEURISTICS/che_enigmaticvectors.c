@@ -251,54 +251,6 @@ static char* symbol_string(EnigmaticClause_p enigma, EnigmaticInfo_p info, FunCo
    return DStrView(dstr);
 }
 
-/*
-static unsigned long hash_symbol(unsigned long *hash, FunCode f_code, 
-   EnigmaticClause_p enigma, EnigmaticInfo_p info, DStr_p out)
-{
-   return hash_update(hash, symbol_string(enigma, info, f_code), out);
-
-   if ((f_code == SIG_TRUE_CODE) || 
-      (f_code == SIG_FALSE_CODE) ||
-      ((f_code < 0) && (!enigma->params->use_types)))
-   {
-      return hash_update(hash, symbol_string(enigma, info, f_code), out);
-   }
-   else
-   {
-      NumTree_p node = NumTreeFind(&info->hash_cache, f_code);
-      unsigned long f_hash;
-      if (node)
-      {
-         f_hash = (unsigned long)node->val1.i_val;
-         if (out)
-         {
-            NumTree_p node0 = NumTreeFind(&info->symbol_cache, f_code);
-            if (node0) 
-            {
-               DStrAppendDStr(out, (DStr_p)node0->val1.p_val);
-            }
-            else
-            {
-               DStrAppendStr(out, SigFindName(info->sig, f_code));
-            }
-            //DStrAppendChar(out, '<');
-            //DStrAppendInt(out, f_hash);
-            //DStrAppendChar(out, '>');
-         }
-      }
-      else
-      {
-         f_hash = 0L;
-         f_hash = hash_update(&f_hash, symbol_string(enigma, info, f_code), out);
-         NumTreeStore(&info->hash_cache, f_code, (IntOrP)(long)f_hash, (IntOrP)0L);
-      }
-      *hash = hash_hash(*hash, f_hash);
-      return *hash;
-   }
-}
-*/
-
-
 static void update_occurrences(EnigmaticClause_p enigma, EnigmaticInfo_p info, Term_p term)
 {
    FunCode f_code = term->f_code;
