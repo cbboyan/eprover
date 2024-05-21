@@ -178,8 +178,10 @@ void DStrAppendType(DStr_p dstdes, Type_p type, TypeBank_p bank, bool anonymous)
    }
 }
 
-static char* symbol_string(EnigmaticClause_p enigma, EnigmaticInfo_p info, FunCode f_code)
+static char* symbol_string(EnigmaticClause_p enigma, EnigmaticInfo_p info, Term_p term)
 {
+   FunCode f_code = (term) ? FCODE(term) : info->sig->eqn_code;
+
    if (f_code == SIG_TRUE_CODE)  { return ENIGMATIC_POS; }
    if (f_code == SIG_FALSE_CODE) { return ENIGMATIC_NEG; }
    if (!f_code) { return ENIGMATIC_DB; }
@@ -348,9 +350,10 @@ static void update_verts(EnigmaticClause_p enigma, EnigmaticInfo_p info, Term_p 
    hash_update(&fid, ENIGMATIC_VERT, fstr);
    for (i=0; i<len; i++)
    {
-      FunCode f_code = info->path->stack[begin+i].i_val;
-      hash_update(&fid, symbol_string(enigma, info, f_code), fstr);
-      //hash_symbol(&fid, f_code, enigma, info, fstr);
+      //FunCode f_code = info->path->stack[begin+i].i_val;
+      //hash_update(&fid, symbol_string(enigma, info, f_code), fstr);
+      Term_p path_term = info->path->stack[begin+i].p_val;
+      hash_update(&fid, symbol_string(enigma, info, path_term), fstr);
       hash_update(&fid, ENIGMATIC_VERT, fstr);
    }
    hash_base(&fid, enigma->params->base_vert);
@@ -366,12 +369,12 @@ static void update_horiz(EnigmaticClause_p enigma, EnigmaticInfo_p info, Term_p 
    unsigned long fid = 0;
    DStr_p fstr = info->collect_hashes ? DStrAlloc() : NULL;
    hash_update(&fid, ENIGMATIC_HORIZ, fstr);
-   hash_update(&fid, symbol_string(enigma, info, FCODE(term)), fstr);
+   hash_update(&fid, symbol_string(enigma, info, term), fstr);
    //hash_symbol(&fid, term->f_code, enigma, info, fstr);
    hash_update(&fid, ENIGMATIC_HORIZ, fstr);
    for (int i = 0; i<term->arity; i++)
    {
-      hash_update(&fid, symbol_string(enigma, info, FCODE(term->args[i])), fstr);
+      hash_update(&fid, symbol_string(enigma, info, term->args[i]), fstr);
       //hash_symbol(&fid, term->args[i]->f_code, enigma, info, fstr);
       hash_update(&fid, ENIGMATIC_HORIZ, fstr);
    }
@@ -390,7 +393,7 @@ static void update_counts(EnigmaticClause_p enigma, EnigmaticInfo_p info, Term_p
    char* sign = info->pos ? ENIGMATIC_POS : ENIGMATIC_NEG;
    hash_update(&fid, ENIGMATIC_COUNT, fstr);
    hash_update(&fid, sign , fstr);
-   hash_update(&fid, symbol_string(enigma, info, FCODE(term)), fstr);
+   hash_update(&fid, symbol_string(enigma, info, term), fstr);
    //hash_symbol(&fid, term->f_code, enigma, info, fstr);
    hash_base(&fid, enigma->params->base_count);
    update_feature_inc(HASHMAP(enigma,counts), fid);
@@ -407,7 +410,7 @@ static void update_depths(EnigmaticClause_p enigma, EnigmaticInfo_p info, Term_p
    char* sign = info->pos ? ENIGMATIC_POS : ENIGMATIC_NEG;
    hash_update(&fid, ENIGMATIC_DEPTH, fstr);
    hash_update(&fid, sign , fstr);
-   hash_update(&fid, symbol_string(enigma, info, FCODE(term)), fstr);
+   hash_update(&fid, symbol_string(enigma, info, term), fstr);
    //hash_symbol(&fid, term->f_code, enigma, info, fstr);
    hash_base(&fid, enigma->params->base_depth);
    update_feature_max(HASHMAP(enigma,depths), fid, DEPTH(info));
@@ -457,7 +460,7 @@ static void update_arities(EnigmaticClause_p enigma, EnigmaticInfo_p info, Term_
 
 static void update_term(EnigmaticClause_p enigma, EnigmaticInfo_p info, Term_p term)
 {
-   PStackPushInt(info->path, FCODE(term));
+   PStackPushP(info->path, term);
    if (TermIsAnyVar(term) || TermIsConst(term))
    {
       enigma->width++;
@@ -483,7 +486,8 @@ static void update_lit(EnigmaticClause_p enigma, EnigmaticInfo_p info, Eqn_p lit
 {
    info->pos = EqnIsPositive(lit);
    
-   PStackPushInt(info->path, info->pos ? SIG_TRUE_CODE : SIG_FALSE_CODE);
+   //PStackPushInt(info->path, info->pos ? SIG_TRUE_CODE : SIG_FALSE_CODE);
+   PStackPushP(info->path, info->pos ? info->bank->true_term : info->bank->false_term);
    if (lit->rterm->f_code == SIG_TRUE_CODE || lit->rterm->f_code == SIG_FALSE_CODE)
    {
       update_term(enigma, info, lit->lterm);
@@ -491,7 +495,8 @@ static void update_lit(EnigmaticClause_p enigma, EnigmaticInfo_p info, Eqn_p lit
    }
    else
    {
-      PStackPushInt(info->path, info->sig->eqn_code);
+      //PStackPushInt(info->path, info->sig->eqn_code);
+      PStackPushP(info->path, NULL); // NULL encodes equality symbol `$eq`
       enigma->len++; // count equality
       update_term(enigma, info, lit->lterm);
       update_term(enigma, info, lit->rterm);
