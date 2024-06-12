@@ -22,6 +22,7 @@
 
 
 #include "ccl_clausefunc.h"
+#include "che_enigmaticvectors.h"
 
 
 /*---------------------------------------------------------------------*/
@@ -628,7 +629,8 @@ long ClauseSetDeleteOrphans(ClauseSet_p set)
 //
 /----------------------------------------------------------------------*/
 
-void PStackClausePrint(FILE* out, PStack_p stack, char* extra)
+void PStackClausePrint(FILE* out, PStack_p stack, char* extra,
+      EnigmaticVector_p vector, EnigmaticInfo_p info)
 {
    PStackPointer i;
    Clause_p clause;
@@ -646,47 +648,59 @@ void PStackClausePrint(FILE* out, PStack_p stack, char* extra)
 
       // Prints out the parents for a clause
       if(ProofObjectRecordsParentClauses)
-		{
-		  sp = PStackGetSP(clause->derivation);
-		  j = 0;
-		  res = 0;
+      {
+         sp = PStackGetSP(clause->derivation);
+         j = 0;
+         res = 0;
 
-		  while (j < sp)
-		  {
-			op = PStackElementInt(clause->derivation, j);
-			j++;
+         while (j < sp)
+         {
+            op = PStackElementInt(clause->derivation, j);
+            j++;
 
-			if(DCOpHasCnfArg1(op))
-			{
-			   parent = PStackElementP(clause->derivation, j);
-			   j++; res++;
+            if(DCOpHasCnfArg1(op))
+            {
+               parent = PStackElementP(clause->derivation, j);
+               j++; res++;
 
-			   fprintf(out, " #parent%ld ", res);
-			   ClausePrint(out, parent, true);
-			   fprintf(out, " ");
+               fprintf(out, " #parent%ld ", res);
+               ClausePrint(out, parent, true);
+               fprintf(out, " ");
 
-			}
-			if(DCOpHasCnfArg2(op))
-			{
-			   parent = PStackElementP(clause->derivation, j);
-			   j++; res++;
+            }
+            if(DCOpHasCnfArg2(op))
+            {
+               parent = PStackElementP(clause->derivation, j);
+               j++; res++;
 
-			   fprintf(out, " #parent%ld ", res);
-			   ClausePrint(out, parent, true);
-			   fprintf(out, " ");
-			}
-		  }
-		  if (sp == 0)
-		  {
-			fprintf(out, " #sp == 0 ");
-		  }
-		}
+               fprintf(out, " #parent%ld ", res);
+               ClausePrint(out, parent, true);
+               fprintf(out, " ");
+            }
+         }
+         if (sp == 0)
+         {
+            fprintf(out, " #sp == 0 ");
+         }
+      }
 
       if(extra)
       {
          fprintf(out, "%s", extra);
       }
       fputc('\n', out);
+
+      if (vector)
+      {
+         EnigmaticClause(vector->clause, clause, info);
+         if(extra)
+         {
+            fprintf(out, "%s ", extra);
+         }
+         PrintEnigmaticVector(out, vector);
+		     fprintf(out, "\n");
+         EnigmaticClauseReset(vector->clause);
+      }
    }
 }
 

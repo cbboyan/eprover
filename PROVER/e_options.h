@@ -241,6 +241,9 @@ typedef enum
    OPT_PREINSTANTIATE_INDUCTION,
    OPT_SERIALIZE_SCHEDULE,
    OPT_DELAYED_EVAL,
+   OPT_ENIGMATIC_SEL_FEATURES,
+   OPT_ENIGMATIC_OUTPUT_MAP,
+   OPT_ENIGMATIC_OUTPUT_BUCKETS,
    OPT_DUMMY
 }OptionCodes;
 
@@ -1780,6 +1783,22 @@ OptCell opts[] =
     ReqArg, NULL,
     "Delay evaluation and further processing of generated clauses until "
     "they reach the count specified as an argument (if possible)."},
+   
+   {OPT_ENIGMATIC_SEL_FEATURES,
+    '\0', "enigmatic-sel-features",
+    ReqArg, NULL,
+    "Specify ENIGMA features for given clause selection. "
+    "Used only for the printing of training vectors."},
+   
+   {OPT_ENIGMATIC_OUTPUT_MAP,
+    '\0', "enigmatic-output-map",
+    ReqArg, NULL,
+    "Write Enigmatic feature info mapping into the named file."},
+   
+   {OPT_ENIGMATIC_OUTPUT_BUCKETS,
+    '\0', "enigmatic-output-buckets",
+    ReqArg, NULL,
+    "Write Enigmatic feature hashes (buckets info) into the named file."},
 
    {OPT_NOOPT,
     '\0', NULL,

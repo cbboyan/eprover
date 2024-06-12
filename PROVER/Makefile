@@ -51,9 +51,9 @@ eprover: $(EPROVER)
 eprover-ho: eprover
 	mv eprover eprover-ho
 
-E_LTB_RUNNER = e_ltb_runner.o ../lib/CONTROL.a ../lib/HEURISTICS.a\
+E_LTB_RUNNER = e_ltb_runner.o ../lib/CONTROL.a \
             ../lib/CLAUSES.a ../lib/ORDERINGS.a ../lib/TERMS.a\
-            ../lib/INOUT.a ../lib/BASICS.a ../lib/CONTRIB.a
+            ../lib/INOUT.a ../lib/BASICS.a ../lib/CONTRIB.a ../lib/HEURISTICS.a
 
 e_ltb_runner: $(E_LTB_RUNNER)
 	$(LD) -o e_ltb_runner $(E_LTB_RUNNER) $(LIBS)
@@ -67,24 +67,24 @@ e_stratpar: $(E_STRATPAR)
 	$(LD) -o e_stratpar $(E_STRATPAR) $(LIBS)
 
 
-E_DEDUCTION_SERVER = e_deduction_server.o ../lib/CONTROL.a ../lib/HEURISTICS.a\
+E_DEDUCTION_SERVER = e_deduction_server.o ../lib/CONTROL.a \
             ../lib/CLAUSES.a ../lib/ORDERINGS.a ../lib/TERMS.a\
-            ../lib/INOUT.a ../lib/BASICS.a ../lib/CONTRIB.a
+            ../lib/INOUT.a ../lib/BASICS.a ../lib/CONTRIB.a ../lib/HEURISTICS.a
 
 e_deduction_server: $(E_DEDUCTION_SERVER)
 	$(LD) -o e_deduction_server $(E_DEDUCTION_SERVER) $(LIBS)
 
 
-E_AXFILTER = e_axfilter.o ../lib/CONTROL.a ../lib/HEURISTICS.a\
+E_AXFILTER = e_axfilter.o ../lib/CONTROL.a \
             ../lib/CLAUSES.a ../lib/ORDERINGS.a ../lib/TERMS.a\
-            ../lib/INOUT.a ../lib/BASICS.a ../lib/CONTRIB.a
+            ../lib/INOUT.a ../lib/BASICS.a ../lib/CONTRIB.a ../lib/HEURISTICS.a
 
 e_axfilter: $(E_AXFILTER)
 	$(LD) -o e_axfilter $(E_AXFILTER) $(LIBS)
 
-E_SERVER = e_server.o ../lib/CONTROL.a ../lib/HEURISTICS.a\
+E_SERVER = e_server.o ../lib/CONTROL.a \
             ../lib/CLAUSES.a ../lib/ORDERINGS.a ../lib/TERMS.a\
-            ../lib/INOUT.a ../lib/BASICS.a
+            ../lib/INOUT.a ../lib/BASICS.a ../lib/HEURISTICS.a
 
 e_server: $(E_SERVER)
 	$(LD) -o e_server $(E_SERVER) $(LIBS)
@@ -97,16 +97,16 @@ e_client: $(E_CLIENT)
 	$(LD) -o e_client $(E_CLIENT) $(LIBS)
 
 
-EGROUND = eground.o ../lib/HEURISTICS.a\
+EGROUND = eground.o \
             ../lib/CLAUSES.a ../lib/ORDERINGS.a ../lib/TERMS.a\
-            ../lib/INOUT.a ../lib/BASICS.a ../lib/CONTRIB.a
+            ../lib/INOUT.a ../lib/BASICS.a ../lib/CONTRIB.a ../lib/HEURISTICS.a
 
 eground: $(EGROUND)
 	$(LD) -o eground $(EGROUND) $(LIBS)
 
-ENORMALIZER = enormalizer.o ../lib/HEURISTICS.a\
+ENORMALIZER = enormalizer.o \
             ../lib/CLAUSES.a ../lib/ORDERINGS.a ../lib/TERMS.a\
-            ../lib/INOUT.a ../lib/BASICS.a ../lib/CONTRIB.a
+            ../lib/INOUT.a ../lib/BASICS.a ../lib/CONTRIB.a ../lib/HEURISTICS.a
 
 enormalizer: $(ENORMALIZER)
 	$(LD) -o enormalizer $(ENORMALIZER) $(LIBS)
@@ -119,17 +119,17 @@ EDPLL = edpll.o ../lib/PROPOSITIONAL.a ../lib/CLAUSES.a\
 edpll: $(EDPLL)
 	$(LD) -o edpll $(EDPLL) $(LIBS)
 
-CLASSIFY = classify_problem.o ../lib/CONTROL.a ../lib/HEURISTICS.a\
+CLASSIFY = classify_problem.o ../lib/CONTROL.a \
             ../lib/CLAUSES.a ../lib/ORDERINGS.a ../lib/TERMS.a\
-            ../lib/INOUT.a ../lib/BASICS.a ../lib/CONTRIB.a
+            ../lib/INOUT.a ../lib/BASICS.a ../lib/CONTRIB.a ../lib/HEURISTICS.a
 
 classify_problem: $(CLASSIFY)
 	$(LD) -o classify_problem $(CLASSIFY) $(LIBS)
 
-EPATTERNIZE = epatternize.o ../lib/CONTROL.a ../lib/HEURISTICS.a\
+EPATTERNIZE = epatternize.o ../lib/CONTROL.a \
             ../lib/LEARN.a\
             ../lib/CLAUSES.a ../lib/ORDERINGS.a ../lib/TERMS.a\
-            ../lib/INOUT.a ../lib/BASICS.a ../lib/CONTRIB.a
+            ../lib/INOUT.a ../lib/BASICS.a ../lib/CONTRIB.a ../lib/HEURISTICS.a
 
 epatternize: $(EPATTERNIZE)
 	$(LD) -o epatternize $(EPATTERNIZE) $(LIBS)

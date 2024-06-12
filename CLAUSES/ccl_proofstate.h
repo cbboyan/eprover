@@ -31,6 +31,7 @@
 #include <ccl_global_indices.h>
 #include <ccl_rewrite.h>
 #include <picosat.h>
+#include <che_enigmaticdata.h>
 
 /*---------------------------------------------------------------------*/
 /*                    Data type declarations                           */
@@ -141,6 +142,10 @@ typedef struct proofstatecell
       DerivationCompute() at the end of the proof search. */
    unsigned long gc_count;
    unsigned long gc_used_count;
+
+   EnigmaticFeatures_p enigma_sel_features;
+   FILE* enigmatic_map_out;
+   FILE* enigmatic_buckets_out;
 }ProofStateCell, *ProofState_p;
 
 typedef enum

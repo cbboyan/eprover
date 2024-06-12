@@ -20,6 +20,7 @@
 
 #include "ccl_proofstate.h"
 #include <picosat.h>
+#include <che_enigmaticvectors.h>
 
 
 
@@ -468,6 +469,18 @@ void ProofStateFree(ProofState_p junk)
    TBFree(junk->tmp_terms);
    VarBankFree(junk->freshvars);
    TypeBankFree(junk->type_bank);
+   if (junk->enigma_sel_features) 
+   { 
+      EnigmaticFeaturesFree(junk->enigma_sel_features); 
+   }
+   if (junk->enigmatic_map_out)
+   {
+      fclose(junk->enigmatic_map_out);
+   }
+   if (junk->enigmatic_buckets_out)
+   {
+      fclose(junk->enigmatic_buckets_out);
+   }
 
    ProofStateCellFree(junk);
 }
@@ -577,24 +590,38 @@ void ProofStatePickTrainingExamples(ProofState_p state,
 
 void ProofStateTrain(ProofState_p state, bool print_pos, bool print_neg, bool print_skotypes)
 {
+   EnigmaticInfo_p info = NULL;
+   EnigmaticVector_p vector = NULL;
    PStack_p
       pos_examples = PStackAlloc(),
       neg_examples = PStackAlloc();
 
    ProofStatePickTrainingExamples(state, pos_examples, neg_examples);
 
+   if (state->enigma_sel_features)
+   {
+      info = EnigmaticInfoAlloc();
+      info->sig = state->signature;
+      info->bank = state->terms;
+      info->collect_hashes = (state->enigmatic_buckets_out != NULL);
+      vector = EnigmaticVectorAlloc(state->enigma_sel_features);
+      EnigmaticInitProblem(vector, info,
+         state->f_ax_archive, //proofstate->f_axioms, 
+         state->axioms);
+   }
+
    fprintf(GlobalOut, "# Training examples: %ld positive, %ld negative\n",
            PStackGetSP(pos_examples), PStackGetSP(neg_examples));
    if(print_pos)
    {
       fprintf(GlobalOut, "# Training: Positive examples begin\n");
-      PStackClausePrint(GlobalOut, pos_examples, "#trainpos");
+      PStackClausePrint(GlobalOut, pos_examples, "#trainpos", vector, info);
       fprintf(GlobalOut, "# Training: Positive examples end\n");
    }
    if(print_neg)
    {
       fprintf(GlobalOut, "# Training: Negative examples begin\n");
-      PStackClausePrint(GlobalOut, neg_examples, "#trainneg");
+      PStackClausePrint(GlobalOut, neg_examples, "#trainneg", vector, info);
       fprintf(GlobalOut, "# Training: Negative examples end\n");
    }
    if(print_skotypes)
@@ -606,6 +633,18 @@ void ProofStateTrain(ProofState_p state, bool print_pos, bool print_neg, bool pr
 
    PStackFree(pos_examples);
    PStackFree(neg_examples);
+
+   if (info && state->enigmatic_map_out)
+   {
+      PrintEnigmaticFeaturesInfo(state->enigmatic_map_out, state->enigma_sel_features);
+      PrintEnigmaticFeaturesMap(state->enigmatic_map_out, state->enigma_sel_features);
+   }
+   if (info && state->enigmatic_buckets_out)
+   {
+      PrintEnigmaticBuckets(state->enigmatic_buckets_out, info);
+   }
+   if (info) { EnigmaticInfoFree(info); }
+   if (vector) { EnigmaticVectorFree(vector); }
 }
 
 

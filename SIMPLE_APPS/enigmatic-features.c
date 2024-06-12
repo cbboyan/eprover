@@ -24,6 +24,7 @@ Changes
 #include <ccl_proofstate.h>
 #include <ccl_formula_wrapper.h>
 #include <che_enigmaticvectors.h>
+#include <cte_lambda.h>
 
 /*---------------------------------------------------------------------*/
 /*                  Data types                                         */
@@ -227,14 +228,22 @@ static Clause_p read_clause(Scanner_p in, EnigmaticInfo_p info, ProofState_p sta
        //printf("PARSED: ");
        //WFormulaPrint(GlobalOut, formula, true);
        //printf("\n");
+       // FIXME: this does not work for THF's with db variables!
        WTFormulaConjunctiveNF(formula, info->bank);
-       //clause = EnigmaticFormulaToClause(formula, info);
+       //printf("CNF: ");
+       //WFormulaPrint(GlobalOut, formula, true);
+       //printf("\n");
+       ////clause = EnigmaticFormulaToClause(formula, info);
        TFormula_p tform = formula->tformula;
        while(tform->f_code == info->sig->qall_code && tform->arity == 2)
        {
          tform = tform->args[1];
        }
        clause = TFormulaCollectClause(tform, info->bank, state->freshvars);
+       //EqnListMapTerms(clause->literals, (TermMapper_p)PostCNFEncodeFormulas, info->bank);
+       //printf("CONVERTED: ");
+       //ClausePrint(GlobalOut, clause, true);
+       //printf("\n");
        WFormulaFree(formula);
     }
     return clause;
@@ -272,51 +281,51 @@ static void process_clauses(FILE* out, char* filename, EnigmaticVector_p vector,
    int count = 0;
    while (TestInpId(in, "input_formula|input_clause|fof|cnf|tff|tcf|thf"))
    {
-	  clause = read_clause(in, info, state);
+      clause = read_clause(in, info, state);
       if (merge_clauses)
       {
-    	  ClauseSetInsert(merge_set, clause);
-    	  if (TestInpTok(in, Semicolon))
-		  {
-			 AcceptInpTok(in, Semicolon);
-			 EnigmaticClauseSet(vector->clause, merge_set, info);
+         ClauseSetInsert(merge_set, clause);
+         if (TestInpTok(in, Semicolon))
+         {
+            AcceptInpTok(in, Semicolon);
+            EnigmaticClauseSet(vector->clause, merge_set, info);
 
-			 print_vector(out, vector, info);
+            print_vector(out, vector, info);
 
-			 count++;
-			 ClauseSetFreeClauses(merge_set);
-			 EnigmaticClauseReset(vector->clause);
-		  }
+            count++;
+            ClauseSetFreeClauses(merge_set);
+            EnigmaticClauseReset(vector->clause);
+         }
       }
       else
-	  {
-		  if (concat_clauses)
-		  {
-			 clause2 = read_clause(in, info, state);
-			 AcceptInpTok(in, Semicolon);
-			 EnigmaticClause(vector->clause, clause, info);
-			 EnigmaticClause(vector->co_parent, clause2, info);
+      {
+         if (concat_clauses)
+         {
+            clause2 = read_clause(in, info, state);
+            AcceptInpTok(in, Semicolon);
+            EnigmaticClause(vector->clause, clause, info);
+            EnigmaticClause(vector->co_parent, clause2, info);
 
-			 print_vector(out, vector, info);
+            print_vector(out, vector, info);
 
-		     count++;
-		     ClauseFree(clause);
-		     ClauseFree(clause2);
-		     EnigmaticClauseReset(vector->clause);
-		     EnigmaticClauseReset(vector->co_parent);
+            count++;
+            ClauseFree(clause);
+            ClauseFree(clause2);
+            EnigmaticClauseReset(vector->clause);
+            EnigmaticClauseReset(vector->co_parent);
 
-		  }
-		  else
-		  {
-			 EnigmaticClause(vector->clause, clause, info);
+         }
+         else
+         {
+            EnigmaticClause(vector->clause, clause, info);
 
-			 print_vector(out, vector, info);
+            print_vector(out, vector, info);
 
-			 count++;
-			 ClauseFree(clause);
-			 EnigmaticClauseReset(vector->clause);
-		  }
-	  }
+            count++;
+            ClauseFree(clause);
+            EnigmaticClauseReset(vector->clause);
+         }
+      }
    }
 
    if (compute_joint)
@@ -420,63 +429,63 @@ CLState_p process_options(int argc, char* argv[])
    {
       switch(handle->option_code)
       {
-      case OPT_VERBOSE:
-         Verbose = CLStateGetIntArg(handle, arg);
-         break;
-      case OPT_HELP: 
-         print_help(stdout);
-         exit(NO_ERROR);
-      case OPT_OUTPUT:
-         outname = arg;
-         break;
-      case OPT_OUTPUT_MAP:
-         MapOut = fopen(arg, "w");
-         break;
-      case OPT_OUTPUT_BUCKETS:
-         BucketsOut = fopen(arg, "w");
-         break;
-      case OPT_FREE_NUMBERS:
-         free_symb_prop = free_symb_prop|FPIsInteger|FPIsRational|FPIsFloat;
-         break;
-      case OPT_FEATURES:
-         features = EnigmaticFeaturesParse(arg);
-         break;
-      case OPT_PROBLEM:
-         problem_file = arg;
-         break;
-      case OPT_TYPES:
-         types_file = arg;
-         break;
-      case OPT_PREFIX:
-         prefix = arg;
-         break;
-      case OPT_PREFIX_POS:
-         prefix = "+1 ";
-         break;
-      case OPT_PREFIX_NEG:
-         prefix = "-0 ";
-         break;
-      case OPT_JOIN_AVG:
-         compute_avg = true;
-         compute_joint++;
-         break;
-      case OPT_JOIN_SUM:
-         compute_sum = true;
-         compute_joint++;
-         break;
-      case OPT_JOIN_MAX:
-         compute_max = true;
-         compute_joint++;
-         break;
-      case OPT_MERGE_CLAUSES:
-    	 merge_clauses = true;
-    	 break;
-      case OPT_CONCAT_CLAUSES:
-    	 concat_clauses = true;
-    	 break;
-      default:
-         assert(false);
-         break;
+         case OPT_VERBOSE:
+            Verbose = CLStateGetIntArg(handle, arg);
+            break;
+         case OPT_HELP: 
+            print_help(stdout);
+            exit(NO_ERROR);
+         case OPT_OUTPUT:
+            outname = arg;
+            break;
+         case OPT_OUTPUT_MAP:
+            MapOut = fopen(arg, "w");
+            break;
+         case OPT_OUTPUT_BUCKETS:
+            BucketsOut = fopen(arg, "w");
+            break;
+         case OPT_FREE_NUMBERS:
+            free_symb_prop = free_symb_prop|FPIsInteger|FPIsRational|FPIsFloat;
+            break;
+         case OPT_FEATURES:
+            features = EnigmaticFeaturesParse(arg);
+            break;
+         case OPT_PROBLEM:
+            problem_file = arg;
+            break;
+         case OPT_TYPES:
+            types_file = arg;
+            break;
+         case OPT_PREFIX:
+            prefix = arg;
+            break;
+         case OPT_PREFIX_POS:
+            prefix = "+1 ";
+            break;
+         case OPT_PREFIX_NEG:
+            prefix = "-0 ";
+            break;
+         case OPT_JOIN_AVG:
+            compute_avg = true;
+            compute_joint++;
+            break;
+         case OPT_JOIN_SUM:
+            compute_sum = true;
+            compute_joint++;
+            break;
+         case OPT_JOIN_MAX:
+            compute_max = true;
+            compute_joint++;
+            break;
+         case OPT_MERGE_CLAUSES:
+            merge_clauses = true;
+            break;
+         case OPT_CONCAT_CLAUSES:
+            concat_clauses = true;
+            break;
+         default:
+            assert(false);
+            break;
       }
    }
 

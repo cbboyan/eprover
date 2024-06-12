@@ -184,7 +184,22 @@ static char* symbol_string(EnigmaticClause_p enigma, EnigmaticInfo_p info, Term_
 
    if (f_code == SIG_TRUE_CODE)  { return ENIGMATIC_POS; }
    if (f_code == SIG_FALSE_CODE) { return ENIGMATIC_NEG; }
-   if (!f_code) { return ENIGMATIC_DB; }
+   if (!f_code) 
+   { 
+      // lambda bound db variable
+      if (!enigma->params->use_types)
+      {
+         return ENIGMATIC_DB; 
+      }
+      else
+      {
+         DStrReset(info->dbstr);
+         DStrAppendStr(info->dbstr, ENIGMATIC_DB);
+         DStrAppendStr(info->dbstr, ENIGMATIC_TYPE);
+         DStrAppendType(info->dbstr, term->type, info->sig->type_bank, enigma->params->anonymous);
+         return DStrView(info->dbstr);
+      }
+   }
 
    char* name = NULL;
    bool skolem = false;
@@ -460,6 +475,15 @@ static void update_arities(EnigmaticClause_p enigma, EnigmaticInfo_p info, Term_
 
 static void update_term(EnigmaticClause_p enigma, EnigmaticInfo_p info, Term_p term)
 {
+   // TODO
+   fprintf(GlobalOut, "update_term: ");
+   TermPrint(GlobalOut, term, info->sig, DEREF_ALWAYS);
+   fprintf(GlobalOut, " :: ");
+   TypePrintTSTP(GlobalOut, info->sig->type_bank, term->type);
+   fprintf(GlobalOut, " :: %d %d %d", TermIsDBVar(term), TermIsAnyVar(term), TermIsFreeVar(term));
+   fprintf(GlobalOut, "\n");
+   //
+
    PStackPushP(info->path, term);
    if (TermIsAnyVar(term) || TermIsConst(term))
    {
@@ -509,6 +533,12 @@ static void update_lit(EnigmaticClause_p enigma, EnigmaticInfo_p info, Eqn_p lit
 
 static void update_clause(EnigmaticClause_p enigma, EnigmaticInfo_p info, Clause_p clause)
 {
+   // TODO
+   fprintf(GlobalOut, "update_clause: ");
+   ClausePrint(GlobalOut, clause, true);
+   fprintf(GlobalOut, "\n");
+   //
+   
    info->var_distinct = 0;
    long max_depth = enigma->depth;
    for (Eqn_p lit=clause->literals; lit; lit=lit->next)

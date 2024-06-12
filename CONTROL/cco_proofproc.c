@@ -695,33 +695,33 @@ static Clause_p insert_new_clauses(ProofState_p state, ProofControl_p control, b
       // ClausePrint(stdout, handle, true);
       // printf("\n");
 
-	  if (filter_generated && !revive_children)
-	  {
-		 filter_child = EnigmaticLgbFilterGenerationCompute(control->enigma_gen_model, handle);
-		 if (filter_child)
-		 {
-			 ClauseSetInsert(state->frozen_store, handle);
-			 state->frozen_count++;
-			 continue;
-		 }
-	  }
+      if (filter_generated && !revive_children)
+      {
+         filter_child = EnigmaticLgbFilterGenerationCompute(control->enigma_gen_model, handle);
+         if (filter_child)
+         {
+            ClauseSetInsert(state->frozen_store, handle);
+            state->frozen_count++;
+            continue;
+         }
+      }
       if(ClauseQueryProp(handle,CPIsIRVictim))
       {
          assert(ClauseQueryProp(handle, CPLimitedRW));
          ForwardModifyClause(state, control, handle,
-                             control->heuristic_parms.forward_context_sr_aggressive||
-                             (control->heuristic_parms.backward_context_sr&&
-                              ClauseQueryProp(handle,CPIsProcessed)),
-                             control->heuristic_parms.condensing_aggressive,
-                             FullRewrite);
+               control->heuristic_parms.forward_context_sr_aggressive||
+               (control->heuristic_parms.backward_context_sr&&
+                ClauseQueryProp(handle,CPIsProcessed)),
+               control->heuristic_parms.condensing_aggressive,
+               FullRewrite);
          ClauseDelProp(handle,CPIsIRVictim);
       }
       ForwardModifyClause(state, control, handle,
-                          control->heuristic_parms.forward_context_sr_aggressive||
-                          (control->heuristic_parms.backward_context_sr&&
-                           ClauseQueryProp(handle,CPIsProcessed)),
-                          control->heuristic_parms.condensing_aggressive,
-                          control->heuristic_parms.forward_demod);
+            control->heuristic_parms.forward_context_sr_aggressive||
+            (control->heuristic_parms.backward_context_sr&&
+             ClauseQueryProp(handle,CPIsProcessed)),
+            control->heuristic_parms.condensing_aggressive,
+            control->heuristic_parms.forward_demod);
 
 
       if(ClauseIsTrivial(handle))
@@ -734,9 +734,9 @@ static Clause_p insert_new_clauses(ProofState_p state, ProofControl_p control, b
 
 
       check_watchlist(&(state->wlindices), state->watchlist,
-                      handle, state->archive,
-                      control->heuristic_parms.watchlist_is_static,
-                      control->heuristic_parms.lambda_demod);
+            handle, state->archive,
+            control->heuristic_parms.watchlist_is_static,
+            control->heuristic_parms.lambda_demod);
       if(ClauseIsEmpty(handle))
       {
          return handle;
@@ -747,9 +747,9 @@ static Clause_p insert_new_clauses(ProofState_p state, ProofControl_p control, b
          FVPackedClause_p pclause;
 
          pclause = ForwardSubsumption(state,
-                                      handle,
-                                      &(state->aggressive_forward_subsumed_count),
-                                      true);
+               handle,
+               &(state->aggressive_forward_subsumed_count),
+               true);
          if(pclause)
          {  // Not subsumed
             FVUnpackClause(pclause);
@@ -763,13 +763,13 @@ static Clause_p insert_new_clauses(ProofState_p state, ProofControl_p control, b
       }
 
       if(control->heuristic_parms.er_aggressive &&
-         control->heuristic_parms.er_varlit_destructive &&
-         (clause_count =
-          ClauseERNormalizeVar(state->terms,
-                               handle,
-                               state->tmp_store,
-                               state->freshvars,
-                               control->heuristic_parms.er_strong_destructive)))
+            control->heuristic_parms.er_varlit_destructive &&
+            (clause_count =
+             ClauseERNormalizeVar(state->terms,
+                handle,
+                state->tmp_store,
+                state->freshvars,
+                control->heuristic_parms.er_strong_destructive)))
       {
          state->other_redundant_count += clause_count;
          state->resolv_count += clause_count;
@@ -777,12 +777,12 @@ static Clause_p insert_new_clauses(ProofState_p state, ProofControl_p control, b
          continue;
       }
       if(control->heuristic_parms.split_aggressive &&
-         (clause_count = ControlledClauseSplit(state->definition_store,
-                                               handle,
-                                               state->tmp_store,
-                                               control->heuristic_parms.split_clauses,
-                                               control->heuristic_parms.split_method,
-                                               control->heuristic_parms.split_fresh_defs)))
+            (clause_count = ControlledClauseSplit(state->definition_store,
+                                                  handle,
+                                                  state->tmp_store,
+                                                  control->heuristic_parms.split_clauses,
+                                                  control->heuristic_parms.split_method,
+                                                  control->heuristic_parms.split_fresh_defs)))
       {
          state->generated_count += clause_count;
          continue;
@@ -802,7 +802,7 @@ static Clause_p insert_new_clauses(ProofState_p state, ProofControl_p control, b
       {
          ClausePushDerivation(handle, DCCnfEvalGC, NULL, NULL);
       }
-//      HCBClauseEvaluate(control->hcb, handle);
+      //      HCBClauseEvaluate(control->hcb, handle);
 
       ClauseSetInsert(state->eval_store, handle);
    }
@@ -1790,9 +1790,9 @@ Clause_p Saturate(ProofState_p state, ProofControl_p control, long
    Clause_p unsatisfiable = NULL;
    long
       count = 0,
-      sat_check_size_limit = control->heuristic_parms.sat_check_size_limit,
-      sat_check_step_limit = control->heuristic_parms.sat_check_step_limit,
-      sat_check_ttinsert_limit = control->heuristic_parms.sat_check_ttinsert_limit;
+            sat_check_size_limit = control->heuristic_parms.sat_check_size_limit,
+            sat_check_step_limit = control->heuristic_parms.sat_check_step_limit,
+            sat_check_ttinsert_limit = control->heuristic_parms.sat_check_ttinsert_limit;
 
 
    while(!TimeIsUp &&
@@ -1802,7 +1802,7 @@ Clause_p Saturate(ProofState_p state, ProofControl_p control, long
          unproc_limit > ProofStateUnprocCardinality(state) &&
          total_limit  > ProofStateCardinality(state) &&
          generated_limit > (state->generated_count -
-                            state->backward_rewritten_count)&&
+            state->backward_rewritten_count)&&
          tb_insert_limit > state->terms->insertions &&
          (!state->watchlist||!ClauseSetEmpty(state->watchlist)))
    {
@@ -1856,11 +1856,11 @@ Clause_p Saturate(ProofState_p state, ProofControl_p control, long
       }
       if (filter_generated && ClauseSetEmpty(state->unprocessed))
       {
-    	  if((unsatisfiable = insert_new_clauses(state, control, true)))
-    	  {
-			PStackPushP(state->extract_roots, unsatisfiable);
-			break;
-    	  }
+         if((unsatisfiable = insert_new_clauses(state, control, true)))
+         {
+            PStackPushP(state->extract_roots, unsatisfiable);
+            break;
+         }
       }
 
    }

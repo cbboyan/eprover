@@ -1073,6 +1073,7 @@ EnigmaticInfo_p EnigmaticInfoAlloc()
    info->collect_hashes = false;
    info->hashes = NULL;
    info->avgs = NULL;
+   info->dbstr = DStrAlloc();
    return info;
 }
 
@@ -1085,6 +1086,7 @@ void EnigmaticInfoReset(EnigmaticInfo_p info)
       info->occs = NULL;
    }
    PStackReset(info->path);
+   DStrReset(info->dbstr);
 }
 
 void EnigmaticInfoFree(EnigmaticInfo_p junk)
@@ -1110,6 +1112,7 @@ void EnigmaticInfoFree(EnigmaticInfo_p junk)
    {
       StrTreeFree(junk->hashes);
    }
+   DStrFree(junk->dbstr);
    EnigmaticInfoCellFree(junk);
 }
 

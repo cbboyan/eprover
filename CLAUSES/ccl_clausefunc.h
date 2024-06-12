@@ -27,6 +27,7 @@
 
 #include <ccl_clausesets.h>
 #include <ccl_formula_wrapper.h>
+#include <che_enigmaticdata.h>
 
 
 /*---------------------------------------------------------------------*/
@@ -58,7 +59,8 @@ Clause_p ClauseRecognizeInjectivity(TB_p terms, Clause_p clause);
 long ClauseSetReplaceInjectivityDefs(ClauseSet_p set, ClauseSet_p archive, TB_p terms);
 
 
-void PStackClausePrint(FILE* out, PStack_p stack, char* extra);
+void PStackClausePrint(FILE* out, PStack_p stack, char* extra, 
+      EnigmaticVector_p vector, EnigmaticInfo_p info);
 
 
 #endif

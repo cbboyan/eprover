@@ -226,6 +226,7 @@ typedef struct enigmaticinfocell
    bool collect_hashes;  // collect feature hash statistics in the below:
    StrTree_p hashes;     //   (hash map :: festure string -> feature hashed id)
    float* avgs;          // computing the average vector
+   DStr_p dbstr;         // temporary string to store typed db variables
 } EnigmaticInfoCell, *EnigmaticInfo_p;
 
 typedef struct enigmaticmodelcell

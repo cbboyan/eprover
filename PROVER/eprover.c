@@ -48,6 +48,7 @@
 PERF_CTR_DEFINE(SatTimer);
 
 #include <e_options.h>
+#include <che_enigmaticdata.h>
 
 
 /*---------------------------------------------------------------------*/
@@ -59,6 +60,9 @@ char              *watchlist_filename = NULL;
 char              *parse_strategy_filename = NULL;
 char              *print_strategy = NULL;
 char              *enigmaceo_filename = NULL;
+EnigmaticFeatures_p enigma_sel_features = NULL;
+FILE*             enigmatic_map_out = NULL;
+FILE*             enigmatic_buckets_out = NULL;
 double            filter_generated_threshold;
 
 HeuristicParms_p  h_parms;
@@ -236,6 +240,10 @@ ProofState_p parse_spec(CLState_p state,
       Error("Input file contains no clauses or formulas", OTHER_ERROR);
    }
    *ax_no = parsed_ax_no;
+   
+   proofstate->enigma_sel_features = enigma_sel_features;
+   proofstate->enigmatic_buckets_out = enigmatic_buckets_out;
+   proofstate->enigmatic_map_out = enigmatic_map_out;
 
    //printf("Returning set\n");
    return proofstate;
@@ -839,7 +847,7 @@ int main(int argc, char* argv[])
 										 proofcontrol->ocb,
 										 proofstate,
 										 proofcontrol->enigma_gen_model);
-	}
+	 }
 
    VERBOUT2("Prover state initialized\n");
    preproc_time = GetTotalCPUTime();
@@ -2265,6 +2273,15 @@ CLState_p process_options(int argc, char* argv[])
                CLStateGetIntArgCheckRange(handle, arg, 1, 99) / (double) 100;
       case OPT_PREINSTANTIATE_INDUCTION:
             h_parms->preinstantiate_induction = CLStateGetBoolArg(handle, arg);
+            break;
+      case OPT_ENIGMATIC_SEL_FEATURES:
+            enigma_sel_features = EnigmaticFeaturesParse(arg);
+            break;
+      case OPT_ENIGMATIC_OUTPUT_MAP:
+            enigmatic_map_out = fopen(arg, "w");
+            break;
+      case OPT_ENIGMATIC_OUTPUT_BUCKETS:
+            enigmatic_buckets_out = fopen(arg, "w");
             break;
       default:
             assert(false && "Unknown option");
