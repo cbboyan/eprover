@@ -143,9 +143,7 @@ typedef struct proofstatecell
    unsigned long gc_count;
    unsigned long gc_used_count;
 
-   EnigmaticFeatures_p enigma_sel_features;
-   FILE* enigmatic_map_out;
-   FILE* enigmatic_buckets_out;
+   EnigmaticSetting_p enigmatic;
 }ProofStateCell, *ProofState_p;
 
 typedef enum
@@ -235,6 +233,8 @@ void ProofStateClauseProcessedRegister(ProofState_p state,
    ClauseProcessedCallback callback, void* data);
 
 void ProofStateClauseProcessedCall(ProofState_p state, Clause_p clause);
+
+void ProofStateEnigmaticInit(ProofState_p state, EnigmaticFeatures_p sel, FILE* map_out, FILE* buckets_out);
 
 #endif
 

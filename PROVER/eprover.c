@@ -241,14 +241,9 @@ ProofState_p parse_spec(CLState_p state,
    }
    *ax_no = parsed_ax_no;
    
-   proofstate->enigma_sel_features = enigma_sel_features;
-   proofstate->enigmatic_buckets_out = enigmatic_buckets_out;
-   proofstate->enigmatic_map_out = enigmatic_map_out;
-
    //printf("Returning set\n");
    return proofstate;
 }
-
 
 /*-----------------------------------------------------------------------
 //
@@ -838,6 +833,9 @@ int main(int argc, char* argv[])
    ProofStateInit(proofstate, proofcontrol);
    //printf("Alive (2)!\n");
    //ProofStateInitWatchlist(proofstate, proofcontrol->ocb);
+   
+   ProofStateEnigmaticInit(proofstate, enigma_sel_features, 
+         enigmatic_map_out, enigmatic_buckets_out);
 
    if (filter_generated)
    {

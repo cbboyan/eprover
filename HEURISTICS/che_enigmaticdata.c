@@ -1200,6 +1200,37 @@ EnigmaticModel_p EnigmaticWeightParse(Scanner_p in, char* model_name)
    return model;
 }
 
+EnigmaticSetting_p EnigmaticSettingAlloc(void)
+{
+   EnigmaticSetting_p setting = EnigmaticSettingCellAlloc();
+   setting->info = EnigmaticInfoAlloc();
+   setting->sel = NULL;
+   setting->map_out = NULL;
+   setting->buckets_out = NULL;
+   return setting;
+}
+
+void EnigmaticSettingFree(EnigmaticSetting_p junk)
+{
+   if (junk->sel)
+   {
+      EnigmaticVectorFree(junk->sel);
+   }
+   if (junk->info)
+   {
+      EnigmaticInfoFree(junk->info);
+   }
+   if (junk->map_out)
+   {
+      fclose(junk->map_out);
+   }
+   if (junk->buckets_out)
+   {
+      fclose(junk->buckets_out);
+   }
+   EnigmaticSettingCellFree(junk);
+}
+
 void EnigmaticVectorFill(EnigmaticVector_p vector, FillFunc set, void* data)
 {
    fill_clause(set, data, vector->clause);

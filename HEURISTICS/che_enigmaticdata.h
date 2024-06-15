@@ -240,6 +240,15 @@ typedef struct enigmaticmodelcell
    EnigmaticVector_p vector;
 } EnigmaticModelCell, *EnigmaticModel_p;
 
+typedef struct enigmaticsettingcell
+{
+   EnigmaticInfo_p info;
+   EnigmaticVector_p sel;
+   //EnigmaticVector_p gen;
+   FILE* map_out;
+   FILE* buckets_out;
+} EnigmaticSettingCell, *EnigmaticSetting_p;
+
 typedef void (*FillFunc)(void*, long, float);
 
 typedef double (*PredictFunc)(void*, struct enigmaticmodelcell*);
@@ -281,6 +290,11 @@ typedef void (*LoadFunc)(struct enigmaticmodelcell*);
 #define EnigmaticModelCellFree(junk) \
         SizeFree(junk, sizeof(EnigmaticModelCell))
 
+#define EnigmaticSettingCellAlloc() (EnigmaticSettingCell*) \
+        SizeMalloc(sizeof(EnigmaticSettingCell))
+#define EnigmaticSettingCellFree(junk) \
+        SizeFree(junk, sizeof(EnigmaticSettingCell))
+
 EnigmaticParams_p EnigmaticParamsAlloc(void);
 void EnigmaticParamsFree(EnigmaticParams_p junk);
 EnigmaticParams_p EnigmaticParamsCopy(EnigmaticParams_p source);
@@ -306,6 +320,9 @@ EnigmaticModel_p EnigmaticModelAlloc(void);
 void EnigmaticModelFree(EnigmaticModel_p junk);
 EnigmaticModel_p EnigmaticModelCreate(char* d_prefix, char* model_name);
 EnigmaticModel_p EnigmaticWeightParse(Scanner_p in, char* model_name);
+
+EnigmaticSetting_p EnigmaticSettingAlloc(void);
+void EnigmaticSettingFree(EnigmaticSetting_p junk);
 
 void PrintKeyVal(FILE* out, long key, float val);
 void PrintEscapedString(FILE* out, char* str);

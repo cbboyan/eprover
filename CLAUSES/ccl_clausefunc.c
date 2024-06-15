@@ -682,7 +682,7 @@ void ClauseParentsPrint(FILE* out, Clause_p clause, char* extra)
 /----------------------------------------------------------------------*/
 
 void PStackClausePrint(FILE* out, PStack_p stack, char* extra, char* label,
-      bool print_parents, EnigmaticVector_p vector, EnigmaticInfo_p info)
+      bool print_parents, EnigmaticSetting_p enigmatic)
 {
    PStackPointer i;
    Clause_p clause;
@@ -697,13 +697,13 @@ void PStackClausePrint(FILE* out, PStack_p stack, char* extra, char* label,
       {
          ClauseParentsPrint(out, clause, extra);
       }
-      if (vector)
+      if (enigmatic)
       {
-         EnigmaticClause(vector->clause, clause, info);
+         EnigmaticClause(enigmatic->sel->clause, clause, enigmatic->info);
          fprintf(out, "#SEL#%s", (label ? label : ""));
-         PrintEnigmaticVector(out, vector);
+         PrintEnigmaticVector(out, enigmatic->sel);
 		     fputc('\n', out);
-         EnigmaticClauseReset(vector->clause);
+         EnigmaticClauseReset(enigmatic->sel->clause);
       }
    }
 }

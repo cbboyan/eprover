@@ -257,6 +257,8 @@ ProofState_p ProofStateAlloc(FunctionProperties free_symb_prop)
    handle->signature->distinct_props =
       handle->signature->distinct_props&(~free_symb_prop);
 
+   handle->enigmatic = NULL;
+
 #ifdef NEVER_DEFINED
    printf("# XXXf_axioms            = %p\n", handle->f_axioms);
    printf("# XXXf_ax_archive        = %p\n", handle->f_ax_archive);
@@ -469,17 +471,9 @@ void ProofStateFree(ProofState_p junk)
    TBFree(junk->tmp_terms);
    VarBankFree(junk->freshvars);
    TypeBankFree(junk->type_bank);
-   if (junk->enigma_sel_features) 
-   { 
-      EnigmaticFeaturesFree(junk->enigma_sel_features); 
-   }
-   if (junk->enigmatic_map_out)
+   if (junk->enigmatic)
    {
-      fclose(junk->enigmatic_map_out);
-   }
-   if (junk->enigmatic_buckets_out)
-   {
-      fclose(junk->enigmatic_buckets_out);
+      EnigmaticSettingFree(junk->enigmatic);
    }
 
    ProofStateCellFree(junk);
@@ -590,25 +584,11 @@ void ProofStatePickTrainingExamples(ProofState_p state,
 
 void ProofStateTrain(ProofState_p state, bool print_pos, bool print_neg, bool print_skotypes, bool print_parents)
 {
-   EnigmaticInfo_p info = NULL;
-   EnigmaticVector_p vector = NULL;
    PStack_p
       pos_examples = PStackAlloc(),
       neg_examples = PStackAlloc();
 
    ProofStatePickTrainingExamples(state, pos_examples, neg_examples);
-
-   if (state->enigma_sel_features)
-   {
-      info = EnigmaticInfoAlloc();
-      info->sig = state->signature;
-      info->bank = state->terms;
-      info->collect_hashes = (state->enigmatic_buckets_out != NULL);
-      vector = EnigmaticVectorAlloc(state->enigma_sel_features);
-      EnigmaticInitProblem(vector, info,
-         state->f_ax_archive, //proofstate->f_axioms, 
-         state->axioms);
-   }
 
    fprintf(GlobalOut, "# Training examples: %ld positive, %ld negative\n",
            PStackGetSP(pos_examples), PStackGetSP(neg_examples));
@@ -616,14 +596,14 @@ void ProofStateTrain(ProofState_p state, bool print_pos, bool print_neg, bool pr
    {
       fprintf(GlobalOut, "# Training: Positive examples begin\n");
       PStackClausePrint(GlobalOut, pos_examples, "#trainpos", "+1 ", 
-            print_parents, vector, info);
+            print_parents, state->enigmatic);
       fprintf(GlobalOut, "# Training: Positive examples end\n");
    }
    if(print_neg)
    {
       fprintf(GlobalOut, "# Training: Negative examples begin\n");
       PStackClausePrint(GlobalOut, neg_examples, "#trainneg", "-0 ", 
-            print_parents, vector, info);
+            print_parents, state->enigmatic);
       fprintf(GlobalOut, "# Training: Negative examples end\n");
    }
    if(print_skotypes)
@@ -636,17 +616,15 @@ void ProofStateTrain(ProofState_p state, bool print_pos, bool print_neg, bool pr
    PStackFree(pos_examples);
    PStackFree(neg_examples);
 
-   if (info && state->enigmatic_map_out)
+   if (state->enigmatic && state->enigmatic->map_out)
    {
-      PrintEnigmaticFeaturesInfo(state->enigmatic_map_out, state->enigma_sel_features);
-      PrintEnigmaticFeaturesMap(state->enigmatic_map_out, state->enigma_sel_features);
+      PrintEnigmaticFeaturesInfo(state->enigmatic->map_out, state->enigmatic->sel->features);
+      PrintEnigmaticFeaturesMap(state->enigmatic->map_out, state->enigmatic->sel->features);
    }
-   if (info && state->enigmatic_buckets_out)
+   if (state->enigmatic && state->enigmatic->buckets_out)
    {
-      PrintEnigmaticBuckets(state->enigmatic_buckets_out, info);
+      PrintEnigmaticBuckets(state->enigmatic->buckets_out, state->enigmatic->info);
    }
-   if (info) { EnigmaticInfoFree(info); }
-   if (vector) { EnigmaticVectorFree(vector); }
 }
 
 
@@ -914,6 +892,24 @@ void ProofStateClauseProcessedCall(ProofState_p state, Clause_p clause)
       callback(clause, data);
    }
 }
+
+void ProofStateEnigmaticInit(ProofState_p state, EnigmaticFeatures_p sel_features, FILE* map_out, FILE* buckets_out)
+{
+   if (!sel_features) { return; }
+
+   EnigmaticSetting_p enigmatic = EnigmaticSettingAlloc();
+   enigmatic->buckets_out = buckets_out;
+   enigmatic->map_out = map_out;
+   enigmatic->info->sig = state->signature;
+   enigmatic->info->bank = state->terms;
+   enigmatic->info->collect_hashes = (buckets_out != NULL);
+   enigmatic->sel = EnigmaticVectorAlloc(sel_features);
+   EnigmaticInitProblem(enigmatic->sel, enigmatic->info,
+      state->f_ax_archive, //proofstate->f_axioms, 
+      state->axioms);
+   state->enigmatic = enigmatic;
+}
+
 
 /*---------------------------------------------------------------------*/
 /*                        End of File                                  */
