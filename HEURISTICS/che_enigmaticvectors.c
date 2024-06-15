@@ -659,7 +659,7 @@ static void enigmatic_clause(EnigmaticClause_p enigma, Clause_p clause, Enigmati
 static long update_parent(EnigmaticVector_p vector, Clause_p parent, long num, 
                           EnigmaticInfo_p info)
 {
-   if ((num == 1) && (vector->mother))
+   if (num == 1)
    {
       if (vector->mother) 
       {
@@ -668,10 +668,10 @@ static long update_parent(EnigmaticVector_p vector, Clause_p parent, long num,
          info->var_offset = 0;
          return 0;
       }
-      else if (vector->father && vector->spirit)
+      if ((vector->father) && (vector->spirit))
       {
          // special case when !M & F & S :
-         // this would place parent to the spirit but the info would
+         // this would place the first parent to the spirit but the info would
          // be reseted in the next call for res == 2.
          // hence we just skip mother in this case (FIXME: optimal would be 
          // a separate info for spirit)
@@ -957,7 +957,7 @@ double EnigmaticPredict(
    FillFunc fill_func, 
    PredictFunc predict_func)
 {
-   EnigmaticClauseReset(model->vector->clause); // FIXME: reset parents
+   EnigmaticVectorReset(model->vector);
    EnigmaticClause(model->vector, clause, model->info);
    EnigmaticVectorFill(model->vector, fill_func, data);
    return predict_func(data, model);
