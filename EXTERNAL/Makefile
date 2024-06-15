@@ -32,9 +32,10 @@ clean:
 
 include ../Makefile.services
 
-CSSCPA = CSSCPA_filter.o cex_csscpa.o \
-            ../lib/CLAUSES.a ../lib/ORDERINGS.a ../lib/TERMS.a ../lib/BASICS.a \
-            ../lib/CONTRIB.a ../lib/HEURISTICS.a ../lib/CLAUSES.a  ../lib/TERMS.a ../lib/BASICS.a
+#CSSCPA = CSSCPA_filter.o cex_csscpa.o \
+#            ../lib/CLAUSES.a ../lib/ORDERINGS.a ../lib/TERMS.a ../lib/BASICS.a \
+#            ../lib/CONTRIB.a ../lib/HEURISTICS.a ../lib/CLAUSES.a  ../lib/TERMS.a ../lib/BASICS.a
+CSSCPA = CSSCPA_filter.o cex_csscpa.o ../lib/CONTROL.a  ../lib/CLAUSES.a ../lib/ORDERINGS.a ../lib/TERMS.a ../lib/BASICS.a ../lib/LEARN.a ../lib/ORDERINGS.a ../lib/TERMS.a ../lib/INOUT.a ../lib/BASICS.a  ../lib/CONTRIB.a  ../lib/HEURISTICS.a ../lib/CLAUSES.a  ../lib/CONTROL.a  ../lib/CLAUSES.a ../lib/ORDERINGS.a ../lib/TERMS.a ../lib/BASICS.a ../lib/LEARN.a ../lib/ORDERINGS.a ../lib/TERMS.a ../lib/INOUT.a ../lib/BASICS.a  ../lib/CONTRIB.a  ../lib/HEURISTICS.a ../lib/CLAUSES.a
 
 $(LIB): $(CSSCPA)
 	$(LD) -o CSSCPA_filter $(CSSCPA) $(LIBS)

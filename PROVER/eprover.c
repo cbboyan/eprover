@@ -958,9 +958,11 @@ int main(int argc, char* argv[])
          ProofStateAnalyseGC(proofstate);
          if(proc_training_data)
          {
-            ProofStateTrain(proofstate, proc_training_data&TSPrintPos,
+            ProofStateTrain(proofstate, 
+                            proc_training_data&TSPrintPos,
                             proc_training_data&TSPrintNeg,
-                            proc_training_data&TSPrintSkolemTypes);
+                            proc_training_data&TSPrintSkolemTypes,
+                            proc_training_data&TSPrintParents);
          }
       }
       DerivationFree(deriv);

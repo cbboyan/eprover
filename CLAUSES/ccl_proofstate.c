@@ -588,7 +588,7 @@ void ProofStatePickTrainingExamples(ProofState_p state,
 //
 /----------------------------------------------------------------------*/
 
-void ProofStateTrain(ProofState_p state, bool print_pos, bool print_neg, bool print_skotypes)
+void ProofStateTrain(ProofState_p state, bool print_pos, bool print_neg, bool print_skotypes, bool print_parents)
 {
    EnigmaticInfo_p info = NULL;
    EnigmaticVector_p vector = NULL;
@@ -615,13 +615,15 @@ void ProofStateTrain(ProofState_p state, bool print_pos, bool print_neg, bool pr
    if(print_pos)
    {
       fprintf(GlobalOut, "# Training: Positive examples begin\n");
-      PStackClausePrint(GlobalOut, pos_examples, "#trainpos", vector, info);
+      PStackClausePrint(GlobalOut, pos_examples, "#trainpos", "+1 ", 
+            print_parents, vector, info);
       fprintf(GlobalOut, "# Training: Positive examples end\n");
    }
    if(print_neg)
    {
       fprintf(GlobalOut, "# Training: Negative examples begin\n");
-      PStackClausePrint(GlobalOut, neg_examples, "#trainneg", vector, info);
+      PStackClausePrint(GlobalOut, neg_examples, "#trainneg", "-0 ", 
+            print_parents, vector, info);
       fprintf(GlobalOut, "# Training: Negative examples end\n");
    }
    if(print_skotypes)

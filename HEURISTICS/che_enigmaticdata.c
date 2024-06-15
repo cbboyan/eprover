@@ -772,16 +772,16 @@ EnigmaticFeatures_p EnigmaticFeaturesParse(char* spec)
             features->offset_proofwatch = 0;
             break;
          case 'F':
-			if (features->offset_co_parent == 0) { Error("ENIGMATIC: Multiple '%c' blocks are not allowed.", OTHER_ERROR, *spec); }
-			parse_expect(&spec, 'F');
-			features->offset_co_parent = 0;
-			features->co_parent = parse_block(&spec);
-			if ((!features->co_parent) && (defaults))
-			{
-				features->co_parent = EnigmaticParamsCopy(defaults);
-			}
-			defaults = features->co_parent;
-			break;
+            if (features->offset_co_parent == 0) { Error("ENIGMATIC: Multiple '%c' blocks are not allowed.", OTHER_ERROR, *spec); }
+            parse_expect(&spec, 'F');
+            features->offset_co_parent = 0;
+            features->co_parent = parse_block(&spec);
+            if ((!features->co_parent) && (defaults))
+            {
+              features->co_parent = EnigmaticParamsCopy(defaults);
+            }
+            defaults = features->co_parent;
+            break;
          default:
             Error("ENIGMA: Invalid feature specifier (expected block name, have '%s').",
                   USAGE_ERROR, spec);

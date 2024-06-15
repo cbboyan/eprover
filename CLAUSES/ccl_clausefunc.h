@@ -59,8 +59,9 @@ Clause_p ClauseRecognizeInjectivity(TB_p terms, Clause_p clause);
 long ClauseSetReplaceInjectivityDefs(ClauseSet_p set, ClauseSet_p archive, TB_p terms);
 
 
-void PStackClausePrint(FILE* out, PStack_p stack, char* extra, 
-      EnigmaticVector_p vector, EnigmaticInfo_p info);
+void PStackClausePrint(FILE* out, PStack_p stack, char* extra, char* label, 
+      bool print_parents, EnigmaticVector_p vector, EnigmaticInfo_p info);
+void ClauseParentsPrint(FILE* out, Clause_p child, char* extra); 
 
 
 #endif

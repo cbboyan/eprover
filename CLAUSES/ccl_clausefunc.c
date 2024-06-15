@@ -619,6 +619,58 @@ long ClauseSetDeleteOrphans(ClauseSet_p set)
 
 /*-----------------------------------------------------------------------
 //
+// Function: ClauseParentsPrint()
+//
+//   Print the parents of the clause in the derivation.
+//
+// Global Variables: -
+//
+// Side Effects    : -
+//
+/----------------------------------------------------------------------*/
+
+void ClauseParentsPrint(FILE* out, Clause_p clause, char* extra)
+{
+   PStackPointer j, sp;
+   DerivationCode op;
+   Clause_p parent;
+   long res = 0;
+
+   extra = (extra ? extra : "");
+
+   if (!clause->derivation) { return; }
+
+   sp = PStackGetSP(clause->derivation);
+   j = 0;
+   res = 0;
+   while (j < sp)
+   {
+      op = PStackElementInt(clause->derivation, j);
+      j++;
+      if(DCOpHasCnfArg1(op))
+      {
+         parent = PStackElementP(clause->derivation, j);
+         j++; res++;
+         ClausePrint(out, parent, true);
+         fprintf(out, "%s#parent#%ld\n", extra, res);
+
+      }
+      if(DCOpHasCnfArg2(op))
+      {
+         parent = PStackElementP(clause->derivation, j);
+         j++; res++;
+         ClausePrint(out, parent, true);
+         fprintf(out, "%s#parent#%ld\n", extra, res);
+      }
+   }
+   if (sp == 0)
+   {
+      fprintf(out, "#sp == 0\n");
+   }
+}
+
+/*-----------------------------------------------------------------------
+//
 // Function: PStackClausePrint()
 //
 //   Print the clauses on the stack.
@@ -629,76 +681,28 @@ long ClauseSetDeleteOrphans(ClauseSet_p set)
 //
 /----------------------------------------------------------------------*/
 
-void PStackClausePrint(FILE* out, PStack_p stack, char* extra,
-      EnigmaticVector_p vector, EnigmaticInfo_p info)
+void PStackClausePrint(FILE* out, PStack_p stack, char* extra, char* label,
+      bool print_parents, EnigmaticVector_p vector, EnigmaticInfo_p info)
 {
    PStackPointer i;
    Clause_p clause;
-
-   PStackPointer j, sp;
-   DerivationCode op;
-   Clause_p parent;
-
-   long res = 0;
 
    for(i=0; i<PStackGetSP(stack); i++)
    {
       clause = PStackElementP(stack, i);
       ClausePrint(out, clause, true);
+      fprintf(out, "%s\n", extra ? extra : "");
 
-      // Prints out the parents for a clause
-      if(ProofObjectRecordsParentClauses)
+      if (print_parents)
       {
-         sp = PStackGetSP(clause->derivation);
-         j = 0;
-         res = 0;
-
-         while (j < sp)
-         {
-            op = PStackElementInt(clause->derivation, j);
-            j++;
-
-            if(DCOpHasCnfArg1(op))
-            {
-               parent = PStackElementP(clause->derivation, j);
-               j++; res++;
-
-               fprintf(out, " #parent%ld ", res);
-               ClausePrint(out, parent, true);
-               fprintf(out, " ");
-
-            }
-            if(DCOpHasCnfArg2(op))
-            {
-               parent = PStackElementP(clause->derivation, j);
-               j++; res++;
-
-               fprintf(out, " #parent%ld ", res);
-               ClausePrint(out, parent, true);
-               fprintf(out, " ");
-            }
-         }
-         if (sp == 0)
-         {
-            fprintf(out, " #sp == 0 ");
-         }
+         ClauseParentsPrint(out, clause, extra);
       }
-
-      if(extra)
-      {
-         fprintf(out, "%s", extra);
-      }
-      fputc('\n', out);
-
       if (vector)
       {
          EnigmaticClause(vector->clause, clause, info);
-         if(extra)
-         {
-            fprintf(out, "%s ", extra);
-         }
+         fprintf(out, "#SEL#%s", (label ? label : ""));
          PrintEnigmaticVector(out, vector);
-		     fprintf(out, "\n");
+		     fputc('\n', out);
          EnigmaticClauseReset(vector->clause);
       }
    }
