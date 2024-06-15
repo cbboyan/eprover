@@ -582,7 +582,8 @@ void ProofStatePickTrainingExamples(ProofState_p state,
 //
 /----------------------------------------------------------------------*/
 
-void ProofStateTrain(ProofState_p state, bool print_pos, bool print_neg, bool print_skotypes, bool print_parents)
+void ProofStateTrain(ProofState_p state, bool print_pos, bool print_neg, 
+      bool print_skotypes, bool print_parents)
 {
    PStack_p
       pos_examples = PStackAlloc(),
@@ -616,14 +617,15 @@ void ProofStateTrain(ProofState_p state, bool print_pos, bool print_neg, bool pr
    PStackFree(pos_examples);
    PStackFree(neg_examples);
 
-   if (state->enigmatic && state->enigmatic->map_out)
+   EnigmaticSetting_p eni = state->enigmatic;
+   if (eni && eni->map_out)
    {
-      PrintEnigmaticFeaturesInfo(state->enigmatic->map_out, state->enigmatic->sel->features);
-      PrintEnigmaticFeaturesMap(state->enigmatic->map_out, state->enigmatic->sel->features);
+      PrintEnigmaticFeaturesInfo(eni->map_out, eni->sel->features);
+      PrintEnigmaticFeaturesMap(eni->map_out, eni->sel->features);
    }
-   if (state->enigmatic && state->enigmatic->buckets_out)
+   if (eni && eni->buckets_out)
    {
-      PrintEnigmaticBuckets(state->enigmatic->buckets_out, state->enigmatic->info);
+      PrintEnigmaticBuckets(eni->buckets_out, eni->info);
    }
 }
 

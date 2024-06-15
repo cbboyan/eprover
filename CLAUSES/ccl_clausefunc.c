@@ -699,11 +699,11 @@ void PStackClausePrint(FILE* out, PStack_p stack, char* extra, char* label,
       }
       if (enigmatic)
       {
-         EnigmaticClause(enigmatic->sel->clause, clause, enigmatic->info);
+         EnigmaticClause(enigmatic->sel, clause, enigmatic->info);
          fprintf(out, "#SEL#%s", (label ? label : ""));
          PrintEnigmaticVector(out, enigmatic->sel);
 		     fputc('\n', out);
-         EnigmaticClauseReset(enigmatic->sel->clause);
+         EnigmaticVectorReset(enigmatic->sel);
       }
    }
 }

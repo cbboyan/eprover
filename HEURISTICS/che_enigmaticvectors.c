@@ -635,14 +635,112 @@ Clause_p EnigmaticFormulaToClause(WFormula_p formula, EnigmaticInfo_p info)
    return encode;
 }
 
-void EnigmaticClause(EnigmaticClause_p enigma, Clause_p clause, EnigmaticInfo_p info)
+static void update_finish(EnigmaticClause_p enigma, EnigmaticInfo_p info, long count)
 {
-   EnigmaticInfoReset(info);
-
-   info->var_offset = 0;
-   update_clause(enigma, info, clause);
    enigma->avg_lit_depth /= enigma->lits;
    update_hists(enigma, info);
+   if ((count > 1) && enigma->params->use_prios)
+   {
+      for (int i=0; i<EFC_PRIOS; i++)
+      {
+         enigma->prios[i] /= count; // average priorities
+      }
+   }
+}
+
+static void enigmatic_clause(EnigmaticClause_p enigma, Clause_p clause, EnigmaticInfo_p info)
+{
+   EnigmaticInfoReset(info);
+   info->var_offset = 0;
+   update_clause(enigma, info, clause);
+   update_finish(enigma, info, 1);
+}
+
+static long update_parent(EnigmaticVector_p vector, Clause_p parent, long num, 
+                          EnigmaticInfo_p info)
+{
+   if ((num == 1) && (vector->mother))
+   {
+      if (vector->mother) 
+      {
+         enigmatic_clause(vector->mother, parent, info);
+         EnigmaticInfoReset(info);
+         info->var_offset = 0;
+         return 0;
+      }
+      else if (vector->father && vector->spirit)
+      {
+         // special case when !M & F & S :
+         // this would place parent to the spirit but the info would
+         // be reseted in the next call for res == 2.
+         // hence we just skip mother in this case (FIXME: optimal would be 
+         // a separate info for spirit)
+         return 0;
+      }
+   }
+   if ((num == 2) && (vector->father))
+   {
+      enigmatic_clause(vector->father, parent, info);
+      EnigmaticInfoReset(info);
+      info->var_offset = 0;
+      return 0;
+   }
+   if (vector->spirit)
+   {
+      update_clause(vector->spirit, info, parent);
+      return 1;
+   }
+   return 0;
+}
+
+static void enigmatic_parents(EnigmaticVector_p vector, Clause_p clause, 
+                              EnigmaticInfo_p info){
+   if ((!clause->derivation) || (!(vector->mother || vector->father || vector->spirit)))
+   {
+      return;
+   }
+   
+   PStackPointer j, sp;
+   DerivationCode op;
+   Clause_p parent;
+   long res = 0;
+   long spirits = 0;
+   
+   sp = PStackGetSP(clause->derivation);
+   j = 0;
+   res = 0;
+   while (j < sp)
+   {
+      op = PStackElementInt(clause->derivation, j);
+      j++;
+      if (DCOpHasCnfArg1(op))
+      {
+         parent = PStackElementP(clause->derivation, j);
+         j++; res++;
+         spirits += update_parent(vector, parent, res, info);
+      }
+      if (DCOpHasCnfArg2(op))
+      {
+         parent = PStackElementP(clause->derivation, j);
+         j++; res++;
+         spirits += update_parent(vector, parent, res, info);
+      }
+   }
+
+   if (spirits)
+   {
+      update_finish(vector->spirit, info, spirits);
+   }
+}
+
+
+void EnigmaticClause(EnigmaticVector_p vector, Clause_p clause, EnigmaticInfo_p info)
+{
+   if (vector->clause) 
+   {
+      enigmatic_clause(vector->clause, clause, info);
+   }
+   enigmatic_parents(vector, clause, info);
 }
 
 void EnigmaticClauseParents(EnigmaticClause_p enigma, Clause_p parent1, Clause_p parent2, EnigmaticInfo_p info)
@@ -859,8 +957,8 @@ double EnigmaticPredict(
    FillFunc fill_func, 
    PredictFunc predict_func)
 {
-   EnigmaticClauseReset(model->vector->clause);
-   EnigmaticClause(model->vector->clause, clause, model->info);
+   EnigmaticClauseReset(model->vector->clause); // FIXME: reset parents
+   EnigmaticClause(model->vector, clause, model->info);
    EnigmaticVectorFill(model->vector, fill_func, data);
    return predict_func(data, model);
 }
@@ -871,13 +969,14 @@ double EnigmaticPredictParentsConcat(
    void* data,
    FillFunc fill_func,
    PredictFunc predict_func)
-{
-   EnigmaticClauseReset(model->vector->clause);
-   EnigmaticClauseReset(model->vector->co_parent);
-   EnigmaticClause(model->vector->clause, parent1, model->info);
-   EnigmaticClause(model->vector->co_parent, parent2, model->info);
-   EnigmaticVectorFill(model->vector, fill_func, data);
-   return predict_func(data, model);
+{  
+   //EnigmaticClauseReset(model->vector->clause);
+   //EnigmaticClauseReset(model->vector->co_parent);
+   //EnigmaticClause(model->vector->clause, parent1, model->info);
+   //EnigmaticClause(model->vector->co_parent, parent2, model->info);
+   //EnigmaticVectorFill(model->vector, fill_func, data);
+   //return predict_func(data, model);
+   return 0; // FIXME: delme
 }
 
 double EnigmaticPredictParents(

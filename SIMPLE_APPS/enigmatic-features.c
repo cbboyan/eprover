@@ -303,21 +303,21 @@ static void process_clauses(FILE* out, char* filename, EnigmaticVector_p vector,
          {
             clause2 = read_clause(in, info, state);
             AcceptInpTok(in, Semicolon);
-            EnigmaticClause(vector->clause, clause, info);
-            EnigmaticClause(vector->co_parent, clause2, info);
+            EnigmaticClause(vector, clause, info); // FIXME: delme
+            EnigmaticClause(vector, clause2, info);
 
             print_vector(out, vector, info);
 
             count++;
             ClauseFree(clause);
             ClauseFree(clause2);
-            EnigmaticClauseReset(vector->clause);
-            EnigmaticClauseReset(vector->co_parent);
+            //EnigmaticClauseReset(vector); // FIXME: fix???
+            //EnigmaticClauseReset(vector);
 
          }
          else
          {
-            EnigmaticClause(vector->clause, clause, info);
+            EnigmaticClause(vector, clause, info);
 
             print_vector(out, vector, info);
 

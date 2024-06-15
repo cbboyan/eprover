@@ -34,9 +34,7 @@ Changes
 /*                Exported Functions and Variables                     */
 /*---------------------------------------------------------------------*/
 
-void EnigmaticClause(EnigmaticClause_p enigma, Clause_p clause, EnigmaticInfo_p info);
-
-void EnigmaticClause(EnigmaticClause_p enigma, Clause_p clause, EnigmaticInfo_p info);
+void EnigmaticClause(EnigmaticVector_p vector, Clause_p clause, EnigmaticInfo_p info);
 
 Clause_p EnigmaticFormulaToClause(WFormula_p formula, EnigmaticInfo_p info);
 

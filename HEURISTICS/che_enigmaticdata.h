@@ -117,16 +117,23 @@ typedef struct enigmaticfeaturescell
    long count; 
 
    long offset_clause;
+   long offset_mother;
+   long offset_father;
+   long offset_spirit;
    long offset_goal;
    long offset_theory;
    long offset_problem;
    long offset_proofwatch;
-   long offset_co_parent;
+   long offset_co_parent; // FIXME: todel
    
    EnigmaticParams_p clause;
+   EnigmaticParams_p mother; // 1st parent
+   EnigmaticParams_p father; // 2nd parent
+   EnigmaticParams_p spirit; // accumulation of other parents
+   
    EnigmaticParams_p goal;
    EnigmaticParams_p theory;
-   EnigmaticParams_p co_parent;
+   EnigmaticParams_p co_parent; // FIXME: todel
 } EnigmaticFeaturesCell, *EnigmaticFeatures_p;
 
 typedef struct enigmaticclausecell
@@ -187,8 +194,6 @@ typedef struct enigmaticclausecell
    NumTree_p depths;
    // unified clause hash map
    NumTree_p unified;
-
-
 } EnigmaticClauseCell, *EnigmaticClause_p;
 
 typedef struct enigmaticvectorcell
@@ -196,12 +201,14 @@ typedef struct enigmaticvectorcell
    EnigmaticFeatures_p features;
    // clause features
    EnigmaticClause_p clause;
+   // parent clauses (1st, 2nd, and rest)
+   EnigmaticClause_p mother;
+   EnigmaticClause_p father;
+   EnigmaticClause_p spirit;
    // goal (conjecture) features
    EnigmaticClause_p goal;
    // theory features
    EnigmaticClause_p theory;
-   // parent number two's features
-   EnigmaticClause_p co_parent;
    // problem features
    float problem_features[EBS_PROBLEM];
    // TODO: proofwatch features
@@ -311,6 +318,7 @@ void EnigmaticClauseReset(EnigmaticClause_p enigma);
 EnigmaticVector_p EnigmaticVectorAlloc(EnigmaticFeatures_p features);
 void EnigmaticVectorFree(EnigmaticVector_p junk);
 void EnigmaticVectorFill(EnigmaticVector_p vector, FillFunc fun, void* data);
+void EnigmaticVectorReset(EnigmaticVector_p vector);
 
 EnigmaticInfo_p EnigmaticInfoAlloc();
 void EnigmaticInfoReset(EnigmaticInfo_p info);
