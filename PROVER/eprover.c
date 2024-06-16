@@ -60,6 +60,7 @@ char              *watchlist_filename = NULL;
 char              *parse_strategy_filename = NULL;
 char              *print_strategy = NULL;
 EnigmaticFeatures_p enigmatic_sel_features = NULL;
+EnigmaticFeatures_p enigmatic_gen_features = NULL;
 FILE*             enigmatic_map_out = NULL;
 FILE*             enigmatic_buckets_out = NULL;
 char              *enigmatic_gen_model = NULL;
@@ -836,6 +837,7 @@ int main(int argc, char* argv[])
    
    ProofStateEnigmaticInit(proofstate, proofcontrol->ocb, 
          enigmatic_sel_features, 
+         enigmatic_gen_features, 
          enigmatic_gen_model, 
          enigmatic_gen_threshold,
          enigmatic_map_out, 
@@ -2262,6 +2264,9 @@ CLState_p process_options(int argc, char* argv[])
             break;
       case OPT_ENIGMATIC_SEL_FEATURES:
             enigmatic_sel_features = EnigmaticFeaturesParse(arg);
+            break;
+      case OPT_ENIGMATIC_GEN_FEATURES:
+            enigmatic_gen_features = EnigmaticFeaturesParse(arg);
             break;
       case OPT_ENIGMATIC_GEN_MODEL:
             enigmatic_gen_model = arg;

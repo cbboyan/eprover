@@ -57,7 +57,7 @@ eprover-ho: eprover
 #				../CONTRIB/libs/libxgboost.a ../CONTRIB/libs/librabit.a ../CONTRIB/libs/libdmlc.a\
 #				../CONTRIB/libs/lib_lightgbm.a
 E_LTB_RUNNER = e_ltb_runner.o \
-		../lib/CONTROL.a ../lib/HEURISTICS.a ../lib/LEARN.a ../lib/CLAUSES.a ../lib/ORDERINGS.a\
+		../lib/CONTROL.a ../lib/HEURISTICS.a ../lib/LEARN.a ../lib/CLAUSES.a ../lib/HEURISTICS.a ../lib/ORDERINGS.a\
     ../lib/TERMS.a ../lib/INOUT.a ../lib/BASICS.a  ../lib/CONTRIB.a ../CONTRIB/libs/libxgboost.a\
 		../CONTRIB/libs/librabit.a ../CONTRIB/libs/libdmlc.a ../CONTRIB/libs/lib_lightgbm.a
 
@@ -77,7 +77,7 @@ e_stratpar: $(E_STRATPAR)
 #            ../lib/CLAUSES.a ../lib/ORDERINGS.a ../lib/TERMS.a\
 #            ../lib/INOUT.a ../lib/BASICS.a ../lib/CONTRIB.a ../lib/HEURISTICS.a
 E_DEDUCTION_SERVER = e_deduction_server.o\
-		../lib/CONTROL.a ../lib/HEURISTICS.a ../lib/LEARN.a ../lib/CLAUSES.a ../lib/ORDERINGS.a\
+		../lib/CONTROL.a ../lib/HEURISTICS.a ../lib/LEARN.a ../lib/CLAUSES.a ../lib/HEURISTICS.a ../lib/ORDERINGS.a\
     ../lib/TERMS.a ../lib/INOUT.a ../lib/BASICS.a  ../lib/CONTRIB.a ../CONTRIB/libs/libxgboost.a\
 		../CONTRIB/libs/librabit.a ../CONTRIB/libs/libdmlc.a ../CONTRIB/libs/lib_lightgbm.a
 
@@ -91,7 +91,7 @@ E_AXFILTER = e_axfilter.o ../lib/CONTROL.a \
 		        ../CONTRIB/libs/lib_lightgbm.a
 
 e_axfilter: $(E_AXFILTER)
-	$(LD) -o e_axfilter $(E_AXFILTER) $(LIBS)
+	$(LD) -o e_axfilter $(E_AXFILTER) $(LIBS) -lstdc++ -fopenmp
 
 E_SERVER = e_server.o ../lib/CONTROL.a \
             ../lib/CLAUSES.a ../lib/ORDERINGS.a ../lib/TERMS.a\

@@ -234,7 +234,7 @@ void ProofStateClauseProcessedRegister(ProofState_p state,
 void ProofStateClauseProcessedCall(ProofState_p state, Clause_p clause);
 
 void ProofStateEnigmaticInit(ProofState_p state, OCB_p ocb, 
-      EnigmaticFeatures_p sel_features, 
+      EnigmaticFeatures_p sel_features, EnigmaticFeatures_p gen_features, 
       char* gen_model, double gen_threshold,
       FILE* map_out, FILE* buckets_out);
 

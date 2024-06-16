@@ -271,13 +271,17 @@ static char* symbol_string(EnigmaticClause_p enigma, EnigmaticInfo_p info, Term_
 static void update_occurrences(EnigmaticClause_p enigma, EnigmaticInfo_p info, Term_p term)
 {
    FunCode f_code = term->f_code;
-   if (TermIsAnyVar(term))
+   if (TermIsFreeVar(term))
    {
       f_code -= info->var_offset; // clause variable offset
    }
    else if (f_code <= info->sig->internal_symbols)
    {
       return; // ignore internal symbols
+   }
+   else if (TermIsDBVar(term))
+   {
+      return; // ignore db variables
    }
 
    NumTree_p vnode = NumTreeFind(&(info->occs), f_code);

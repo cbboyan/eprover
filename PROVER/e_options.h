@@ -240,6 +240,7 @@ typedef enum
    OPT_SERIALIZE_SCHEDULE,
    OPT_DELAYED_EVAL,
    OPT_ENIGMATIC_SEL_FEATURES,
+   OPT_ENIGMATIC_GEN_FEATURES,
    OPT_ENIGMATIC_GEN_MODEL,
    OPT_ENIGMATIC_GEN_THRESHOLD,
    OPT_ENIGMATIC_OUTPUT_MAP,
@@ -1771,6 +1772,12 @@ OptCell opts[] =
     '\0', "enigmatic-sel-features",
     ReqArg, NULL,
     "Specify ENIGMA features for given clause selection. "
+    "Used only for the printing of training vectors."},
+   
+   {OPT_ENIGMATIC_GEN_FEATURES,
+    '\0', "enigmatic-gen-features",
+    ReqArg, NULL,
+    "Specify ENIGMA features for generated clause filtering. "
     "Used only for the printing of training vectors."},
    
    {OPT_ENIGMATIC_GEN_MODEL,

@@ -897,7 +897,7 @@ void ProofStateClauseProcessedCall(ProofState_p state, Clause_p clause)
 }
 
 void ProofStateEnigmaticInit(ProofState_p state, OCB_p ocb, 
-      EnigmaticFeatures_p sel_features, 
+      EnigmaticFeatures_p sel_features, EnigmaticFeatures_p gen_features, 
       char* gen_model, double gen_threshold,
       FILE* map_out, FILE* buckets_out)
 {
@@ -914,6 +914,13 @@ void ProofStateEnigmaticInit(ProofState_p state, OCB_p ocb,
    {
       enigmatic->sel = EnigmaticVectorAlloc(sel_features);
       EnigmaticInitProblem(enigmatic->sel, enigmatic->info,
+         state->f_ax_archive, //proofstate->f_axioms, 
+         state->axioms);
+   }
+   if (gen_features)
+   {
+      enigmatic->gen = EnigmaticVectorAlloc(gen_features);
+      EnigmaticInitProblem(enigmatic->gen, enigmatic->info,
          state->f_ax_archive, //proofstate->f_axioms, 
          state->axioms);
    }

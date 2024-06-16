@@ -1288,6 +1288,7 @@ EnigmaticSetting_p EnigmaticSettingAlloc(void)
    EnigmaticSetting_p setting = EnigmaticSettingCellAlloc();
    setting->info = EnigmaticInfoAlloc();
    setting->sel = NULL;
+   setting->gen = NULL;
    setting->map_out = NULL;
    setting->filter = NULL;
    setting->buckets_out = NULL;
@@ -1299,6 +1300,10 @@ void EnigmaticSettingFree(EnigmaticSetting_p junk)
    if (junk->sel)
    {
       EnigmaticVectorFree(junk->sel);
+   }
+   if (junk->gen)
+   {
+      EnigmaticVectorFree(junk->gen);
    }
    if (junk->info)
    {

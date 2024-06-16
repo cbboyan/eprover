@@ -253,7 +253,7 @@ typedef struct enigmaticsettingcell
 {
    EnigmaticInfo_p info;
    EnigmaticVector_p sel;
-   //EnigmaticVector_p gen;
+   EnigmaticVector_p gen;
    EnigmaticWeightLgbParam_p filter;
    FILE* map_out;
    FILE* buckets_out;
