@@ -51,12 +51,18 @@ eprover: $(EPROVER)
 eprover-ho: eprover
 	mv eprover eprover-ho
 
-E_LTB_RUNNER = e_ltb_runner.o ../lib/CONTROL.a \
-            ../lib/CLAUSES.a ../lib/ORDERINGS.a ../lib/TERMS.a\
-            ../lib/INOUT.a ../lib/BASICS.a ../lib/CONTRIB.a ../lib/HEURISTICS.a
+#E_LTB_RUNNER = e_ltb_runner.o ../lib/CONTROL.a \
+#            ../lib/CLAUSES.a ../lib/ORDERINGS.a ../lib/TERMS.a\
+#            ../lib/INOUT.a ../lib/BASICS.a ../lib/CONTRIB.a ../lib/HEURISTICS.a\
+#				../CONTRIB/libs/libxgboost.a ../CONTRIB/libs/librabit.a ../CONTRIB/libs/libdmlc.a\
+#				../CONTRIB/libs/lib_lightgbm.a
+E_LTB_RUNNER = e_ltb_runner.o \
+		../lib/CONTROL.a ../lib/HEURISTICS.a ../lib/LEARN.a ../lib/CLAUSES.a ../lib/ORDERINGS.a\
+    ../lib/TERMS.a ../lib/INOUT.a ../lib/BASICS.a  ../lib/CONTRIB.a ../CONTRIB/libs/libxgboost.a\
+		../CONTRIB/libs/librabit.a ../CONTRIB/libs/libdmlc.a ../CONTRIB/libs/lib_lightgbm.a
 
 e_ltb_runner: $(E_LTB_RUNNER)
-	$(LD) -o e_ltb_runner $(E_LTB_RUNNER) $(LIBS)
+	$(LD) -o e_ltb_runner $(E_LTB_RUNNER) $(LIBS) -lstdc++ -fopenmp
 
 
 E_STRATPAR = e_stratpar.o ../lib/CONTROL.a ../lib/HEURISTICS.a\
@@ -67,27 +73,33 @@ e_stratpar: $(E_STRATPAR)
 	$(LD) -o e_stratpar $(E_STRATPAR) $(LIBS)
 
 
-E_DEDUCTION_SERVER = e_deduction_server.o ../lib/CONTROL.a \
-            ../lib/CLAUSES.a ../lib/ORDERINGS.a ../lib/TERMS.a\
-            ../lib/INOUT.a ../lib/BASICS.a ../lib/CONTRIB.a ../lib/HEURISTICS.a
+#E_DEDUCTION_SERVER = e_deduction_server.o ../lib/CONTROL.a \
+#            ../lib/CLAUSES.a ../lib/ORDERINGS.a ../lib/TERMS.a\
+#            ../lib/INOUT.a ../lib/BASICS.a ../lib/CONTRIB.a ../lib/HEURISTICS.a
+E_DEDUCTION_SERVER = e_deduction_server.o\
+		../lib/CONTROL.a ../lib/HEURISTICS.a ../lib/LEARN.a ../lib/CLAUSES.a ../lib/ORDERINGS.a\
+    ../lib/TERMS.a ../lib/INOUT.a ../lib/BASICS.a  ../lib/CONTRIB.a ../CONTRIB/libs/libxgboost.a\
+		../CONTRIB/libs/librabit.a ../CONTRIB/libs/libdmlc.a ../CONTRIB/libs/lib_lightgbm.a
 
 e_deduction_server: $(E_DEDUCTION_SERVER)
-	$(LD) -o e_deduction_server $(E_DEDUCTION_SERVER) $(LIBS)
+	$(LD) -o e_deduction_server $(E_DEDUCTION_SERVER) $(LIBS) -lstdc++ -fopenmp
 
 
 E_AXFILTER = e_axfilter.o ../lib/CONTROL.a \
             ../lib/CLAUSES.a ../lib/ORDERINGS.a ../lib/TERMS.a\
-            ../lib/INOUT.a ../lib/BASICS.a ../lib/CONTRIB.a ../lib/HEURISTICS.a
+            ../lib/INOUT.a ../lib/BASICS.a ../lib/CONTRIB.a ../lib/HEURISTICS.a\
+		        ../CONTRIB/libs/lib_lightgbm.a
 
 e_axfilter: $(E_AXFILTER)
 	$(LD) -o e_axfilter $(E_AXFILTER) $(LIBS)
 
 E_SERVER = e_server.o ../lib/CONTROL.a \
             ../lib/CLAUSES.a ../lib/ORDERINGS.a ../lib/TERMS.a\
-            ../lib/INOUT.a ../lib/BASICS.a ../lib/HEURISTICS.a
+            ../lib/INOUT.a ../lib/BASICS.a ../lib/HEURISTICS.a\
+		        ../CONTRIB/libs/lib_lightgbm.a
 
 e_server: $(E_SERVER)
-	$(LD) -o e_server $(E_SERVER) $(LIBS)
+	$(LD) -o e_server $(E_SERVER) $(LIBS) -lstdc++ -fopenmp
 
 E_CLIENT = e_client.o ../lib/CONTROL.a ../lib/HEURISTICS.a\
             ../lib/CLAUSES.a ../lib/ORDERINGS.a ../lib/TERMS.a\
@@ -99,17 +111,19 @@ e_client: $(E_CLIENT)
 
 EGROUND = eground.o \
             ../lib/CLAUSES.a ../lib/ORDERINGS.a ../lib/TERMS.a\
-            ../lib/INOUT.a ../lib/BASICS.a ../lib/CONTRIB.a ../lib/HEURISTICS.a
+            ../lib/INOUT.a ../lib/BASICS.a ../lib/CONTRIB.a ../lib/HEURISTICS.a\
+		        ../CONTRIB/libs/lib_lightgbm.a
 
 eground: $(EGROUND)
-	$(LD) -o eground $(EGROUND) $(LIBS)
+	$(LD) -o eground $(EGROUND) $(LIBS) -lstdc++ -fopenmp
 
 ENORMALIZER = enormalizer.o \
             ../lib/CLAUSES.a ../lib/ORDERINGS.a ../lib/TERMS.a\
-            ../lib/INOUT.a ../lib/BASICS.a ../lib/CONTRIB.a ../lib/HEURISTICS.a
+            ../lib/INOUT.a ../lib/BASICS.a ../lib/CONTRIB.a ../lib/HEURISTICS.a\
+		        ../CONTRIB/libs/lib_lightgbm.a
 
 enormalizer: $(ENORMALIZER)
-	$(LD) -o enormalizer $(ENORMALIZER) $(LIBS)
+	$(LD) -o enormalizer $(ENORMALIZER) $(LIBS) -lstdc++ -fopenmp
 
 
 EDPLL = edpll.o ../lib/PROPOSITIONAL.a ../lib/CLAUSES.a\
@@ -121,18 +135,20 @@ edpll: $(EDPLL)
 
 CLASSIFY = classify_problem.o ../lib/CONTROL.a \
             ../lib/CLAUSES.a ../lib/ORDERINGS.a ../lib/TERMS.a\
-            ../lib/INOUT.a ../lib/BASICS.a ../lib/CONTRIB.a ../lib/HEURISTICS.a
+            ../lib/INOUT.a ../lib/BASICS.a ../lib/CONTRIB.a ../lib/HEURISTICS.a\
+		        ../CONTRIB/libs/lib_lightgbm.a
 
 classify_problem: $(CLASSIFY)
-	$(LD) -o classify_problem $(CLASSIFY) $(LIBS)
+	$(LD) -o classify_problem $(CLASSIFY) $(LIBS) -lstdc++ -fopenmp
 
 EPATTERNIZE = epatternize.o ../lib/CONTROL.a \
             ../lib/LEARN.a\
             ../lib/CLAUSES.a ../lib/ORDERINGS.a ../lib/TERMS.a\
-            ../lib/INOUT.a ../lib/BASICS.a ../lib/CONTRIB.a ../lib/HEURISTICS.a
+            ../lib/INOUT.a ../lib/BASICS.a ../lib/CONTRIB.a ../lib/HEURISTICS.a\
+		        ../CONTRIB/libs/lib_lightgbm.a
 
 epatternize: $(EPATTERNIZE)
-	$(LD) -o epatternize $(EPATTERNIZE) $(LIBS)
+	$(LD) -o epatternize $(EPATTERNIZE) $(LIBS) -lstdc++ -fopenmp
 
 
 # TERMPROPS = termprops.o ../lib/TERMS.a\

@@ -21,6 +21,7 @@
 #include "ccl_proofstate.h"
 #include <picosat.h>
 #include <che_enigmaticvectors.h>
+#include <che_enigmaticweightlgb.h>
 
 
 
@@ -29,7 +30,6 @@
 /*---------------------------------------------------------------------*/
 
 char* UseInlinedWatchList = WATCHLIST_INLINE_STRING;
-bool filter_generated = false;
 
 /*---------------------------------------------------------------------*/
 /*                      Forward Declarations                           */
@@ -668,20 +668,21 @@ void ProofStateStatisticsPrint(FILE* out, ProofState_p state)
            state->generated_count - state->backward_rewritten_count);
    fprintf(out, "# ...of the previous two non-redundant : %ld\n",
            state->non_trivial_generated_count);
-   if (filter_generated) {
-	   fprintf(out, "# ...frozen by parental guidance       : %ld\n",
-			   state->frozen_count);
-	   fprintf(out, "# ...of these subsequently unfrozen    : %ld\n",
-			   state->unfrozen_count);
-   }
+   // FIXME: replace `filter_generated`
+   //if (filter_generated) {
+	 //  fprintf(out, "# ...frozen by parental guidance       : %ld\n",
+	 // 	   state->frozen_count);
+	 //  fprintf(out, "# ...of these subsequently unfrozen    : %ld\n",
+	 // 	   state->unfrozen_count);
+   //}
    fprintf(out, "# ...aggressively subsumed             : %ld\n",
            state->aggressive_forward_subsumed_count);
-   if (filter_generated) {
-	   fprintf(out, "# ...frozen by parental guidance       : %ld\n",
-			   state->frozen_count);
-	   fprintf(out, "# ...of these subsequently unfrozen    : %ld\n",
-			   state->unfrozen_count);
-   }
+   //if (filter_generated) {
+	 //  fprintf(out, "# ...frozen by parental guidance       : %ld\n",
+	 // 	   state->frozen_count);
+	 //  fprintf(out, "# ...of these subsequently unfrozen    : %ld\n",
+	 // 	   state->unfrozen_count);
+   //}
    fprintf(out, "# Contextual simplify-reflections      : %ld\n",
            state->context_sr_count);
    fprintf(out, "# Paramodulations                      : %ld\n",
@@ -895,9 +896,12 @@ void ProofStateClauseProcessedCall(ProofState_p state, Clause_p clause)
    }
 }
 
-void ProofStateEnigmaticInit(ProofState_p state, EnigmaticFeatures_p sel_features, FILE* map_out, FILE* buckets_out)
+void ProofStateEnigmaticInit(ProofState_p state, OCB_p ocb, 
+      EnigmaticFeatures_p sel_features, 
+      char* gen_model, double gen_threshold,
+      FILE* map_out, FILE* buckets_out)
 {
-   if (!sel_features) { return; }
+   if ((!sel_features) && (!gen_model)) { return; }
 
    EnigmaticSetting_p enigmatic = EnigmaticSettingAlloc();
    enigmatic->buckets_out = buckets_out;
@@ -905,10 +909,21 @@ void ProofStateEnigmaticInit(ProofState_p state, EnigmaticFeatures_p sel_feature
    enigmatic->info->sig = state->signature;
    enigmatic->info->bank = state->terms;
    enigmatic->info->collect_hashes = (buckets_out != NULL);
-   enigmatic->sel = EnigmaticVectorAlloc(sel_features);
-   EnigmaticInitProblem(enigmatic->sel, enigmatic->info,
-      state->f_ax_archive, //proofstate->f_axioms, 
-      state->axioms);
+   
+   if (sel_features)
+   {
+      enigmatic->sel = EnigmaticVectorAlloc(sel_features);
+      EnigmaticInitProblem(enigmatic->sel, enigmatic->info,
+         state->f_ax_archive, //proofstate->f_axioms, 
+         state->axioms);
+   }
+   if (gen_model)
+   {
+      EnigmaticModel_p model = EnigmaticModelCreate(gen_model, "model.lgb");
+      model->weight_type = 1;
+      model->threshold = gen_threshold;
+      enigmatic->filter = EnigmaticWeightInit(ocb, state, model, NULL);
+   }
    state->enigmatic = enigmatic;
 }
 

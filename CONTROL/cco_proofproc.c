@@ -676,7 +676,6 @@ static Clause_p insert_new_clauses(ProofState_p state, ProofControl_p control, b
    Clause_p handle;
    ClauseSet_p handles;
    long     clause_count;
-   bool     filter_child = false;
 
    if (revive_children)
    {
@@ -695,15 +694,17 @@ static Clause_p insert_new_clauses(ProofState_p state, ProofControl_p control, b
       // ClausePrint(stdout, handle, true);
       // printf("\n");
 
-      if (filter_generated && !revive_children)
+      // FIXME: filter_generated
+      //if (filter_generated && !revive_children)
+      if (false && !revive_children)
       {
-         filter_child = EnigmaticLgbFilterGenerationCompute(control->enigma_gen_model, handle);
-         if (filter_child)
-         {
-            ClauseSetInsert(state->frozen_store, handle);
-            state->frozen_count++;
-            continue;
-         }
+         //filter_child = EnigmaticLgbFilterGenerationCompute(control->enigma_gen_model, handle);
+         //if (filter_child)
+         //{
+         //   ClauseSetInsert(state->frozen_store, handle);
+         //   state->frozen_count++;
+         //   continue;
+         //}
       }
       if(ClauseQueryProp(handle,CPIsIRVictim))
       {
@@ -1854,7 +1855,9 @@ Clause_p Saturate(ProofState_p state, ProofControl_p control, long
             ClauseSetInsert(state->unprocessed, handle);
          }
       }
-      if (filter_generated && ClauseSetEmpty(state->unprocessed))
+      //FIXME: filter_generated
+      //if (filter_generated && ClauseSetEmpty(state->unprocessed))
+      if (false && ClauseSetEmpty(state->unprocessed))
       {
          if((unsatisfiable = insert_new_clauses(state, control, true)))
          {

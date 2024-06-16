@@ -20,6 +20,7 @@ Changes
 
 #include <math.h>
 #include "che_enigmaticdata.h"
+#include "che_enigmaticweightlgb.h"
 
 
 
@@ -1288,6 +1289,7 @@ EnigmaticSetting_p EnigmaticSettingAlloc(void)
    setting->info = EnigmaticInfoAlloc();
    setting->sel = NULL;
    setting->map_out = NULL;
+   setting->filter = NULL;
    setting->buckets_out = NULL;
    return setting;
 }
@@ -1301,6 +1303,10 @@ void EnigmaticSettingFree(EnigmaticSetting_p junk)
    if (junk->info)
    {
       EnigmaticInfoFree(junk->info);
+   }
+   if (junk->filter)
+   {
+      EnigmaticWeightLgbParamFree(junk->filter);
    }
    if (junk->map_out)
    {

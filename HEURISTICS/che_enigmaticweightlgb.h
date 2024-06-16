@@ -67,6 +67,12 @@ WFCB_p EnigmaticWeightLgbParse(
    OCB_p ocb, 
    ProofState_p state);
 
+EnigmaticWeightLgbParam_p EnigmaticWeightInit(
+   OCB_p ocb,
+   ProofState_p proofstate,
+   EnigmaticModel_p model1,
+   EnigmaticModel_p model2);
+
 WFCB_p EnigmaticWeightLgbInit(
    ClausePrioFun prio_fun, 
    OCB_p ocb,

@@ -35,9 +35,10 @@ include ../Makefile.services
 #CSSCPA = CSSCPA_filter.o cex_csscpa.o \
 #            ../lib/CLAUSES.a ../lib/ORDERINGS.a ../lib/TERMS.a ../lib/BASICS.a \
 #            ../lib/CONTRIB.a ../lib/HEURISTICS.a ../lib/CLAUSES.a  ../lib/TERMS.a ../lib/BASICS.a
-CSSCPA = CSSCPA_filter.o cex_csscpa.o ../lib/CONTROL.a  ../lib/CLAUSES.a ../lib/ORDERINGS.a ../lib/TERMS.a ../lib/BASICS.a ../lib/LEARN.a ../lib/ORDERINGS.a ../lib/TERMS.a ../lib/INOUT.a ../lib/BASICS.a  ../lib/CONTRIB.a  ../lib/HEURISTICS.a ../lib/CLAUSES.a  ../lib/CONTROL.a  ../lib/CLAUSES.a ../lib/ORDERINGS.a ../lib/TERMS.a ../lib/BASICS.a ../lib/LEARN.a ../lib/ORDERINGS.a ../lib/TERMS.a ../lib/INOUT.a ../lib/BASICS.a  ../lib/CONTRIB.a  ../lib/HEURISTICS.a ../lib/CLAUSES.a
+CSSCPA = CSSCPA_filter.o cex_csscpa.o ../lib/CONTROL.a  ../lib/CLAUSES.a ../lib/ORDERINGS.a ../lib/TERMS.a ../lib/BASICS.a ../lib/LEARN.a ../lib/ORDERINGS.a ../lib/TERMS.a ../lib/INOUT.a ../lib/BASICS.a  ../lib/CONTRIB.a  ../lib/HEURISTICS.a ../lib/CLAUSES.a  ../lib/CONTROL.a  ../lib/CLAUSES.a ../lib/ORDERINGS.a ../lib/TERMS.a ../lib/BASICS.a ../lib/LEARN.a ../lib/ORDERINGS.a ../lib/TERMS.a ../lib/INOUT.a ../lib/BASICS.a  ../lib/CONTRIB.a  ../lib/HEURISTICS.a ../lib/CLAUSES.a ../CONTRIB/libs/lib_lightgbm.a
+
 
 $(LIB): $(CSSCPA)
-	$(LD) -o CSSCPA_filter $(CSSCPA) $(LIBS)
+	$(LD) -o CSSCPA_filter $(CSSCPA) $(LIBS) -lstdc++ -fopenmp
 
 include Makefile.dependencies

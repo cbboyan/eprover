@@ -220,7 +220,6 @@ void ProofStatePropDocQuote(FILE* out, int level,
 #define WATCHLIST_INLINE_STRING "Use inline watchlist type"
 #define WATCHLIST_INLINE_QSTRING "'" WATCHLIST_INLINE_STRING "'"
 extern char* UseInlinedWatchList;
-extern bool filter_generated;
 
 void ProofStateResetSATSolver(ProofState_p state);
 
@@ -234,7 +233,10 @@ void ProofStateClauseProcessedRegister(ProofState_p state,
 
 void ProofStateClauseProcessedCall(ProofState_p state, Clause_p clause);
 
-void ProofStateEnigmaticInit(ProofState_p state, EnigmaticFeatures_p sel, FILE* map_out, FILE* buckets_out);
+void ProofStateEnigmaticInit(ProofState_p state, OCB_p ocb, 
+      EnigmaticFeatures_p sel_features, 
+      char* gen_model, double gen_threshold,
+      FILE* map_out, FILE* buckets_out);
 
 #endif
 

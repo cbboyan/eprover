@@ -188,7 +188,6 @@ ProofControl_p ProofControlAlloc(void)
    handle->hcbs                          = HCBAdminAlloc();
    handle->hcb                           = NULL;
    handle->ac_handling_active            = false;
-   handle->enigma_gen_model              = EnigmaticGenerationLgbParamAlloc();
    HeuristicParmsInitialize(&handle->heuristic_parms);
 
    sat_solver_init(handle);
@@ -219,8 +218,6 @@ void ProofControlFree(ProofControl_p junk)
    WFCBAdminFree(junk->wfcbs);
    HCBAdminFree(junk->hcbs);
    /* hcb is always freed in junk->hcbs */
-
-   EnigmaticGenerationLgbParamFree(junk->enigma_gen_model);
 
    if(junk->solver)
    {

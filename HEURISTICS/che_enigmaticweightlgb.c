@@ -208,8 +208,7 @@ WFCB_p EnigmaticWeightLgbParse(
       model2);
 }
 
-WFCB_p EnigmaticWeightLgbInit(
-   ClausePrioFun prio_fun, 
+EnigmaticWeightLgbParam_p EnigmaticWeightInit(
    OCB_p ocb,
    ProofState_p proofstate,
    EnigmaticModel_p model1,
@@ -221,7 +220,18 @@ WFCB_p EnigmaticWeightLgbInit(
    data->proofstate = proofstate;
    data->model1 = model1;
    data->model2 = model2;
-   
+   return data;
+}
+
+WFCB_p EnigmaticWeightLgbInit(
+   ClausePrioFun prio_fun, 
+   OCB_p ocb,
+   ProofState_p proofstate,
+   EnigmaticModel_p model1,
+   EnigmaticModel_p model2)
+{
+   EnigmaticWeightLgbParam_p data;
+   data = EnigmaticWeightInit(ocb, proofstate, model1, model2);
    return WFCBAlloc(
       EnigmaticWeightLgbCompute, 
       prio_fun,

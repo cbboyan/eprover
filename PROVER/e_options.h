@@ -59,8 +59,6 @@ typedef enum
    OPT_RECORD_GIVEN_CLAUSES,
    OPT_TRAINING,
    OPT_RECORD_PARENT_CLAUSES,
-   OPT_FILTER_GENERATED_CLAUSES,
-   OPT_FILTER_GENERATED_THRESHOLD,
    OPT_PCL_COMPRESSED,
    OPT_PCL_COMPACT,
    OPT_PCL_SHELL_LEVEL,
@@ -242,6 +240,8 @@ typedef enum
    OPT_SERIALIZE_SCHEDULE,
    OPT_DELAYED_EVAL,
    OPT_ENIGMATIC_SEL_FEATURES,
+   OPT_ENIGMATIC_GEN_MODEL,
+   OPT_ENIGMATIC_GEN_THRESHOLD,
    OPT_ENIGMATIC_OUTPUT_MAP,
    OPT_ENIGMATIC_OUTPUT_BUCKETS,
    OPT_DUMMY
@@ -364,19 +364,6 @@ OptCell opts[] =
     "Record and print two parent clauses (if they exist) for each selected "
     "given clause, i.e. training example. "
     "Will be printed with training examples (if the option is set)."},
-
-   {OPT_FILTER_GENERATED_CLAUSES,
-    '\0', "filter-generated-clauses",
-	ReqArg, NULL,
-	  "Filter mating of given clauses with processed clauses based on the "
-      "supplied (LightGBM) model directory.  The directory structure is: "
-   	  "Enigma/your/own/directory/structure. "},
-
-   {OPT_FILTER_GENERATED_THRESHOLD,
-	'\0', "filter-generated-threshold",
-	OptArg, "0.25",
-	  "Threshold for --filter-generated-clauses. "
-   	  "Default value is 0.25 and must be in (0,1). "},
 
    {OPT_PCL_COMPRESSED,
     '\0', "pcl-terms-compressed",
@@ -1785,6 +1772,20 @@ OptCell opts[] =
     ReqArg, NULL,
     "Specify ENIGMA features for given clause selection. "
     "Used only for the printing of training vectors."},
+   
+   {OPT_ENIGMATIC_GEN_MODEL,
+    '\0', "enigmatic-gen-model",
+	ReqArg, NULL,
+	  "Filter mating of given clauses with processed clauses based on the "
+      "supplied (LightGBM) model directory.  The directory structure is: "
+   	  "Enigma/your/own/directory/structure. "},
+
+   {OPT_ENIGMATIC_GEN_THRESHOLD,
+	'\0', "enigmatic-gen-threshold",
+	OptArg, "0.25",
+	  "Threshold for --filter-generated-clauses. "
+   	  "Default value is 0.25 and must be in (0,1). "},
+
    
    {OPT_ENIGMATIC_OUTPUT_MAP,
     '\0', "enigmatic-output-map",

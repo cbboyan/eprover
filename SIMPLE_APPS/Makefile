@@ -47,14 +47,16 @@ ex_commandline: $(EX_COMMANDLINE)
 
 ENIGMATICFEATURES = enigmatic-features.o \
 				../lib/CONTROL.a ../lib/PCL2.a ../lib/CLAUSES.a ../lib/ORDERINGS.a \
-				../lib/TERMS.a ../lib/INOUT.a ../lib/BASICS.a ../lib/HEURISTICS.a
+				../lib/TERMS.a ../lib/INOUT.a ../lib/BASICS.a ../lib/HEURISTICS.a\
+		    ../CONTRIB/libs/lib_lightgbm.a
 enigmatic-features: $(ENIGMATICFEATURES)
-	$(LD) -o enigmatic-features $(ENIGMATICFEATURES) $(LIBS)
+	$(LD) -o enigmatic-features $(ENIGMATICFEATURES) $(LIBS) -lstdc++ -fopenmp
 
 ENIGMATICTENSORS = enigmatic-tensors.o \
 				../lib/CONTROL.a ../lib/PCL2.a ../lib/CLAUSES.a \
-				../lib/ORDERINGS.a ../lib/TERMS.a ../lib/INOUT.a ../lib/BASICS.a  ../lib/HEURISTICS.a 
+				../lib/ORDERINGS.a ../lib/TERMS.a ../lib/INOUT.a ../lib/BASICS.a  ../lib/HEURISTICS.a\
+		    ../CONTRIB/libs/lib_lightgbm.a
 enigmatic-tensors: $(ENIGMATICTENSORS)
-	$(LD) -o enigmatic-tensors $(ENIGMATICTENSORS) $(LIBS)
+	$(LD) -o enigmatic-tensors $(ENIGMATICTENSORS) $(LIBS) -lstdc++ -fopenmp
 
 include Makefile.dependencies

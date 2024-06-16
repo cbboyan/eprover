@@ -247,11 +247,14 @@ typedef struct enigmaticmodelcell
    EnigmaticVector_p vector;
 } EnigmaticModelCell, *EnigmaticModel_p;
 
+typedef struct enigmaticweightlgbparamcell *EnigmaticWeightLgbParam_p;
+
 typedef struct enigmaticsettingcell
 {
    EnigmaticInfo_p info;
    EnigmaticVector_p sel;
    //EnigmaticVector_p gen;
+   EnigmaticWeightLgbParam_p filter;
    FILE* map_out;
    FILE* buckets_out;
 } EnigmaticSettingCell, *EnigmaticSetting_p;

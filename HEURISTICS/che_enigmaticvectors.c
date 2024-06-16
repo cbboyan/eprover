@@ -743,8 +743,9 @@ void EnigmaticClause(EnigmaticVector_p vector, Clause_p clause, EnigmaticInfo_p 
    enigmatic_parents(vector, clause, info);
 }
 
+// FIXME: delme
 void EnigmaticClauseParents(EnigmaticClause_p enigma, Clause_p parent1, Clause_p parent2, EnigmaticInfo_p info)
-{
+{ 
    EnigmaticInfoReset(info);
 
    info->var_offset = 0;

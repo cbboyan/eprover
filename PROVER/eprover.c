@@ -59,11 +59,11 @@ char              *outname = NULL;
 char              *watchlist_filename = NULL;
 char              *parse_strategy_filename = NULL;
 char              *print_strategy = NULL;
-char              *enigmaceo_filename = NULL;
-EnigmaticFeatures_p enigma_sel_features = NULL;
+EnigmaticFeatures_p enigmatic_sel_features = NULL;
 FILE*             enigmatic_map_out = NULL;
 FILE*             enigmatic_buckets_out = NULL;
-double            filter_generated_threshold;
+char              *enigmatic_gen_model = NULL;
+double            enigmatic_gen_threshold = 0.0;
 
 HeuristicParms_p  h_parms;
 FVIndexParms_p    fvi_parms;
@@ -834,18 +834,12 @@ int main(int argc, char* argv[])
    //printf("Alive (2)!\n");
    //ProofStateInitWatchlist(proofstate, proofcontrol->ocb);
    
-   ProofStateEnigmaticInit(proofstate, enigma_sel_features, 
-         enigmatic_map_out, enigmatic_buckets_out);
-
-   if (filter_generated)
-   {
-	   EnigmaticGenerationLgbModelInit(enigmaceo_filename,
-										 "model.lgb",
-										 filter_generated_threshold,
-										 proofcontrol->ocb,
-										 proofstate,
-										 proofcontrol->enigma_gen_model);
-	 }
+   ProofStateEnigmaticInit(proofstate, proofcontrol->ocb, 
+         enigmatic_sel_features, 
+         enigmatic_gen_model, 
+         enigmatic_gen_threshold,
+         enigmatic_map_out, 
+         enigmatic_buckets_out);
 
    VERBOUT2("Prover state initialized\n");
    preproc_time = GetTotalCPUTime();
@@ -1271,14 +1265,6 @@ CLState_p process_options(int argc, char* argv[])
             PrintProofObject = MAX(1, PrintProofObject);
             ProofObjectRecordsGCSelection = true;
             ProofObjectRecordsParentClauses = true;
-            break;
-      case OPT_FILTER_GENERATED_CLAUSES:
-            enigmaceo_filename = arg;
-            filter_generated = true;
-            if (!filter_generated_threshold) {filter_generated_threshold = 0.25;}
-            break;
-      case OPT_FILTER_GENERATED_THRESHOLD:
-            filter_generated_threshold = CLStateGetFloatArgCheckRange(handle, arg, 0, 1);
             break;
       case OPT_PCL_COMPRESSED:
             pcl_full_terms = false;
@@ -2275,7 +2261,14 @@ CLState_p process_options(int argc, char* argv[])
             h_parms->preinstantiate_induction = CLStateGetBoolArg(handle, arg);
             break;
       case OPT_ENIGMATIC_SEL_FEATURES:
-            enigma_sel_features = EnigmaticFeaturesParse(arg);
+            enigmatic_sel_features = EnigmaticFeaturesParse(arg);
+            break;
+      case OPT_ENIGMATIC_GEN_MODEL:
+            enigmatic_gen_model = arg;
+            if (!enigmatic_gen_threshold) { enigmatic_gen_threshold = 0.25; }
+            break;
+      case OPT_ENIGMATIC_GEN_THRESHOLD:
+            enigmatic_gen_threshold = CLStateGetFloatArgCheckRange(handle, arg, 0, 1);
             break;
       case OPT_ENIGMATIC_OUTPUT_MAP:
             enigmatic_map_out = fopen(arg, "w");
