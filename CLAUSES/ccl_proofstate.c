@@ -668,21 +668,15 @@ void ProofStateStatisticsPrint(FILE* out, ProofState_p state)
            state->generated_count - state->backward_rewritten_count);
    fprintf(out, "# ...of the previous two non-redundant : %ld\n",
            state->non_trivial_generated_count);
-   // FIXME: replace `filter_generated`
-   //if (filter_generated) {
-	 //  fprintf(out, "# ...frozen by parental guidance       : %ld\n",
-	 // 	   state->frozen_count);
-	 //  fprintf(out, "# ...of these subsequently unfrozen    : %ld\n",
-	 // 	   state->unfrozen_count);
-   //}
    fprintf(out, "# ...aggressively subsumed             : %ld\n",
            state->aggressive_forward_subsumed_count);
-   //if (filter_generated) {
-	 //  fprintf(out, "# ...frozen by parental guidance       : %ld\n",
-	 // 	   state->frozen_count);
-	 //  fprintf(out, "# ...of these subsequently unfrozen    : %ld\n",
-	 // 	   state->unfrozen_count);
-   //}
+   if (state->enigmatic && state->enigmatic->filter) 
+   {
+	   fprintf(out, "# ...frozen by parental guidance       : %ld\n",
+	  	   state->frozen_count);
+	   fprintf(out, "# ...of these subsequently unfrozen    : %ld\n",
+	  	   state->unfrozen_count);
+   }
    fprintf(out, "# Contextual simplify-reflections      : %ld\n",
            state->context_sr_count);
    fprintf(out, "# Paramodulations                      : %ld\n",

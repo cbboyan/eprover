@@ -679,14 +679,18 @@ static Clause_p insert_new_clauses(ProofState_p state, ProofControl_p control, b
 
    if (revive_children)
    {
-	   state->unfrozen_count+=state->frozen_store->members;
-	   handles = state->frozen_store;
+	    state->unfrozen_count+=state->frozen_store->members;
+	    handles = state->frozen_store;
+	    if (OutputLevel>=2)
+	    {
+	       fprintf(GlobalOut, "# ENIGMATIC filter: unfrozen %ld clauses.\n", state->frozen_store->members);
+      }
    }
    else
    {
-	   state->generated_count+=state->tmp_store->members;
-	   state->generated_lit_count+=state->tmp_store->literals;
-	   handles = state->tmp_store;
+	    state->generated_count+=state->tmp_store->members;
+	    state->generated_lit_count+=state->tmp_store->literals;
+	    handles = state->tmp_store;
    }
    while((handle = ClauseSetExtractFirst(handles)))
    {
@@ -694,17 +698,28 @@ static Clause_p insert_new_clauses(ProofState_p state, ProofControl_p control, b
       // ClausePrint(stdout, handle, true);
       // printf("\n");
 
-      // FIXME: filter_generated
-      //if (filter_generated && !revive_children)
-      if (false && !revive_children)
+      if (state->enigmatic && state->enigmatic->filter && (!revive_children))
       {
-         //filter_child = EnigmaticLgbFilterGenerationCompute(control->enigma_gen_model, handle);
-         //if (filter_child)
-         //{
-         //   ClauseSetInsert(state->frozen_store, handle);
-         //   state->frozen_count++;
-         //   continue;
-         //}
+         EnigmaticWeightLgbParam_p filter = state->enigmatic->filter;
+         if (!filter->model1->handle)
+         {
+            fprintf(GlobalOut, "# ENIGMATIC filter: Loading model for generation filtering.\n");
+            filter->init_fun(filter);
+         }
+         double pred = EnigmaticPredictLgb(handle, filter, filter->model1);
+         if (pred <= filter->model1->threshold)
+         {
+            if (OutputLevel >= 2)
+            {
+	             fprintf(GlobalOut, "# ENIGMATIC filter: frozen: ");
+	             ClausePrint(GlobalOut, handle, true);
+	             fprintf(GlobalOut, "\n");
+
+            }
+            ClauseSetInsert(state->frozen_store, handle);
+            state->frozen_count++;
+            continue;
+         }
       }
       if(ClauseQueryProp(handle,CPIsIRVictim))
       {
@@ -1855,9 +1870,7 @@ Clause_p Saturate(ProofState_p state, ProofControl_p control, long
             ClauseSetInsert(state->unprocessed, handle);
          }
       }
-      //FIXME: filter_generated
-      //if (filter_generated && ClauseSetEmpty(state->unprocessed))
-      if (false && ClauseSetEmpty(state->unprocessed))
+      if (ClauseSetEmpty(state->unprocessed) && state->enigmatic && state->enigmatic->filter)
       {
          if((unsatisfiable = insert_new_clauses(state, control, true)))
          {
