@@ -628,45 +628,26 @@ long ClauseSetDeleteOrphans(ClauseSet_p set)
 // Side Effects    : -
 //
 /----------------------------------------------------------------------*/
-
-void ClauseParentsPrint(FILE* out, Clause_p clause, char* extra)
+void ClauseParentsPrint(FILE* out, Clause_p clause, char* extra, Sig_p sig)
 {
-   PStackPointer j, sp;
-   DerivationCode op;
+   PStackPointer j;
    Clause_p parent;
-   long res = 0;
-
-   extra = (extra ? extra : "");
+   PStack_p parents;
 
    if (!clause->derivation) { return; }
+   
+   extra = (extra ? extra : "");
+   parents = PStackAlloc();
+   EnigmaticExtractParents(clause, parents);
 
-   sp = PStackGetSP(clause->derivation);
-   j = 0;
-   res = 0;
-   while (j < sp)
+   for (j=0; j<PStackGetSP(parents); j++)
    {
-      op = PStackElementInt(clause->derivation, j);
-      j++;
-      if(DCOpHasCnfArg1(op))
-      {
-         parent = PStackElementP(clause->derivation, j);
-         j++; res++;
-         ClausePrint(out, parent, true);
-         fprintf(out, "%s#parent#%ld\n", extra, res);
+      parent = PStackElementP(parents, j);
+      ClausePrint(out, parent, true);
+      fprintf(out, "%s#parent#%ld\n", extra, j+1);
+   }
 
-      }
-      if(DCOpHasCnfArg2(op))
-      {
-         parent = PStackElementP(clause->derivation, j);
-         j++; res++;
-         ClausePrint(out, parent, true);
-         fprintf(out, "%s#parent#%ld\n", extra, res);
-      }
-   }
-   if (sp == 0)
-   {
-      fprintf(out, "#sp == 0\n");
-   }
+   PStackFree(parents);
 }
 
 /*-----------------------------------------------------------------------
@@ -694,7 +675,7 @@ static void print_enigmatic_vector(FILE* out, Clause_p clause,
 }
 
 void PStackClausePrint(FILE* out, PStack_p stack, char* extra, char* label,
-      bool print_parents, EnigmaticSetting_p enigmatic)
+      bool print_parents, EnigmaticSetting_p enigmatic, Sig_p sig)
 {
    PStackPointer i;
    Clause_p clause;
@@ -707,7 +688,7 @@ void PStackClausePrint(FILE* out, PStack_p stack, char* extra, char* label,
 
       if (print_parents)
       {
-         ClauseParentsPrint(out, clause, extra);
+         ClauseParentsPrint(out, clause, extra, sig);
       }
       if (enigmatic)
       {

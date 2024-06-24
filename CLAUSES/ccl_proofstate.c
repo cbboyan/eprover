@@ -597,14 +597,14 @@ void ProofStateTrain(ProofState_p state, bool print_pos, bool print_neg,
    {
       fprintf(GlobalOut, "# Training: Positive examples begin\n");
       PStackClausePrint(GlobalOut, pos_examples, "#trainpos", "+1 ", 
-            print_parents, state->enigmatic);
+            print_parents, state->enigmatic, state->signature);
       fprintf(GlobalOut, "# Training: Positive examples end\n");
    }
    if(print_neg)
    {
       fprintf(GlobalOut, "# Training: Negative examples begin\n");
       PStackClausePrint(GlobalOut, neg_examples, "#trainneg", "-0 ", 
-            print_parents, state->enigmatic);
+            print_parents, state->enigmatic, state->signature);
       fprintf(GlobalOut, "# Training: Negative examples end\n");
    }
    if(print_skotypes)

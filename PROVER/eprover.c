@@ -64,7 +64,7 @@ EnigmaticFeatures_p enigmatic_gen_features = NULL;
 FILE*             enigmatic_map_out = NULL;
 FILE*             enigmatic_buckets_out = NULL;
 char              *enigmatic_gen_model = NULL;
-double            enigmatic_gen_threshold = 0.0;
+double            enigmatic_gen_threshold = 0.25;
 
 HeuristicParms_p  h_parms;
 FVIndexParms_p    fvi_parms;
@@ -2270,7 +2270,6 @@ CLState_p process_options(int argc, char* argv[])
             break;
       case OPT_ENIGMATIC_GEN_MODEL:
             enigmatic_gen_model = arg;
-            if (!enigmatic_gen_threshold) { enigmatic_gen_threshold = 0.25; }
             break;
       case OPT_ENIGMATIC_GEN_THRESHOLD:
             enigmatic_gen_threshold = CLStateGetFloatArgCheckRange(handle, arg, 0, 1);

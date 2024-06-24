@@ -1790,9 +1790,8 @@ OptCell opts[] =
    {OPT_ENIGMATIC_GEN_THRESHOLD,
 	'\0', "enigmatic-gen-threshold",
 	OptArg, "0.25",
-	  "Threshold for --filter-generated-clauses. "
+	  "Threshold for --enigmatic-gen-model. "
    	  "Default value is 0.25 and must be in (0,1). "},
-
    
    {OPT_ENIGMATIC_OUTPUT_MAP,
     '\0', "enigmatic-output-map",

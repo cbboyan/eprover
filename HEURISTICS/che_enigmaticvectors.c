@@ -628,17 +628,6 @@ static void update_hists(EnigmaticClause_p enigma, EnigmaticInfo_p info)
    update_rat(enigma->pred_rat, enigma->pred_hist, enigma->params->count_sym, preds);
 }
 
-/*---------------------------------------------------------------------*/
-/*                         Exported Functions                          */
-/*---------------------------------------------------------------------*/
-
-Clause_p EnigmaticFormulaToClause(WFormula_p formula, EnigmaticInfo_p info)
-{
-   Eqn_p lits = EqnAlloc(formula->tformula, info->bank->false_term, info->bank, true);
-   Clause_p encode = ClauseAlloc(lits);
-   return encode;
-}
-
 static void update_finish(EnigmaticClause_p enigma, EnigmaticInfo_p info, long count)
 {
    enigma->avg_lit_depth /= enigma->lits;
@@ -663,6 +652,12 @@ static void enigmatic_clause(EnigmaticClause_p enigma, Clause_p clause, Enigmati
 static long update_parent(EnigmaticVector_p vector, Clause_p parent, long num, 
                           EnigmaticInfo_p info)
 {
+   if (OutputLevel >= 2)
+   {
+      fprintf(GlobalOut, "#ENIGMA:PARENT#%ld: ", num);
+      ClausePrint(GlobalOut, parent, true);
+      fprintf(GlobalOut, "\n");
+   }
    if (num == 1)
    {
       if (vector->mother) 
@@ -698,51 +693,118 @@ static long update_parent(EnigmaticVector_p vector, Clause_p parent, long num,
 }
 
 static void enigmatic_parents(EnigmaticVector_p vector, Clause_p clause, 
-                              EnigmaticInfo_p info){
+                              EnigmaticInfo_p info)
+{
    if ((!clause->derivation) || (!(vector->mother || vector->father || vector->spirit)))
    {
       return;
    }
    
-   PStackPointer j, sp;
-   DerivationCode op;
+   PStackPointer j;
    Clause_p parent;
-   long res = 0;
+   PStack_p parents;
    long spirits = 0;
-   
-   sp = PStackGetSP(clause->derivation);
-   j = 0;
-   res = 0;
-   while (j < sp)
-   {
-      op = PStackElementInt(clause->derivation, j);
-      j++;
-      if (DCOpHasCnfArg1(op))
-      {
-         parent = PStackElementP(clause->derivation, j);
-         j++; res++;
-         spirits += update_parent(vector, parent, res, info);
-      }
-      if (DCOpHasCnfArg2(op))
-      {
-         parent = PStackElementP(clause->derivation, j);
-         j++; res++;
-         spirits += update_parent(vector, parent, res, info);
-      }
-   }
 
+   parents = PStackAlloc();
+   EnigmaticExtractParents(clause, parents);
+   
+   for (j=0; j<PStackGetSP(parents); j++)
+   {
+      parent = PStackElementP(parents, j);
+      spirits += update_parent(vector, parent, j+1, info);
+   }
+   
    if (spirits)
    {
       update_finish(vector->spirit, info, spirits);
    }
+
+   PStackFree(parents);
 }
 
+
+/*---------------------------------------------------------------------*/
+/*                         Exported Functions                          */
+/*---------------------------------------------------------------------*/
+
+/*-----------------------------------------------------------------------
+//
+// Function: EnigmaticExtractParents()
+//
+//   Extract parent clauses for feature ENIGMA computation.
+//
+// Global Variables: -
+//
+// Side Effects    : via parents
+//
+/----------------------------------------------------------------------*/
+void EnigmaticExtractParents(Clause_p clause, PStack_p parents)
+{
+   if (!clause->derivation) { return; }
+
+   PStackPointer j, sp;
+   DerivationCode op;
+   bool skip;
+   
+   sp = PStackGetSP(clause->derivation);
+   j = 0;
+   while (j < sp)
+   {
+      op = PStackElementInt(clause->derivation, j);
+      skip = (DPOpGetOpCode(op) <= DOEvalAnswers); // skip CNF simplifications
+      //skip = (DPOpGetOpCode(op) < DOEvalGC);
+      //skip = (DPOpGetOpCode(op) < DOParamod);
+      j++;
+      if (DCOpHasCnfArg1(op))
+      {
+         if (!skip)
+         {
+            PStackPushP(parents, PStackElementP(clause->derivation, j));
+         }
+         j++;
+      }
+      if (DCOpHasCnfArg2(op))
+      {
+         if (!skip)
+         {
+            PStackPushP(parents, PStackElementP(clause->derivation, j));
+         }
+         j++; 
+      }
+   }
+}
+
+
+Clause_p EnigmaticFormulaToClause(WFormula_p formula, EnigmaticInfo_p info)
+{
+   Eqn_p lits = EqnAlloc(formula->tformula, info->bank->false_term, info->bank, true);
+   Clause_p encode = ClauseAlloc(lits);
+   return encode;
+}
 
 void EnigmaticClause(EnigmaticVector_p vector, Clause_p clause, EnigmaticInfo_p info)
 {
    if (vector->clause) 
    {
       enigmatic_clause(vector->clause, clause, info);
+      if (OutputLevel >= 2)
+      {
+         fprintf(GlobalOut, "#ENIGMA:INFER(%ld): ", clause->ident);
+         DerivationStackTSTPPrint(GlobalOut, info->sig, clause->derivation);
+         fprintf(GlobalOut, "\n");
+         if (clause->derivation) 
+         {
+            fprintf(GlobalOut, "#ENIGMA:INFER:DEBUG(%ld): ", clause->ident);
+            for (PStackPointer j=0; j<PStackGetSP(clause->derivation); j++)
+            {
+               fprintf(GlobalOut, "%ld ", PStackElementInt(clause->derivation, j));
+            }
+            fprintf(GlobalOut, "\n");
+         }
+         fprintf(GlobalOut, "#ENIGMA:CLAUSE: ");
+         ClausePrint(GlobalOut, clause, true);
+         fprintf(GlobalOut, "\n");
+      }
    }
    enigmatic_parents(vector, clause, info);
 }

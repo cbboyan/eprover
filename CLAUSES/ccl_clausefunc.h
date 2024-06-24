@@ -60,8 +60,8 @@ long ClauseSetReplaceInjectivityDefs(ClauseSet_p set, ClauseSet_p archive, TB_p 
 
 
 void PStackClausePrint(FILE* out, PStack_p stack, char* extra, char* label, 
-      bool print_parents, EnigmaticSetting_p enigmatic);
-void ClauseParentsPrint(FILE* out, Clause_p child, char* extra); 
+      bool print_parents, EnigmaticSetting_p enigmatic, Sig_p sig);
+void ClauseParentsPrint(FILE* out, Clause_p clause, char* extra, Sig_p sig);
 
 
 #endif
