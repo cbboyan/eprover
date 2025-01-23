@@ -30,7 +30,7 @@ Changes
 /*---------------------------------------------------------------------*/
 
 long global_formula_counter = LONG_MIN;
-bool FormulasKeepInputNames = true;
+bool FormulasKeepInputNames = false;
 
 
 /*---------------------------------------------------------------------*/
