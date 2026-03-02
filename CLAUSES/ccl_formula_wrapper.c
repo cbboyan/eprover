@@ -77,7 +77,7 @@ TFormula_p handle_ho_def(Scanner_p in, TB_p bank)
       {
          AktTokenError(in, "E currently supports definitions of type <predicate "
                            " symbol> = <closed LFHOL formula>",
-                       SYNTAX_ERROR);
+                       false);
       }
 
       AcceptInpTok(in, EqualSign);
@@ -454,7 +454,7 @@ WFormula_p WFormulaTSTPParse(Scanner_p in, TB_p terms)
    AcceptInpTok(in, OpenBracket);
    CheckInpTok(in, Name|PosInt|SQString);
    info->name = DStrCopy(AktToken(in)->literal);
-   // printf("# Parsing: %s\n", info->name);
+   // printf(COMCHAR" Parsing: %s\n", info->name);
    NextToken(in);
    AcceptInpTok(in, Comma);
 
@@ -492,24 +492,33 @@ WFormula_p WFormulaTSTPParse(Scanner_p in, TB_p terms)
                          "plain|unknown");
       AcceptInpTok(in, Comma);
 
-      // printf("# Formula Start!\n");
+      // printf(COMCHAR" Formula Start!\n");
 
       source_name = DStrGetRef(AktToken(in)->source);
       inptype     = AktToken(in)->stream_type;
       line        = AktToken(in)->line;
       column      = AktToken(in)->column;
 
-      if(is_tcf)
+      if(TestInpId(in, "$distinct"))
       {
-         // printf("# Tcf Start!\n");
+         tform = TSTPDistinctParse(in, terms);
+         // fprintf(stderr, COMCHAR" $distinct parsed!: ");
+         // TFormulaTPTPPrint(stderr, terms, tform, true, false);
+         // fprintf(stderr, " : ");
+         // TermPrintDbg(stderr, tform, terms->sig, DEREF_NEVER);
+         // fprintf(stderr, ";\n");
+      }
+      else if(is_tcf)
+      {
+         // printf(COMCHAR" Tcf Start!\n");
          tform = TcfTSTPParse(in, terms);
-         // printf("# Tcf Done!\n");
+         // printf(COMCHAR" Tcf Done!\n");
       }
       else
       {
-         //fprintf(stderr, "# TFormula Start!\n");
+         //fprintf(stderr, COMCHAR" TFormula Start!\n");
          tform = TFormulaTSTPParse(in, terms);
-         //fprintf(stderr, "# TFormula parsed!: ");
+         //fprintf(stderr, COMCHAR" TFormula parsed!: ");
          //TFormulaTPTPPrint(stderr, terms, tform, true, false);
          //fprintf(stderr, " : ");
          //TermPrintDbg(stderr, tform, terms->sig, DEREF_NEVER);
@@ -545,20 +554,23 @@ WFormula_p WFormulaTSTPParse(Scanner_p in, TB_p terms)
    FormulaSetType(handle, type);
    FormulaSetProp(handle, initial|CPInitial);
    handle->info = info;
-
-   // printf("# Formula complete!\n");
+   //WFormulaTSTPPrintFlex(stdout, handle, true, true, false);
+   //printf("\n");
+   // printf(COMCHAR" Formula complete!\n");
    return handle;
 }
 
 
 
 
+
 /*-----------------------------------------------------------------------
 //
-// Function: WFormulaTSTPPrint()
+// Function: WFormulaTSTPPrintFlex()
 //
 //   Print a formula in TSTP format. If !complete, leave of the
-//   trailing ")." for adding optional stuff.
+//   trailing ")." for adding optional stuff. If "as_formula" is true,
+//   print clauses as (universally quantified) formulas.
 //
 // Global Variables: -
 //
@@ -566,19 +578,21 @@ WFormula_p WFormulaTSTPParse(Scanner_p in, TB_p terms)
 //
 /----------------------------------------------------------------------*/
 
-void WFormulaTSTPPrint(FILE* out, WFormula_p form, bool fullterms,
-             bool complete)
+void WFormulaTSTPPrintFlex(FILE* out, WFormula_p form, bool fullterms,
+                           bool complete, bool as_formula)
 {
    char *typename = "plain", *formula_kind = "fof";
    bool is_untyped = TFormulaIsUntyped(form->tformula);
 
+   //SigPrint(stdout, form->terms->sig);
+
    if(problemType == PROBLEM_FO)
    {
-      if(form->is_clause && is_untyped)
+      if(form->is_clause && is_untyped && !as_formula)
       {
          formula_kind = "cnf";
       }
-      else if(form->is_clause)
+      else if(form->is_clause && !as_formula)
       {
          formula_kind = "tcf";
       }
@@ -623,15 +637,21 @@ void WFormulaTSTPPrint(FILE* out, WFormula_p form, bool fullterms,
 
    if(form->is_clause)
    {
-      Clause_p clause = WFormClauseToClause(form);
-      ClauseTSTPCorePrint(out, clause, fullterms);
-      ClauseFree(clause);
+      if(as_formula)
+      {
+         TFormula_p closure =  TFormulaClosure(form->terms, form->tformula, true);
+         TFormulaTPTPPrint(out, form->terms, closure, fullterms, false);
+      }
+      else
+      {
+         Clause_p clause = WFormClauseToClause(form);
+         ClauseTSTPCorePrint(out, clause, fullterms);
+         ClauseFree(clause);
+      }
    }
    else
    {
       TFormulaTPTPPrint(out, form->terms, form->tformula,fullterms, false);
-      // TermPrintDbg(out, form->tformula, form->terms->sig, DEREF_NEVER);
-      //fprintf(out, "");
       //fprintf(out, "<dummy %p in %p>", form->tformula, form->terms);
    }
    if(complete)
@@ -639,7 +659,6 @@ void WFormulaTSTPPrint(FILE* out, WFormula_p form, bool fullterms,
       fprintf(out, ").");
    }
 }
-
 
 /*-----------------------------------------------------------------------
 //
@@ -762,7 +781,7 @@ WFormula_p WFormClauseParse(Scanner_p in, TB_p terms)
    handle->info = NULL;
    ClauseFree(handle);
 
-   //printf("# WFormClauseParse: ");
+   //printf(COMCHAR" WFormClauseParse: ");
    //WFormulaPrint(stdout, wform, true);
    //printf("\n");
    return wform;

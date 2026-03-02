@@ -346,15 +346,16 @@ bool do_is_db_closed(Term_p t,  long depth)
 
 /*-----------------------------------------------------------------------
 //
-// Function: do_fool_print()
+// Function: do_ho_print()
 //
 //    Inner function
 //
-// Global Variables: TermPrintLists
+// Global Variables:
 //
 // Side Effects    : Output
 //
 /----------------------------------------------------------------------*/
+
 void do_ho_print(FILE* out, TFormula_p term, Sig_p sig, DerefType deref, int depth)
 {
    if (problemType == PROBLEM_FO)
@@ -391,7 +392,6 @@ void do_ho_print(FILE* out, TFormula_p term, Sig_p sig, DerefType deref, int dep
       fprintf(out, ")");
       return;
    }
-
 
    if(TermIsDBVar(term))
    {
@@ -462,7 +462,7 @@ void do_ho_print(FILE* out, TFormula_p term, Sig_p sig, DerefType deref, int dep
 //
 //    Inner function
 //
-// Global Variables: TermPrintLists
+// Global Variables:
 //
 // Side Effects    : Output
 //
@@ -526,7 +526,7 @@ void do_fool_print(FILE* out, Sig_p sig, TFormula_p form, int depth)
       if(form->f_code == SIG_DB_LAMBDA_CODE)
       {
          fprintf(out, "Z%d", depth);
-         fprintf(out, "/* %ld */", form->args[1]->f_code);
+         //fprintf(out, "/* %ld */", form->args[1]->f_code);
          depth++;
       }
       else
@@ -576,7 +576,10 @@ void do_fool_print(FILE* out, Sig_p sig, TFormula_p form, int depth)
       if(!TermIsFreeVar(form) && SigQueryFuncProp(sig, form->f_code, FPFOFOp) && form->arity == 2)
       {
          fputs("(", out);
+         PRINT_HO_PAREN(out, '(');
          do_fool_print(out, sig, form->args[0], depth);
+         PRINT_HO_PAREN(out, ')');
+
          if(form->f_code == sig->and_code)
          {
             oprep = "&";
@@ -610,7 +613,9 @@ void do_fool_print(FILE* out, Sig_p sig, TFormula_p form, int depth)
             oprep = "<~>";
          }
          fputs(oprep, out);
+         PRINT_HO_PAREN(out, '(');
          do_fool_print(out, sig, form->args[1], depth);
+         PRINT_HO_PAREN(out, ')');
          fputs(")", out);
       }
       else
@@ -798,7 +803,9 @@ void TermPrintDbgHO(FILE* out, Term_p term, Sig_p sig, DerefType deref)
 #endif
       DerefType c_deref = CONVERT_DEREF(i, limit, deref);
       if(term->args[i]->arity ||
-         (c_deref != DEREF_NEVER && term->args[i]->binding && term->args[i]->binding->arity))
+         (c_deref != DEREF_NEVER &&
+          term->args[i]->binding &&
+          term->args[i]->binding->arity))
       {
          fputs("(", out);
          TermPrintDbgHO(out, term->args[i], sig, c_deref);
@@ -812,6 +819,7 @@ void TermPrintDbgHO(FILE* out, Term_p term, Sig_p sig, DerefType deref)
 }
 
 #endif
+
 
 
 /*--------------------------------------------------------------------
@@ -895,6 +903,58 @@ void TermPrintSimple(FILE* out, Term_p term, Sig_p sig)
    }
 }
 
+
+
+/*-----------------------------------------------------------------------
+//
+// Function: TermPrintSExpr()
+//
+//   Prints the (uninstantiated) term as an s-expression,
+//   with symbols/formula as naked ans possible.
+//
+// Global Variables: TermPrintLists
+//
+// Side Effects    : Output
+//
+/----------------------------------------------------------------------*/
+
+void TermPrintSExpr(FILE* out, Term_p term, Sig_p sig)
+{
+   assert(term);
+   assert(sig||TermIsFreeVar(term));
+
+   if(term->arity)
+   {
+      fprintf(out, "(");
+   }
+
+   if(TermIsDBVar(term))
+   {
+      fprintf(out, "db(%ld)", term->f_code);
+   }
+   else if(TermIsFreeVar(term))
+   {
+      VarPrint(out, term->f_code);
+   }
+   else
+   {
+      fputs(SigFindName(sig, term->f_code), out);
+   }
+
+   for(int i = 0; i < term->arity; ++i)
+   {
+      fprintf(out, "   ");
+      TermPrintSExpr(out, term->args[i], sig);
+   }
+   if(term->arity)
+   {
+      fprintf(out, ")");
+   }
+}
+
+
+
+
 /*-----------------------------------------------------------------------
 //
 // Function: TermIsFlat()
@@ -953,12 +1013,16 @@ void TermPrettyPrintSimple(FILE* out, Term_p term, Sig_p sig, int level)
 
    TypePrintTSTP(out, sig->type_bank, term->type);
    fprintf(out, ":");
-   if(TermIsFreeVar(term))
+   if(TermIsDBVar(term))
+   {
+      // assert(term->arity == 0);
+      fprintf(out, "db(%ld)", term->f_code);
+   }
+   else if(TermIsFreeVar(term))
    {
       VarPrint(out, term->f_code);
       fputs(":", out);
       TypePrintTSTP(out, sig->type_bank, term->type);
-
    }
    else
    {
@@ -1032,6 +1096,12 @@ void TermPrettyPrintSimple(FILE* out, Term_p term, Sig_p sig, int level)
 
 FuncSymbType TermParseOperator(Scanner_p in, DStr_p id)
 {
+   if(TestInpId(in, "$distinct"))
+   {
+      AktTokenError(in,
+                    "$distinct is only allowed as the sole predicate symbol of an atomic formula",
+                    false);
+   }
    FuncSymbType res = FuncSymbParse(in, id);
 
 #ifndef STRICT_TPTP
@@ -1067,26 +1137,29 @@ FunCode TermSigInsert(Sig_p sig, const char* name, int arity, bool
    FunCode res;
 
    res = SigInsertId(sig, name, arity, special_id);
-   switch(type)
+   if(res)
    {
-   case FSIdentInt:
-         SigSetFuncProp(sig, res, FPIsInteger);
-         break;
-   case FSIdentFloat:
-         SigSetFuncProp(sig, res, FPIsFloat);
-         break;
-   case FSIdentRational:
-         SigSetFuncProp(sig, res, FPIsRational);
-         break;
-   case FSIdentObject:
+      switch(type)
+      {
+      case FSIdentInt:
+            SigSetFuncProp(sig, res, FPIsInteger);
+            break;
+      case FSIdentFloat:
+            SigSetFuncProp(sig, res, FPIsFloat);
+            break;
+      case FSIdentRational:
+            SigSetFuncProp(sig, res, FPIsRational);
+            break;
+      case FSIdentObject:
          SigSetFuncProp(sig, res, FPIsObject);
          break;
-   case FSIdentInterpreted:
-         SigSetFuncProp(sig, res, FPInterpreted);
-         break;
-   default:
-         /* Nothing */
-         break;
+      case FSIdentInterpreted:
+            SigSetFuncProp(sig, res, FPInterpreted);
+            break;
+      default:
+            /* Nothing */
+            break;
+      }
    }
    return res;
 }
@@ -1110,7 +1183,7 @@ Term_p TermParse(Scanner_p in, Sig_p sig, VarBank_p vars)
    Term_p        handle;
    DStr_p        id;
    FuncSymbType id_type;
-   DStr_p        source_name, errpos;
+   DStr_p        source_name;
    Type_p        type;
    long          line, column;
    StreamType    type_stream;
@@ -1173,18 +1246,13 @@ Term_p TermParse(Scanner_p in, Sig_p sig, VarBank_p vars)
                                         handle->arity, false, id_type);
          if(!handle->f_code)
          {
-            errpos = DStrAlloc();
+            Error("%s %s used with arity %d but registered with arity %d",
+                  SYNTAX_ERROR,
+                  PosRep(type_stream, source_name, line, column),
+                  DStrView(id),
+                  handle->arity,
+                  SigFindArity(sig, SigFindFCode(sig, DStrView(id))));
 
-            DStrAppendStr(errpos, PosRep(type_stream, source_name, line, column));
-            DStrAppendChar(errpos, ' ');
-            DStrAppendStr(errpos, DStrView(id));
-            DStrAppendStr(errpos, " used with arity ");
-            DStrAppendInt(errpos, (long)handle->arity);
-            DStrAppendStr(errpos, " but registered with arity ");
-            DStrAppendInt(errpos,
-                          (long)SigFindArity(sig, SigFindFCode(sig, DStrView(id))));
-            Error(DStrView(errpos), SYNTAX_ERROR);
-            DStrFree(errpos);
          }
       }
       DStrReleaseRef(source_name);
@@ -2310,7 +2378,7 @@ FunCode VarBankCheckBindings(FILE* out, VarBank_p bank, Sig_p sig)
    long      res = 0;
    int       i;
 
-   fprintf(out, "#  VarBankCheckBindings() started...\n");
+   fprintf(out, COMCHAR"  VarBankCheckBindings() started...\n");
    for(i=1; i<PDArraySize(bank->variables); i++)
    {
       term = PDArrayElementP(bank->variables, i);
@@ -2322,7 +2390,7 @@ FunCode VarBankCheckBindings(FILE* out, VarBank_p bank, Sig_p sig)
             res++;
             if(sig)
             {
-               fprintf(out, "# %ld: ", term->f_code);
+               fprintf(out, COMCHAR" %ld: ", term->f_code);
                TermPrint(out, term, sig, DEREF_NEVER);
                fprintf(out, " <--- ");
                TermPrint(out, term, sig, DEREF_ONCE);
@@ -2330,14 +2398,14 @@ FunCode VarBankCheckBindings(FILE* out, VarBank_p bank, Sig_p sig)
             }
             else
             {
-               fprintf(out, "# Var%ld <---- %p\n",
+               fprintf(out, COMCHAR" Var%ld <---- %p\n",
                        term->f_code,
                        (void*)term->binding);
             }
          }
       }
    }
-   fprintf(out, "#  ...VarBankCheckBindings() completed\n");
+   fprintf(out, COMCHAR"  ...VarBankCheckBindings() completed\n");
    return res;
 }
 
@@ -2751,11 +2819,12 @@ long TermCollectFCodes(Term_p term, NumTree_p *tree)
 //
 /----------------------------------------------------------------------*/
 
-long TermCollectGroundTerms(Term_p term, PTree_p *result, bool top_only)
+long TermCollectGroundTerms(Term_p term, PTree_p *result, bool all_subterms)
 {
    PStack_p stack = PStackAlloc();
    long count = 0;
    int i;
+
 
    PStackPushP(stack, term);
 
@@ -2771,7 +2840,7 @@ long TermCollectGroundTerms(Term_p term, PTree_p *result, bool top_only)
                count++;
             }
          }
-         if(!TermIsGround(term) || !top_only)
+         if(!TermIsGround(term) || all_subterms)
          {
             for(i=0; i<term->arity; i++)
             {
@@ -2780,6 +2849,8 @@ long TermCollectGroundTerms(Term_p term, PTree_p *result, bool top_only)
          }
       }
    }
+   PStackFree(stack);
+
    return count;
 }
 
@@ -2937,7 +3008,7 @@ void TermAssertSameSort(Sig_p sig, Term_p t1, Term_p t2)
 #ifndef DISABLE_TYPE_CHECKING
    if(t1->type != t2->type)
    {
-      fprintf(stderr, "# Error: terms ");
+      fprintf(stderr, COMCHAR" Error: terms ");
       TermPrintDbg(stderr, t1, sig, DEREF_NEVER);
       fprintf(stderr, ": ");
       TypePrintTSTP(stderr, sig->type_bank, t1->type);

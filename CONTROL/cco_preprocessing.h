@@ -1,33 +1,33 @@
 /*-----------------------------------------------------------------------
 
-File  : ccl_tautologies.h
+  File  : cco_preprocessing.h
 
-Author: Stephan Schulz
+  Author: Stephan Schulz (schulz@eprover.org)
 
-Contents
+  Contents
 
-  Functions for detecting tautologies using the algorithm suggested by
-  Roberto Nieuwenhuis: Do ground completion on negative literals, see
-  if they imply the positive ones
+  This module encapsulates some of the main proofstate preprocessing,
+  mostly to keep the complexity of eprover.c under control.
 
-  Copyright 1998, 1999 by the author.
-  This code is released under the GNU General Public Licence and
-  the GNU Lesser General Public License.
-  See the file COPYING in the main E directory for details..
+  Copyright 2025 by the authors.
+  This code is released under the GNU General Public Licence.
+  See the file COPYING in the main CLIB directory for details.
   Run "eprover -h" for contact information.
 
-Changes
-
-<1> Tue May  4 17:23:56 MEST 1999
-    New
+  Created:
 
 -----------------------------------------------------------------------*/
 
-#ifndef CCL_TAUTOLOGIES
+#ifndef CCO_PREPROCESSING
 
-#define CCL_TAUTOLOGIES
+#define CCO_PREPROCESSING
 
-#include <ccl_clauses.h>
+#include <ccl_proofstate.h>
+#include <che_hcb.h>
+#include <cco_ho_inferences.h>
+#include <ccl_bce.h>
+#include <ccl_pred_elim.h>
+
 
 /*---------------------------------------------------------------------*/
 /*                    Data type declarations                           */
@@ -40,11 +40,9 @@ Changes
 /*                Exported Functions and Variables                     */
 /*---------------------------------------------------------------------*/
 
-#define MAX_EQ_TAUTOLOGY_CHECK_LITNO 1000
 
-bool ClauseIsTautologyReal(TB_p work_bank, Clause_p clause, bool copy);
+long ProofStateClausalPreproc(ProofState_p proofstate, HeuristicParms_p h_parms);
 
-#define ClauseIsTautology(b,c) (ClauseIsTautologyReal(b, c, true))
 
 #endif
 

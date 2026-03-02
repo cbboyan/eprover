@@ -8,7 +8,7 @@ Contents
 
   Data type for (wrapped) formula sets.
 
-Copyright 1998-2011 by the author.
+Copyright 1998-2024 by the author.
   This code is released under the GNU General Public Licence and
   the GNU Lesser General Public License.
   See the file COPYING in the main E directory for details..
@@ -67,9 +67,11 @@ WFormula_p   FormulaSetExtractFirst(FormulaSet_p set);
 int          FormulaConjectureOrder(FormulaSet_p set);
 
 void         FormulaSetDeleteEntry(WFormula_p form);
+bool         FormulaSetIsUntyped(FormulaSet_p set);
 
 void         FormulaSetPrint(FILE* out, FormulaSet_p set,
                              bool fullterms);
+void         FormulaSetPrettyPrintTSTP(FILE* out, FormulaSet_p set, bool fullterms);
 bool         FormulaSetHasInterpretedSymbol(FormulaSet_p set);
 long         FormulaSetSplitConjectures(FormulaSet_p set,
                                         PList_p conjectures,
@@ -82,10 +84,11 @@ long         FormulaSetCollectFCode(FormulaSet_p set, FunCode f_code,
                                     PStack_p result);
 
 void FormulaSetAppEncode(FILE* out, FormulaSet_p set);
-void FormulaSetDefinitionStatistics(FormulaSet_p orig, FormulaSet_p arch, 
-                                    TB_p bank, int* num_defs, 
-                                    double* percentage_form_defs, 
+void FormulaSetDefinitionStatistics(FormulaSet_p orig, FormulaSet_p arch,
+                                    TB_p bank, int* num_defs,
+                                    double* percentage_form_defs,
                                     int* num_lams, bool* app_var_lits);
+
 
 #endif
 

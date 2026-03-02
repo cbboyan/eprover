@@ -34,8 +34,7 @@
 #include <cte_lambda.h>
 #include <cco_ho_inferences.h>
 #include <che_new_autoschedule.h>
-#include <ccl_bce.h>
-#include <ccl_pred_elim.h>
+#include <cco_preprocessing.h>
 #include <sys/mman.h>
 
 
@@ -58,6 +57,7 @@ PERF_CTR_DEFINE(SatTimer);
 char              *outname = NULL;
 char              *watchlist_filename = NULL;
 char              *parse_strategy_filename = NULL;
+char              *select_strategy = NULL;
 char              *print_strategy = NULL;
 EnigmaticFeatures_p enigmatic_sel_features = NULL;
 EnigmaticFeatures_p enigmatic_gen_features = NULL;
@@ -81,8 +81,8 @@ bool              print_sat = false,
    pcl_full_terms = true,
    indexed_subsumption = true,
    syntax_only = false,
+   print_formulas = false,
    prune_only = false,
-   new_cnf = true,
    cnf_only = false,
    inf_sys_complete = true,
    assume_inf_sys_complete = false,
@@ -103,8 +103,7 @@ long              step_limit = LONG_MAX,
    total_limit = LONG_MAX,
    cores       = 1,
    generated_limit = LONG_MAX,
-   relevance_prune_level = 0,
-   miniscope_limit = 1048576;
+   relevance_prune_level = 0;
 long long tb_insert_limit = LLONG_MAX;
 bool lift_lambdas = true;
 int num_cpus = 1;
@@ -228,6 +227,10 @@ ProofState_p parse_spec(CLState_p state,
    }
    VERBOUT2("Specification read\n");
 
+   ProofStateProcessDistinct(proofstate);
+
+   VERBOUT2("$distinct directives processed\n");
+
    proofstate->has_interpreted_symbols =
       FormulaSetHasInterpretedSymbol(proofstate->f_axioms);
    parsed_ax_no = ProofStateAxNo(proofstate);
@@ -235,7 +238,7 @@ ProofState_p parse_spec(CLState_p state,
    if(error_on_empty_local && (parsed_ax_no == 0))
    {
 #ifdef PRINT_SOMEERRORS_STDOUT
-      fprintf(GlobalOut, "# Error: Input file contains no clauses or formulas\n");
+      fprintf(GlobalOut, COMCHAR" Error: Input file contains no clauses or formulas\n");
       TSTPOUT(GlobalOut, "InputError");
 #endif
       Error("Input file contains no clauses or formulas", OTHER_ERROR);
@@ -262,12 +265,12 @@ static void print_info(void)
 {
    if(print_pid)
    {
-      fprintf(GlobalOut, "# Pid: %lld\n", (long long)pid);
+      fprintf(GlobalOut, COMCHAR" Pid: %lld\n", (long long)pid);
       fflush(GlobalOut);
    }
    if(print_version)
    {
-      fprintf(GlobalOut, "# Version: %s\n", VERSION);
+      fprintf(GlobalOut, COMCHAR" Version: %s\n", VERSION);
       fflush(GlobalOut);
    }
 }
@@ -300,12 +303,20 @@ void strategy_io(HeuristicParms_p h_parms, PStack_p hcb_definitions)
       }
       DestroyScanner(in);
    }
+   if(select_strategy)
+   {
+      GetHeuristicWithName(select_strategy, h_parms);
+   }
 
    if(print_strategy)
    {
       if(strcmp(print_strategy, ">all-strats<")==0)
       {
-         StrategiesPrintPredefined(GlobalOut);
+         StrategiesPrintPredefined(GlobalOut, false);
+      }
+      else if(strcmp(print_strategy, ">all-names<")==0)
+      {
+         StrategiesPrintPredefined(GlobalOut, true);
       }
       else
       {
@@ -349,7 +360,7 @@ int handle_auto_modes_preproc(ProofState_p proofstate,
    RawSpecFeaturesCompute(raw_features, proofstate);
    RawSpecFeaturesClassify(raw_features, *limits, RAW_DEFAULT_MASK);
    *preproc_schedule = GetPreprocessingSchedule(raw_features->class);
-   fprintf(stdout, "# Preprocessing class: %s.\n", raw_features->class);
+   fprintf(stdout, COMCHAR" Preprocessing class: %s.\n", raw_features->class);
    if(strategy_scheduling)
    {
       sched_idx = ExecuteScheduleMultiCore(*preproc_schedule, h_parms,
@@ -373,7 +384,7 @@ int handle_auto_modes_preproc(ProofState_p proofstate,
    {
       assert(auto_conf);
       GetHeuristicWithName((*preproc_schedule)->heu_name, h_parms);
-      fprintf(stdout, "# Configuration: %s\n", (*preproc_schedule)->heu_name);
+      fprintf(stdout, COMCHAR" Configuration: %s\n", (*preproc_schedule)->heu_name);
    }
    return sched_idx;
 }
@@ -428,54 +439,54 @@ static void print_proof_stats(ProofState_p proofstate,
 {
    if(OutputLevel>1||print_statistics)
    {
-      fprintf(GlobalOut, "# Parsed axioms                        : %ld\n",
+      fprintf(GlobalOut, COMCHAR" Parsed axioms                        : %ld\n",
               parsed_ax_no);
-      fprintf(GlobalOut, "# Removed by relevancy pruning/SinE    : %ld\n",
+      fprintf(GlobalOut, COMCHAR" Removed by relevancy pruning/SinE    : %ld\n",
               relevancy_pruned);
-      fprintf(GlobalOut, "# Initial clauses                      : %ld\n",
+      fprintf(GlobalOut, COMCHAR" Initial clauses                      : %ld\n",
               raw_clause_no);
-      fprintf(GlobalOut, "# Removed in clause preprocessing      : %ld\n",
+      fprintf(GlobalOut, COMCHAR" Removed in clause preprocessing      : %ld\n",
               preproc_removed);
       ProofStateStatisticsPrint(GlobalOut, proofstate);
-      fprintf(GlobalOut, "# Clause-clause subsumption calls (NU) : %ld\n",
+      fprintf(GlobalOut, COMCHAR" Clause-clause subsumption calls (NU) : %ld\n",
               ClauseClauseSubsumptionCalls);
-      fprintf(GlobalOut, "# Rec. Clause-clause subsumption calls : %ld\n",
+      fprintf(GlobalOut, COMCHAR" Rec. Clause-clause subsumption calls : %ld\n",
               ClauseClauseSubsumptionCallsRec);
-      fprintf(GlobalOut, "# Non-unit clause-clause subsumptions  : %ld\n",
+      fprintf(GlobalOut, COMCHAR" Non-unit clause-clause subsumptions  : %ld\n",
               ClauseClauseSubsumptionSuccesses);
-      fprintf(GlobalOut, "# Unit Clause-clause subsumption calls : %ld\n",
+      fprintf(GlobalOut, COMCHAR" Unit Clause-clause subsumption calls : %ld\n",
               UnitClauseClauseSubsumptionCalls);
-      fprintf(GlobalOut, "# Rewrite failures with RHS unbound    : %ld\n",
+      fprintf(GlobalOut, COMCHAR" Rewrite failures with RHS unbound    : %ld\n",
               RewriteUnboundVarFails);
-      fprintf(GlobalOut, "# BW rewrite match attempts            : %ld\n",
+      fprintf(GlobalOut, COMCHAR" BW rewrite match attempts            : %ld\n",
               BWRWMatchAttempts);
-      fprintf(GlobalOut, "# BW rewrite match successes           : %ld\n",
+      fprintf(GlobalOut, COMCHAR" BW rewrite match successes           : %ld\n",
               BWRWMatchSuccesses);
-      fprintf(GlobalOut, "# Condensation attempts                : %ld\n",
+      fprintf(GlobalOut, COMCHAR" Condensation attempts                : %ld\n",
               CondensationAttempts);
-      fprintf(GlobalOut, "# Condensation successes               : %ld\n",
+      fprintf(GlobalOut, COMCHAR" Condensation successes               : %ld\n",
               CondensationSuccesses);
 
 #ifdef MEASURE_UNIFICATION
-      fprintf(GlobalOut, "# Unification attempts                 : %ld\n",
+      fprintf(GlobalOut, COMCHAR" Unification attempts                 : %ld\n",
               UnifAttempts);
-      fprintf(GlobalOut, "# Unification successes                : %ld\n",
+      fprintf(GlobalOut, COMCHAR" Unification successes                : %ld\n",
               UnifSuccesses);
 #endif
 #ifdef PDT_COUNT_NODES
-      fprintf(GlobalOut, "# PDT nodes visited                    : %ld\n",
+      fprintf(GlobalOut, COMCHAR" PDT nodes visited                    : %ld\n",
               PDTNodeCounter);
 #endif
-      fprintf(GlobalOut, "# Termbank termtop insertions          : %lld\n",
+      fprintf(GlobalOut, COMCHAR" Termbank termtop insertions          : %lld\n",
               proofstate->terms->insertions);
-      fprintf(GlobalOut, "# Search garbage collected termcells   : %lld\n",
+      fprintf(GlobalOut, COMCHAR" Search garbage collected termcells   : %lld\n",
               proofstate->terms->recovered);
       if(TBPrintDetails)
       {
          TBGCCollect(proofstate->terms);
-         fprintf(GlobalOut, "# Final garbage collected termcells    : %lld\n",
+         fprintf(GlobalOut, COMCHAR" Final garbage collected termcells    : %lld\n",
                  proofstate->terms->recovered);
-         fprintf(GlobalOut, "# Final shared term nodes              : %ld\n",
+         fprintf(GlobalOut, COMCHAR" Final shared term nodes              : %ld\n",
                  TBTermNodes(proofstate->terms));
       }
       PERF_CTR_PRINT(GlobalOut, MguTimer);
@@ -493,24 +504,24 @@ static void print_proof_stats(ProofState_p proofstate,
       PERF_CTR_PRINT(GlobalOut, ClauseEvalTimer);
 
 #ifdef PRINT_INDEX_STATS
-      fprintf(GlobalOut, "# Backwards rewriting index : ");
+      fprintf(GlobalOut, COMCHAR" Backwards rewriting index : ");
       FPIndexDistribDataPrint(GlobalOut, proofstate->gindices.bw_rw_index);
       fprintf(GlobalOut, "\n");
       /*FPIndexPrintDot(GlobalOut, "rw_bw_index",
         proofstate->gindices.bw_rw_index,
         SubtermTreePrintDot,
         proofstate->signature);*/
-      fprintf(GlobalOut, "# Paramod-from index        : ");
+      fprintf(GlobalOut, COMCHAR" Paramod-from index        : ");
       FPIndexDistribDataPrint(GlobalOut, proofstate->gindices.pm_from_index);
       fprintf(GlobalOut, "\n");
       FPIndexPrintDot(GlobalOut, "pm_from_index",
                       proofstate->gindices.pm_from_index,
                       SubtermTreePrintDot,
                       proofstate->signature);
-      fprintf(GlobalOut, "# Paramod-into index        : ");
+      fprintf(GlobalOut, COMCHAR" Paramod-into index        : ");
       FPIndexDistribDataPrint(GlobalOut, proofstate->gindices.pm_into_index);
       fprintf(GlobalOut, "\n");
-      fprintf(GlobalOut, "# Paramod-neg-atom index    : ");
+      fprintf(GlobalOut, COMCHAR" Paramod-neg-atom index    : ");
       FPIndexDistribDataPrint(GlobalOut, proofstate->gindices.pm_negp_index);
       fprintf(GlobalOut, "\n");
 #endif
@@ -554,7 +565,7 @@ int main(int argc, char* argv[])
    SpecLimits_p spec_limits = NULL;
    RawSpecFeatureCell raw_features;
    SpecFeatureCell features;
-   int sched_idx;
+   int sched_idx = -1;
    Schedule_p preproc_schedule = NULL;
    rlim_t wc_sched_limit;
    Derivation_p deriv;
@@ -567,7 +578,7 @@ int main(int argc, char* argv[])
 
    InitIO(NAME);
    pid = getpid();
-   setpgid(0, 0);
+   //setpgid(0, 0);
 
    ESignalSetup(SIGXCPU);
 
@@ -588,8 +599,15 @@ int main(int argc, char* argv[])
 
    if(syntax_only)
    {
-      fprintf(GlobalOut, "\n# Parsing successful!\n");
-      TSTPOUT(GlobalOut, "Unknown");
+      if(print_formulas)
+      {
+         FormulaSetPrettyPrintTSTP(GlobalOut, proofstate->f_axioms, true);
+      }
+      else
+      {
+         fprintf(GlobalOut, "\n"COMCHAR" Parsing successful!\n");
+         TSTPOUT(GlobalOut, "Unknown");
+      }
       goto cleanup1;
    }
    wc_sched_limit = ScheduleTimeLimit ? ScheduleTimeLimit : DEFAULT_SCHED_TIME_LIMIT;
@@ -606,14 +624,14 @@ int main(int argc, char* argv[])
                                            // with manual user options
    }
 
-#ifndef NDEBUG
-   fprintf(stdout, "# (lift_lambdas = %d, lambda_to_forall = %d,"
+//#ifndef NDEBUG
+   fprintf(stdout, COMCHAR" (lift_lambdas = %d, lambda_to_forall = %d,"
            "unroll_only_formulas = %d, sine = %s)\n",
            h_parms->lift_lambdas,
            h_parms->lambda_to_forall,
            h_parms->unroll_only_formulas,
            h_parms->sine);
-#endif
+//#endif
 
    relevancy_pruned += ProofStateSinE(proofstate, h_parms->sine);
    relevancy_pruned += ProofStateRelevancyProcess(proofstate,
@@ -629,7 +647,7 @@ int main(int argc, char* argv[])
 
    if(prune_only)
    {
-      fprintf(GlobalOut, "\n# Pruning successful!\n");
+      fprintf(GlobalOut, "\n"COMCHAR" Pruning successful!\n");
       TSTPOUT(GlobalOut, "Unknown");
       goto cleanup1;
    }
@@ -650,29 +668,17 @@ int main(int argc, char* argv[])
    }
 
    VERBOUT("Clausification started.\n");
-   if(new_cnf)
-   {
-      cnf_size = FormulaSetCNF2(proofstate->f_axioms,
-                                proofstate->f_ax_archive,
-                                proofstate->axioms,
-                                proofstate->terms,
-                                proofstate->freshvars,
-                                miniscope_limit,
-                                h_parms->formula_def_limit,
-                                h_parms->lift_lambdas,
-                                h_parms->lambda_to_forall,
-                                h_parms->unroll_only_formulas,
-                                h_parms->fool_unroll);
-   }
-   else
-   {
-      cnf_size = FormulaSetCNF(proofstate->f_axioms,
-                               proofstate->f_ax_archive,
-                               proofstate->axioms,
-                               proofstate->terms,
-                               proofstate->freshvars,
-                               h_parms->formula_def_limit);
-   }
+   cnf_size = FormulaSetCNF2(proofstate->f_axioms,
+                             proofstate->f_ax_archive,
+                             proofstate->axioms,
+                             proofstate->terms,
+                             proofstate->freshvars,
+                             h_parms->miniscope_limit,
+                             h_parms->formula_def_limit,
+                             h_parms->lift_lambdas,
+                             h_parms->lambda_to_forall,
+                             h_parms->unroll_only_formulas,
+                             h_parms->fool_unroll);
    VERBOUT("Clausification done.\n");
 
    if(cnf_size)
@@ -682,60 +688,9 @@ int main(int argc, char* argv[])
    raw_clause_no = proofstate->axioms->members;
    ProofStateLoadWatchlist(proofstate, watchlist_filename, parse_format);
 
-   ClauseSetArchiveCopy(proofstate->ax_archive, proofstate->axioms);
-   if(!h_parms->no_preproc)
-   {
-      //if(proofstate->watchlist)
-      //{
-      //   ClauseSetArchiveCopy(proofstate->ax_archive, proofstate->watchlist);
-      //}
-      VERBOUT("Clausal preprocessing started.\n");
-      preproc_removed = ClauseSetPreprocess(proofstate->axioms,
-                                            proofstate->watchlist,
-                                            proofstate->archive,
-                                            proofstate->tmp_terms,
-                                            proofstate->terms,
-                                            h_parms->replace_inj_defs,
-                                            h_parms->eqdef_incrlimit,
-                                            h_parms->eqdef_maxclauses);
-      VERBOUT("Clausal preprocessing complete.\n");
-   }
+   preproc_removed = ProofStateClausalPreproc(proofstate, h_parms);
 
-   preproc_removed += ClauseSetUnfoldEqDefNormalize(proofstate->axioms,
-                                                    proofstate->watchlist,
-                                                    proofstate->archive,
-                                                    proofstate->tmp_terms,
-                                                    h_parms->eqdef_incrlimit,
-                                                    h_parms->eqdef_maxclauses);
-   if(problemType == PROBLEM_HO && h_parms->inst_choice_max_depth >= 0)
-   {
-      ClauseSetRecognizeChoice(proofstate->choice_opcodes,
-                               proofstate->axioms,
-                               proofstate->archive);
-   }
-
-   if(h_parms->preinstantiate_induction)
-   {
-      PreinstantiateInduction(proofstate->f_ax_archive, proofstate->axioms,
-                              proofstate->archive, proofstate->terms);
-   }
-
-   if(problemType == PROBLEM_FO && h_parms->bce)
-   {
-      // todo: eventually check if the problem in HO syntax is FO.
-      EliminateBlockedClauses(proofstate->axioms, proofstate->archive,
-                              h_parms->bce_max_occs,
-                              proofstate->tmp_terms);
-   }
-
-   if(problemType == PROBLEM_FO && h_parms->pred_elim)
-   {
-      // todo: eventually check if the problem in HO syntax is FO.
-      PredicateElimination(proofstate->axioms, proofstate->archive,
-                           h_parms, proofstate->terms,
-                           proofstate->tmp_terms, proofstate->freshvars);
-   }
-   if((strategy_scheduling && sched_idx != -1) || auto_conf)
+   if((strategy_scheduling && sched_idx != -1) || (auto_conf && !cnf_only))
    {
       if(!spec_limits)
       {
@@ -752,7 +707,7 @@ int main(int argc, char* argv[])
       features.perc_of_form_defs = raw_features.perc_of_form_defs;
       SpecFeaturesAddEval(&features, spec_limits);
       char* class = SpecTypeString(&features, DEFAULT_MASK);
-      fprintf(stdout, "# Search class: %s\n", class);
+      fprintf(stdout, COMCHAR" Search class: %s\n", class);
       if (strategy_scheduling)
       {
          set_limits(HardTimeLimit, SoftTimeLimit, h_parms->mem_limit);
@@ -777,7 +732,7 @@ int main(int argc, char* argv[])
 #else
                FILE* out = stderr;
 #endif
-               fprintf(out, "# executing default schedule for %g seconds.\n", remaining_time);
+               fprintf(out, COMCHAR" executing default schedule for %g seconds.\n", remaining_time);
                status =
                   ExecuteScheduleMultiCore(filtered_default, h_parms, print_rusage,
                                           remaining_time, false,
@@ -801,7 +756,7 @@ int main(int argc, char* argv[])
          // executing the first one from the schedule.
          char* conf_name = GetSearchSchedule(class)->heu_name;
          GetHeuristicWithName(conf_name, h_parms);
-         fprintf(stdout, "# Configuration: %s\n", conf_name);
+         fprintf(stdout, COMCHAR" Configuration: %s\n", conf_name);
          // STS: ASK PV About this!
          h_parms->inst_choice_max_depth = choice_max_depth;
       }
@@ -847,7 +802,7 @@ int main(int argc, char* argv[])
    preproc_time = GetTotalCPUTime();
    if(print_rusage)
    {
-      fprintf(GlobalOut, "# Preprocessing time       : %.3f s\n", preproc_time);
+      fprintf(GlobalOut, COMCHAR" Preprocessing time       : %.3f s\n", preproc_time);
    }
 
    if(proofcontrol->heuristic_parms.presat_interreduction)
@@ -859,7 +814,7 @@ int main(int argc, char* argv[])
       success = Saturate(proofstate, proofcontrol, LONG_MAX,
                          LONG_MAX, LONG_MAX, LONG_MAX, LONG_MAX,
                          LLONG_MAX, LONG_MAX);
-      fprintf(GlobalOut, "# Presaturation interreduction done\n");
+      fprintf(GlobalOut, COMCHAR" Presaturation interreduction done\n");
       proofcontrol->heuristic_parms.selection_strategy = sel_strat;
       if(!success)
       {
@@ -908,7 +863,7 @@ int main(int argc, char* argv[])
       }
 
 
-      fprintf(GlobalOut, "\n# Proof found!\n");
+      fprintf(GlobalOut, "\n"COMCHAR" Proof found!\n");
 
       if(print_full_deriv)
       {
@@ -966,7 +921,7 @@ int main(int argc, char* argv[])
       ProofStatePropDocQuote(GlobalOut, OutputLevel,
                              CPSubsumesWatch, proofstate,
                              "final_subsumes_wl");
-      fprintf(GlobalOut, "\n# Watchlist is empty!\n");
+      fprintf(GlobalOut, "\n"COMCHAR" Watchlist is empty!\n");
       TSTPOUT(GlobalOut, "ResourceOut");
       retval = RESOURCE_OUT;
    }
@@ -983,7 +938,7 @@ int main(int argc, char* argv[])
 
       if(cnf_only)
       {
-         fprintf(GlobalOut, "\n# CNFization successful!\n");
+         fprintf(GlobalOut, "\n"COMCHAR" CNFization successful!\n");
          TSTPOUT(GlobalOut, "Unknown");
       }
       else if(out_of_clauses)
@@ -991,7 +946,7 @@ int main(int argc, char* argv[])
          if(!(inf_sys_complete || assume_inf_sys_complete))
          {
             fprintf(GlobalOut,
-                    "\n# Clause set closed under "
+                    "\n"COMCHAR" Clause set closed under "
                     "restricted calculus!\n");
             if(!SilentTimeOut)
             {
@@ -1004,7 +959,7 @@ int main(int argc, char* argv[])
                  proofstate->has_interpreted_symbols)
          {
             fprintf(GlobalOut,
-                    "\n# Clause set saturated up to interpreted theories!\n");
+                    "\n"COMCHAR" Clause set saturated up to interpreted theories!\n");
             if(!SilentTimeOut)
             {
                TSTPOUT(GlobalOut, "GaveUp");
@@ -1015,14 +970,14 @@ int main(int argc, char* argv[])
                  && proofstate->state_is_complete
                  && inf_sys_complete)
          {
-            fprintf(GlobalOut, "\n# No proof found!\n");
+            fprintf(GlobalOut, "\n"COMCHAR" No proof found!\n");
             TSTPOUT(GlobalOut, neg_conjectures?"CounterSatisfiable":"Satisfiable");
             sat_status = "Saturation";
             retval = SATISFIABLE;
          }
          else
          {
-            fprintf(GlobalOut, "\n# Failure: Out of unprocessed clauses!\n");
+            fprintf(GlobalOut, "\n"COMCHAR" Failure: Out of unprocessed clauses!\n");
             if(!SilentTimeOut)
             {
                //ClauseSetPrint(stderr, proofstate->processed_pos_rules, true);
@@ -1036,7 +991,7 @@ int main(int argc, char* argv[])
       }
       else
       {
-         fprintf(GlobalOut, "\n# Failure: User resource limit exceeded!\n");
+         fprintf(GlobalOut, "\n"COMCHAR" Failure: User resource limit exceeded!\n");
          if(!SilentTimeOut)
          {
             TSTPOUT(GlobalOut, "ResourceOut");
@@ -1076,11 +1031,11 @@ int main(int argc, char* argv[])
    {
       if(proofstate->non_redundant_deleted)
       {
-         fprintf(GlobalOut, "\n# Saturated system is incomplete!\n");
+         fprintf(GlobalOut, "\n"COMCHAR" Saturated system is incomplete!\n");
       }
       if(success)
       {
-         fprintf(GlobalOut, "# Saturated system contains the empty clause:\n");
+         fprintf(GlobalOut, COMCHAR" Saturated system contains the empty clause:\n");
          ClausePrint(GlobalOut, success, true);
          fputc('\n',GlobalOut);
          fputc('\n',GlobalOut);
@@ -1104,14 +1059,14 @@ int main(int argc, char* argv[])
 #ifndef FAST_EXIT
 #ifdef FULL_MEM_STATS
    fprintf(GlobalOut,
-           "# sizeof TermCell     : %ld\n"
-           "# sizeof EqnCell      : %ld\n"
-           "# sizeof ClauseCell   : %ld\n"
-           "# sizeof PTreeCell    : %ld\n"
-           "# sizeof PDTNodeCell  : %ld\n"
-           "# sizeof EvalCell     : %ld\n"
-           "# sizeof ClausePosCell: %ld\n"
-           "# sizeof PDArrayCell  : %ld\n",
+           COMCHAR" sizeof TermCell     : %ld\n"
+           COMCHAR" sizeof EqnCell      : %ld\n"
+           COMCHAR" sizeof ClauseCell   : %ld\n"
+           COMCHAR" sizeof PTreeCell    : %ld\n"
+           COMCHAR" sizeof PDTNodeCell  : %ld\n"
+           COMCHAR" sizeof EvalCell     : %ld\n"
+           COMCHAR" sizeof ClausePosCell: %ld\n"
+           COMCHAR" sizeof PDArrayCell  : %ld\n",
            sizeof(TermCell),
            sizeof(EqnCell),
            sizeof(ClauseCell),
@@ -1120,7 +1075,7 @@ int main(int argc, char* argv[])
            sizeof(EvalCell),
            sizeof(ClausePosCell),
            sizeof(PDArrayCell));
-   fprintf(GlobalOut, "# Estimated memory usage: %ld\n",
+   fprintf(GlobalOut, COMCHAR"Estimated memory usage: %ld\n",
            ProofStateStorage(proofstate));
    MemFreeListPrint(GlobalOut);
 #endif
@@ -1300,6 +1255,10 @@ CLState_p process_options(int argc, char* argv[])
       case OPT_SYNTAX_ONLY:
             syntax_only = true;
             break;
+      case OPT_PRINT_FORMULAS:
+            syntax_only = true;
+            print_formulas = true;
+            break;
       case OPT_PRUNE_ONLY:
             OutputLevel = 4;
             prune_only  = true;
@@ -1372,6 +1331,9 @@ CLState_p process_options(int argc, char* argv[])
       case OPT_RUSAGE_INFO:
             print_rusage = true;
             break;
+      case OPT_SELECT_STRATEGY:
+            select_strategy = arg;
+            break;
       case OPT_PRINT_STRATEGY:
             print_strategy = arg;
             break;
@@ -1407,6 +1369,9 @@ CLState_p process_options(int argc, char* argv[])
             break;
       case OPT_FULL_EQ_REP:
             EqnFullEquationalRep = true;
+            break;
+      case OPT_PRINT_ORIENTED:
+            EqnPrintOriented = true;
             break;
       case OPT_LOP_PARSE:
             parse_format = LOPFormat;
@@ -1497,18 +1462,24 @@ CLState_p process_options(int argc, char* argv[])
             h_parms->eqdef_incrlimit = LONG_MIN;
             break;
       case OPT_INTRO_GOAL_DEFS:
-            if(strcmp(arg, "All")==0)
+            if(strcmp(arg, "None")==0)
+            {
+               h_parms->add_goal_defs_pos = false;
+               h_parms->add_goal_defs_neg = false;
+            }
+            else if(strcmp(arg, "All")==0)
             {
                h_parms->add_goal_defs_pos = true;
                h_parms->add_goal_defs_neg = true;
             }
             else if(strcmp(arg, "Neg")==0)
             {
+               h_parms->add_goal_defs_pos = false;
                h_parms->add_goal_defs_neg = true;
             }
             else
             {
-                Error("Option --goal-defs accepts only All or Neg.",
+                Error("Option --goal-defs accepts only None, All, or Neg",
                      USAGE_ERROR);
             }
             break;
@@ -1516,13 +1487,14 @@ CLState_p process_options(int argc, char* argv[])
             h_parms->add_goal_defs_subterms = true;
             break;
       case OPT_SINE:
-            h_parms->sine = "Auto";
+            //h_parms->sine = "Auto";
+            h_parms->sine = arg;
             break;
       case OPT_REL_PRUNE_LEVEL:
             relevance_prune_level = CLStateGetIntArg(handle, arg);
             break;
       case OPT_PRESAT_SIMPLIY:
-            h_parms->presat_interreduction = true;
+            h_parms->presat_interreduction = CLStateGetBoolArg(handle, arg);
             break;
       case OPT_AC_HANDLING:
             if(strcmp(arg, "None")==0)
@@ -1864,13 +1836,13 @@ CLState_p process_options(int argc, char* argv[])
             break;
       case OPT_SATCHECK:
             tmp = StringIndex(arg, GroundingStratNames);
-            if(tmp <= 0)
+            if(tmp < 0)
             {
                DStr_p err = DStrAlloc();
                DStrAppendStr(err,
                              "Wrong argument to option --sat-check. Possible "
                              "values: ");
-               DStrAppendStrArray(err, GroundingStratNames+1, ", ");
+               DStrAppendStrArray(err, GroundingStratNames, ", ");
                Error(DStrView(err), USAGE_ERROR);
                DStrFree(err);
             }
@@ -2032,17 +2004,16 @@ CLState_p process_options(int argc, char* argv[])
       case OPT_FREE_OBJECTS:
             free_symb_prop = free_symb_prop|FPIsObject;
             break;
-      case OPT_DEF_CNF_OLD:
-            new_cnf = false;
-            /* Intentional fall-through */
       case OPT_DEF_CNF:
-            h_parms->formula_def_limit = CLStateGetIntArgCheckRange(handle, arg, 0, LONG_MAX);
+            h_parms->formula_def_limit =
+               CLStateGetIntArgCheckRange(handle, arg, 0, LONG_MAX);
             break;
       case OPT_FOOL_UNROLL:
             h_parms->fool_unroll = CLStateGetBoolArg(handle, arg);
             break;
       case OPT_MINISCOPE_LIMIT:
-            miniscope_limit =  CLStateGetIntArgCheckRange(handle, arg, 0, LONG_MAX);
+            h_parms->miniscope_limit =
+               CLStateGetIntArgCheckRange(handle, arg, 0, LONG_MAX);
             break;
       case OPT_PRINT_TYPES:
             TermPrintTypes = true;
@@ -2309,7 +2280,9 @@ E " VERSION " \"" E_NICKNAME "\"\n\
 \n\
 Usage: " NAME " [options] [files]\n\
 \n\
-Read a set of first-order clauses and formulae and try to refute it.\n\
+Read a set of first-order (or, in the -ho-version, higher-order)\n\
+clauses and formulae and try to prove the conjecture (if given)\n\
+or show the set unsatisfiable.\n\
 \n");
    PrintOptions(stdout, opts, "Options:\n\n");
    fprintf(out, "\n\n" E_FOOTER);

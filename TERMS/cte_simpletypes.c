@@ -8,7 +8,7 @@
 
   Implementation of simple types for the TSTP TFF format
 
-  Copyright 2013-2017 by the author.
+  Copyright 2013-2025 by the author.
   This code is released under the GNU General Public Licence and
   the GNU Lesser General Public License.
   See the file COPYING in the main E directory for details..
@@ -447,7 +447,6 @@ Type_p ArrowTypeFlattened(Type_p const* args, int args_num, Type_p ret)
       {
          TypeFree(args_ret_ty);
       }
-
       return res;
    }
 }

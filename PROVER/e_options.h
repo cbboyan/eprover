@@ -44,6 +44,7 @@ typedef enum
    OPT_PRINT_SAT_INFO,
    OPT_FILTER_SATURATED,
    OPT_SYNTAX_ONLY,
+   OPT_PRINT_FORMULAS,
    OPT_PRUNE_ONLY,
    OPT_CNF_ONLY,
    OPT_PRINT_PID,
@@ -66,6 +67,7 @@ typedef enum
    OPT_CPU_LIMIT,
    OPT_SOFTCPU_LIMIT,
    OPT_RUSAGE_INFO,
+   OPT_SELECT_STRATEGY,
    OPT_PRINT_STRATEGY,
    OPT_PARSE_STRATEGY,
    OPT_STEP_LIMIT,
@@ -78,6 +80,7 @@ typedef enum
    OPT_CONJ_ARE_QUEST,
    OPT_NO_INFIX,
    OPT_FULL_EQ_REP,
+   OPT_PRINT_ORIENTED,
    OPT_LOP_PARSE,
    OPT_PCL_PRINT,
    OPT_FO_OUTPUT,
@@ -193,7 +196,6 @@ typedef enum
    OPT_HEURISTIC,
    OPT_FREE_NUMBERS,
    OPT_FREE_OBJECTS,
-   OPT_DEF_CNF_OLD,
    OPT_DEF_CNF,
    OPT_FOOL_UNROLL,
    OPT_MINISCOPE_LIMIT,
@@ -439,6 +441,11 @@ OptCell opts[] =
     NoArg, NULL,
     "Stop after parsing, i.e. only check if the input can be parsed "
     "correcly."},
+   {OPT_PRINT_FORMULAS,
+    '\0', "print-formulas",
+    NoArg, NULL,
+    "If the syntax checks out, print back an include-expanded all "
+    "formula-version of the peoblem, then terminate."},
 
    {OPT_PRUNE_ONLY,
     '\0', "prune",
@@ -504,7 +511,7 @@ OptCell opts[] =
     "immediately after reaching the time limit, regardless of internal "
     "state. As a side effect, this option will inhibit core file "
     "writing. Please note that if you use both --cpu-limit and "
-    "--soft-cpu-limit, the soft limit has to"
+    "--soft-cpu-limit, the soft limit has to "
     "be smaller than the hard limit to have any effect. "},
 
    {OPT_SOFTCPU_LIMIT,
@@ -529,13 +536,20 @@ OptCell opts[] =
     "more information with the rusage() system call, you will also "
     "get information about memory consumption."},
 
+   {OPT_SELECT_STRATEGY,
+    '\0', "select-strategy",
+    ReqArg, NULL,
+    "Select one of the built-in strategies and set all proof search "
+    "parameters accordingly."},
+
    {OPT_PRINT_STRATEGY,
     '\0', "print-strategy",
     OptArg, ">current-strategy<",
     "Print a representation of all search parameters and their setting "
     "of a given strategy, then terminate. If no argument is given, "
     "the current strategy is printed. Use the reserved name '>all-strats<'"
-    "to get a description of all built-in strategies."},
+    "to get a description of all built-in strategies,  '>all-names<' "
+    "to get a list of all names of strategies."},
 
    {OPT_PARSE_STRATEGY,
     '\0', "parse-strategy",
@@ -607,6 +621,10 @@ OptCell opts[] =
     NoArg, NULL,
     "In LOP. print all literals as equations, even non-equational ones."},
 
+   {OPT_PRINT_ORIENTED,
+    '\0', "print-oriented-eqlits-as-rules",
+    NoArg, NULL,
+    "Print oriented equational literals as rules, using -> in place of =."},
    {OPT_LOP_PARSE,
     '\0', "lop-in",
     NoArg, NULL,
@@ -760,8 +778,8 @@ OptCell opts[] =
     '\0', "goal-defs",
     OptArg, "All",
     "Introduce Twee-style equational definitions for ground terms "
-    "in conjecture clauses. The argument can be All or Neg, which will"
-    " only consider ground terms from negative literals (to be implemented)."},
+    "in conjecture clauses. The argument can be None, All or Neg, which will "
+    "only consider ground terms from negative literals in the CNF (to be implemented)."},
 
    {OPT_FINE_GOAL_DEFS,
     '\0', "goal-subterm-defs",
@@ -784,7 +802,7 @@ OptCell opts[] =
 
    {OPT_PRESAT_SIMPLIY,
     '\0', "presat-simplify",
-    NoArg, NULL,
+    OptArg, "true",
     "Before proper saturation do a complete interreduction of "
     "the proof state."},
 
@@ -1526,20 +1544,11 @@ OptCell opts[] =
     "subformulae to avoid exponential blow-up. The optional argument "
     "is a fudge factor that determines when definitions are introduced. "
     "0 disables definitions completely. The default works well."},
-    // OPT_FOOL_UNROLL
+
    {OPT_FOOL_UNROLL,
     '\0', "fool-unroll",
     ReqArg, NULL,
     "Enable or disable FOOL unrolling. Useful for some SH problems."},
-
-   {OPT_DEF_CNF_OLD,
-    '\0', "old-cnf",
-    OptArg, TFORM_RENAME_LIMIT_STR,
-    "As the previous option, but use the classical, well-tested "
-    "clausification algorithm as opposed to the newewst one which "
-    "avoides some algorithmic pitfalls and hence works better on "
-    "some exotic formulae. The two may produce slightly different "
-    "(but equisatisfiable) clause normal forms."},
 
    {OPT_MINISCOPE_LIMIT,
     '\0', "miniscope-limit",

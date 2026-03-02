@@ -182,18 +182,20 @@ static void print_initial(FILE* out, Clause_p clause, char* comment)
    switch(DocOutputFormat)
    {
    case pcl_format:
-    pcl_print_start(out, clause, PCLShellLevel<2);
+         printf("XX\n");
+         pcl_print_start(out, clause, PCLShellLevel<2);
+         printf("XX\n");
          ClauseSourceInfoPrintPCL(out, clause->info);
-    pcl_print_end(out, comment, clause);
-    break;
+         pcl_print_end(out, comment, clause);
+         break;
    case tstp_format:
-    ClauseTSTPPrint(out, clause, PCLFullTerms, false);
-    fprintf(out, ", ");
+         ClauseTSTPPrint(out, clause, PCLFullTerms, false);
+         fprintf(out, ", ");
          ClauseSourceInfoPrintTSTP(out, clause->info);
-    tstp_print_end(out, comment, clause);
-    break;
+         tstp_print_end(out, comment, clause);
+         break;
    default:
-    fprintf(out, "# Output format not implemented.\n");
+         fprintf(out, COMCHAR" Output format not implemented.\n");
     break;
    }
 }
@@ -234,7 +236,7 @@ static void print_paramod(FILE* out, Clause_p clause, Clause_p
     tstp_print_end(out, comment, clause);
     break;
    default:
-    fprintf(out, "# Output format not implemented.\n");
+    fprintf(out, COMCHAR" Output format not implemented.\n");
     break;
    }
 }
@@ -270,7 +272,7 @@ static void print_eres(FILE* out, Clause_p clause, Clause_p
     tstp_print_end(out, comment, clause);
     break;
    default:
-    fprintf(out, "# Output format not implemented.\n");
+    fprintf(out, COMCHAR" Output format not implemented.\n");
     break;
    }
 }
@@ -306,7 +308,7 @@ static void print_des_eres(FILE* out, Clause_p clause, long old_id,
     tstp_print_end(out, comment, clause);
     break;
    default:
-    fprintf(out, "# Output format not implemented.\n");
+    fprintf(out, COMCHAR" Output format not implemented.\n");
     break;
    }
 }
@@ -342,7 +344,7 @@ static void print_efactor(FILE* out, Clause_p clause, Clause_p
     tstp_print_end(out, comment, clause);
     break;
    default:
-    fprintf(out, "# Output format not implemented.\n");
+    fprintf(out, COMCHAR" Output format not implemented.\n");
     break;
    }
 }
@@ -379,7 +381,7 @@ static void print_factor(FILE* out, Clause_p clause, Clause_p
     tstp_print_end(out, comment, clause);
     break;
    default:
-    fprintf(out, "# Output format not implemented.\n");
+    fprintf(out, COMCHAR" Output format not implemented.\n");
     break;
    }
 }
@@ -419,7 +421,7 @@ static void print_split(FILE* out, Clause_p clause, Clause_p
     tstp_print_end(out, comment, clause);
     break;
     default:
-    fprintf(out, "# Output format not implemented.\n");
+    fprintf(out, COMCHAR" Output format not implemented.\n");
     break;
    }
 }
@@ -456,7 +458,7 @@ static void print_simplify_reflect(FILE* out, Clause_p clause, long
     tstp_print_end(out, comment, clause);
     break;
    default:
-    fprintf(out, "# Output format not implemented.\n");
+    fprintf(out, COMCHAR" Output format not implemented.\n");
     break;
    }
 }
@@ -494,7 +496,7 @@ static void print_context_simplify_reflect(FILE* out, Clause_p clause, long
     tstp_print_end(out, comment, clause);
     break;
    default:
-    fprintf(out, "# Output format not implemented.\n");
+    fprintf(out, COMCHAR" Output format not implemented.\n");
     break;
    }
 }
@@ -549,7 +551,7 @@ static void print_ac_res(FILE* out, Clause_p clause, long
     tstp_print_end(out, comment, clause);
     break;
    default:
-    fprintf(out, "# Output format not implemented.\n");
+    fprintf(out, COMCHAR" Output format not implemented.\n");
     break;
    }
 }
@@ -587,7 +589,7 @@ static void print_minimize(FILE* out, Clause_p clause, long
          tstp_print_end(out, comment, clause);
          break;
    default:
-    fprintf(out, "# Output format not implemented.\n");
+    fprintf(out, COMCHAR" Output format not implemented.\n");
     break;
    }
 }
@@ -624,7 +626,7 @@ static void print_condense(FILE* out, Clause_p clause, long
          tstp_print_end(out, comment, clause);
          break;
    default:
-    fprintf(out, "# Output format not implemented.\n");
+    fprintf(out, COMCHAR" Output format not implemented.\n");
     break;
    }
 }
@@ -659,7 +661,7 @@ static void print_eval_answer(FILE* out, Clause_p clause, long
          tstp_print_end(out, comment, clause);
          break;
    default:
-    fprintf(out, "# Output format not implemented.\n");
+    fprintf(out, COMCHAR" Output format not implemented.\n");
     break;
    }
 }
@@ -728,7 +730,7 @@ static void print_rewrite(FILE* out, ClausePos_p rewritten, long
     tstp_print_end(out, comment, rewritten->clause);
     break;
    default:
-    fprintf(out, "# Output format not implemented.\n");
+    fprintf(out, COMCHAR" Output format not implemented.\n");
     break;
    }
    PStackFree(rwsteps);
@@ -784,7 +786,7 @@ static void print_eq_unfold(FILE* out, Clause_p rewritten,
     tstp_print_end(out, "Unfolding", rewritten);
     break;
     default:
-    fprintf(out, "# Output format not implemented.\n");
+    fprintf(out, COMCHAR" Output format not implemented.\n");
     break;
    }
 }
@@ -883,19 +885,19 @@ static void print_formula_initial(FILE* out, WFormula_p form, char* comment)
    switch(DocOutputFormat)
    {
    case pcl_format:
-    pcl_formula_print_start(out, form, PCLShellLevel<2);
+         pcl_formula_print_start(out, form, PCLShellLevel<2);
          ClauseSourceInfoPrintPCL(out, form->info);
-    pcl_formula_print_end(out, comment);
-    break;
+         pcl_formula_print_end(out, comment);
+         break;
    case tstp_format:
-    WFormulaTSTPPrint(out, form, PCLFullTerms, false);
-    fprintf(out, ", ");
+         WFormulaTSTPPrint(out, form, PCLFullTerms, false);
+         fprintf(out, ", ");
          ClauseSourceInfoPrintTSTP(out, form->info);
-    tstp_formula_print_end(out, comment);
-    break;
+         tstp_formula_print_end(out, comment);
+         break;
    default:
-    fprintf(out, "# Output format not implemented.\n");
-    break;
+         fprintf(out, COMCHAR" Output format not implemented.\n");
+         break;
    }
 }
 
@@ -929,7 +931,7 @@ static void print_fof_intro_def(FILE* out, WFormula_p form, char* comment)
     tstp_formula_print_end(out, comment);
     break;
    default:
-    fprintf(out, "# Output format not implemented.\n");
+    fprintf(out, COMCHAR" Output format not implemented.\n");
     break;
    }
 }
@@ -968,7 +970,7 @@ static void print_fof_split_equiv(FILE* out, WFormula_p form,
     tstp_formula_print_end(out, comment);
     break;
    default:
-    fprintf(out, "# Output format not implemented.\n");
+    fprintf(out, COMCHAR" Output format not implemented.\n");
     break;
    }
 }
@@ -1003,7 +1005,7 @@ static void print_fof_simpl(FILE* out, WFormula_p form,
          tstp_formula_print_end(out, comment);
     break;
    default:
-    fprintf(out, "# Output format not implemented.\n");
+    fprintf(out, COMCHAR" Output format not implemented.\n");
     break;
    }
 }
@@ -1037,7 +1039,7 @@ static void print_neg_conj(FILE* out, WFormula_p form,
          tstp_formula_print_end(out, comment);
     break;
    default:
-    fprintf(out, "# Output format not implemented.\n");
+    fprintf(out, COMCHAR" Output format not implemented.\n");
     break;
    }
 }
@@ -1071,7 +1073,7 @@ static void print_fof_nnf(FILE* out, WFormula_p form,
          tstp_formula_print_end(out, comment);
     break;
    default:
-    fprintf(out, "# Output format not implemented.\n");
+    fprintf(out, COMCHAR" Output format not implemented.\n");
     break;
    }
 }
@@ -1106,7 +1108,7 @@ static void print_shift_quantors(FILE* out, WFormula_p form,
          tstp_formula_print_end(out, comment);
     break;
    default:
-    fprintf(out, "# Output format not implemented.\n");
+    fprintf(out, COMCHAR" Output format not implemented.\n");
     break;
    }
 }
@@ -1141,7 +1143,7 @@ static void print_skolemize(FILE* out, WFormula_p form,
          tstp_formula_print_end(out, comment);
     break;
    default:
-    fprintf(out, "# Output format not implemented.\n");
+    fprintf(out, COMCHAR" Output format not implemented.\n");
     break;
    }
 }
@@ -1175,7 +1177,7 @@ static void print_distribute(FILE* out, WFormula_p form,
          tstp_formula_print_end(out, comment);
     break;
    default:
-    fprintf(out, "# Output format not implemented.\n");
+    fprintf(out, COMCHAR" Output format not implemented.\n");
     break;
    }
 }
@@ -1208,7 +1210,7 @@ static void print_annotate_question(FILE* out, WFormula_p form,
          tstp_formula_print_end(out, comment);
     break;
    default:
-    fprintf(out, "# Output format not implemented.\n");
+    fprintf(out, COMCHAR" Output format not implemented.\n");
     break;
    }
 }
@@ -1244,7 +1246,7 @@ static void print_var_rename(FILE* out, WFormula_p form,
          tstp_formula_print_end(out, comment);
     break;
    default:
-    fprintf(out, "# Output format not implemented.\n");
+    fprintf(out, COMCHAR" Output format not implemented.\n");
     break;
    }
 }
@@ -1270,55 +1272,55 @@ static void print_var_rename(FILE* out, WFormula_p form,
 /----------------------------------------------------------------------*/
 
 void DocClauseCreation(FILE* out, long level, Clause_p clause,
-             InfType op, Clause_p parent1,
-             Clause_p parent2, char* comment)
+                       InfType op, Clause_p parent1,
+                       Clause_p parent2, char* comment)
 {
    if(level >= 2)
    {
       switch(op)
       {
       case inf_initial:
-       assert(!parent1);
-       assert(!parent2);
-       clause->ident = ++ClauseIdentCounter;
-       print_initial(out, clause, comment);
-       break;
+            assert(!parent1);
+            assert(!parent2);
+            clause->ident = ++ClauseIdentCounter;
+            print_initial(out, clause, comment);
+            break;
       case inf_paramod:
       case inf_sim_paramod:
-       assert(parent1);
-       assert(parent2);
-       clause->ident = ++ClauseIdentCounter;
-       print_paramod(out, clause, parent1, parent2,
+            assert(parent1);
+            assert(parent2);
+            clause->ident = ++ClauseIdentCounter;
+            print_paramod(out, clause, parent1, parent2,
                           op==inf_paramod?PCL_PM:PCL_SPM,comment);
        break;
       case inf_eres:
-       assert(parent1);
-       assert(!parent2);
-       clause->ident = ++ClauseIdentCounter;
-       print_eres(out, clause, parent1, comment);
-       break;
+            assert(parent1);
+            assert(!parent2);
+            clause->ident = ++ClauseIdentCounter;
+            print_eres(out, clause, parent1, comment);
+            break;
       case inf_efactor:
-       assert(parent1);
-       assert(!parent2);
-       clause->ident = ++ClauseIdentCounter;
-       print_efactor(out, clause, parent1, comment);
-       break;
+            assert(parent1);
+            assert(!parent2);
+            clause->ident = ++ClauseIdentCounter;
+            print_efactor(out, clause, parent1, comment);
+            break;
       case inf_factor: /* Should not really occur, just for
-           completeness */
-       assert(parent1);
-       assert(!parent2);
-       clause->ident = ++ClauseIdentCounter;
-       print_factor(out, clause, parent1, comment);
-       break;
+                          completeness */
+            assert(parent1);
+            assert(!parent2);
+            clause->ident = ++ClauseIdentCounter;
+            print_factor(out, clause, parent1, comment);
+            break;
       case inf_split:
-       assert(parent1);
-       assert(!parent2);
-       clause->ident = ++ClauseIdentCounter;
-       print_split(out, clause, parent1, comment);
-       break;
+            assert(parent1);
+            assert(!parent2);
+            clause->ident = ++ClauseIdentCounter;
+            print_split(out, clause, parent1, comment);
+            break;
       default:
-       assert(false&&"Unsupported clause creation operation???");
-       break;
+            assert(false&&"Unsupported clause creation operation???");
+            break;
       }
    }
 }
@@ -1361,7 +1363,7 @@ void DocClauseFromForm(FILE* out, long level, Clause_p clause,
             tstp_print_end(out, NULL, clause);
             break;
       default:
-            fprintf(out, "# Output format not implemented.\n");
+            fprintf(out, COMCHAR" Output format not implemented.\n");
             break;
       }
    }
@@ -1439,7 +1441,7 @@ void DocClauseModification(FILE* out, long level, Clause_p clause, InfType
        break;
          /* inf_rewrite is special and handled below !*/
       default:
-       fprintf(out, "# Clause modification %d not yet implemented.\n",op);
+       fprintf(out, COMCHAR" Clause modification %d not yet implemented.\n",op);
        break;
       }
    }
@@ -1508,7 +1510,7 @@ void DocClauseQuote(FILE* out, long level, long target_level,
        break;
 
       default:
-       fprintf(out, "# Output format not implemented.\n");
+       fprintf(out, COMCHAR" Output format not implemented.\n");
        break;
       }
    }
@@ -1596,11 +1598,11 @@ void DocFormulaCreation(FILE* out, long level, WFormula_p formula,
       switch(op)
       {
       case inf_initial:
-       assert(!parent1);
-       assert(!parent2);
-       formula->ident = ++ClauseIdentCounter;
-       print_formula_initial(out, formula, comment);
-       break;
+            assert(!parent1);
+            assert(!parent2);
+            formula->ident = ++ClauseIdentCounter;
+            print_formula_initial(out, formula, comment);
+            break;
       case inf_fof_intro_def:
        assert(!parent1);
        assert(!parent2);
@@ -1608,11 +1610,11 @@ void DocFormulaCreation(FILE* out, long level, WFormula_p formula,
        print_fof_intro_def(out, formula, comment);
        break;
       case inf_fof_split_equiv:
-       assert(parent1);
-       assert(!parent2);
-       formula->ident = ++ClauseIdentCounter;
-       print_fof_split_equiv(out, formula, parent1, comment);
-       break;
+            assert(parent1);
+            assert(!parent2);
+            formula->ident = ++ClauseIdentCounter;
+            print_fof_split_equiv(out, formula, parent1, comment);
+            break;
       default:
             assert(false && "Unsupported formula creation method");
             break;
@@ -1731,7 +1733,7 @@ void DocFormulaIntroDefs(FILE* out, long level, WFormula_p form,
             tstp_formula_print_end(out, comment);
             break;
       default:
-            fprintf(out, "# Output format not implemented.\n");
+            fprintf(out, COMCHAR" Output format not implemented.\n");
             break;
       }
    }
@@ -1805,7 +1807,7 @@ void DocIntroSplitDefRest(FILE* out, long level, Clause_p clause,
             tstp_print_end(out, NULL, clause);
             break;
       default:
-            fprintf(out, "# Output format not implemented.\n");
+            fprintf(out, COMCHAR" Output format not implemented.\n");
             break;
       }
    }
@@ -1867,7 +1869,7 @@ void DocClauseApplyDefs(FILE* out, long level, Clause_p clause,
             tstp_print_end(out, "split", clause);
             break;
       default:
-            fprintf(out, "# Output format not implemented.\n");
+            fprintf(out, COMCHAR" Output format not implemented.\n");
             break;
       }
    }

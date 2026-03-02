@@ -69,7 +69,7 @@ ScheduleCell* class_to_schedule(const char* problem_category,
    assert(min_idx >= 0);
    if(min_dist)
    {
-      fprintf(GlobalOut, "# partial match(%d): %s\n",
+      fprintf(GlobalOut, COMCHAR" partial match(%d): %s\n",
               min_dist, schedules[min_idx].key);
    }
    return schedules[min_idx].value;
@@ -88,12 +88,19 @@ ScheduleCell* class_to_schedule(const char* problem_category,
 //
 /----------------------------------------------------------------------*/
 
-void StrategiesPrintPredefined(FILE* out)
+void StrategiesPrintPredefined(FILE* out, bool names_only)
 {
    int i;
    for(i=0; conf_map[i].key; i++)
    {
-      fprintf(out, "%s = \n%s\n", conf_map[i].key, conf_map[i].value);
+      if(names_only)
+      {
+         fprintf(out, "%s\n", conf_map[i].key);
+      }
+      else
+      {
+         fprintf(out, "%s = \n%s\n", conf_map[i].key, conf_map[i].value);
+      }
    }
 }
 

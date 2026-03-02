@@ -314,7 +314,7 @@ void TypeInferSort(Sig_p sig, Term_p term, Scanner_p in)
                {
                   if(term->args[i]->type != type->args[i])
                   {
-                     fprintf(stderr, "# Type mismatch in argument #%d of ", i+1);
+                     fprintf(stderr, COMCHAR" Type mismatch in argument #%d of ", i+1);
 #ifdef ENABLE_LFHO
                      TermPrintDbg(stderr, term, sig, DEREF_NEVER);
 #else
@@ -339,7 +339,7 @@ void TypeInferSort(Sig_p sig, Term_p term, Scanner_p in)
 
                   if(term->args[i]->type != type->args[i-1])
                   {
-                     fprintf(stderr, "# Type mismatch in argument #%d of ", i+1);
+                     fprintf(stderr, COMCHAR" Type mismatch in argument #%d of ", i+1);
                      TermPrint(stderr, term, sig, DEREF_NEVER);
                      fprintf(stderr, ": expected ");
                      TypePrintTSTP(stderr, sig->type_bank, type->args[i-1]);
@@ -355,7 +355,7 @@ void TypeInferSort(Sig_p sig, Term_p term, Scanner_p in)
             term->type = term_determine_type(term, type, sig->type_bank);
             if(term->type==NULL)
             {
-               fprintf(stderr, "# too many arguments supplied for %s\n",
+               fprintf(stderr, COMCHAR" too many arguments supplied for %s\n",
                        SigFindName(sig, term->f_code));
                assert(false);
                TI_ERROR("Type error");
@@ -365,7 +365,7 @@ void TypeInferSort(Sig_p sig, Term_p term, Scanner_p in)
          {
             if(term->arity != 0)
             {
-               fprintf(stderr, "# Type mismatch for ");
+               fprintf(stderr, COMCHAR" Type mismatch for ");
                TermPrint(stderr, term, sig, DEREF_NEVER);
                fprintf(stderr, " and type ");
                TypePrintTSTP(stderr, sig->type_bank, type);
@@ -399,7 +399,10 @@ void TypeInferSort(Sig_p sig, Term_p term, Scanner_p in)
             : sort;
 
          /* Declare the inferred type */
-         SigDeclareType(sig, term->f_code, type);
+         if(!SigIsPolymorphic(sig, term->f_code))
+         {
+            SigDeclareType(sig, term->f_code, type);
+         }
          term->type = sort;
       }
    }
