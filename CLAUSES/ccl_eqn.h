@@ -126,6 +126,7 @@ typedef enum
 
 extern bool EqnUseInfix; /* s = t or EQ(s = t)  ? */
 extern bool EqnFullEquationalRep; /* P(x) = $true ? */
+extern bool EqnPrintOriented;
 extern IOFormat OutputFormat;
 
 #define EqnCellAlloc()    (EqnCell*)SizeMalloc(sizeof(EqnCell))
@@ -434,9 +435,9 @@ void    EqnAddSymbolFeatures(Eqn_p eq, PStack_p mod_stack, long *feature_array);
     TermAddFunOcc((eqn)->rterm, (f_occur), (res_stack)))
 
 long    EqnCollectSubterms(Eqn_p eqn, PStack_p collector);
-#define EqnCollectGroundTerms(eqn, res, top_only) \
-   (TermCollectGroundTerms((eqn)->lterm, (res), (top_only))+     \
-    TermCollectGroundTerms((eqn)->rterm, (res), (top_only)))
+#define EqnCollectGroundTerms(eqn, res, all_subterms) \
+   (TermCollectGroundTerms((eqn)->lterm, (res), (all_subterms))+     \
+    TermCollectGroundTerms((eqn)->rterm, (res), (all_subterms)))
 
 void EqnAppEncode(FILE* out, Eqn_p eq, bool negated);
 bool EqnHasAppVar(Eqn_p eq);

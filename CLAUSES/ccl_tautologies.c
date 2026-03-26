@@ -18,7 +18,7 @@
 
   Created:  Tue May  4 17:41:06 MEST 1999
 
------------------------------------------------------------------------*/
+  -----------------------------------------------------------------------*/
 
 #include "ccl_tautologies.h"
 #include "ccl_derivation.h"
@@ -338,7 +338,7 @@ static void ground_complete_neg_eqns(EqnRef list)
 
 /*-----------------------------------------------------------------------
 //
-// Function: ClauseIsTautology()
+// Function: ClauseIsTautologyReal()
 //
 //   Return true if clause certainly is a tautology, false if this
 //   cannot be shown at the accepted expense.
@@ -365,7 +365,7 @@ bool ClauseIsTautologyReal(TB_p work_bank, Clause_p clause, bool copy_cl)
    }
    if(clause->neg_lit_no > MAX_EQ_TAUTOLOGY_CHECK_LITNO)
    { /* Emergency exit for large clauses! */
-      //printf("# ClauseIsTautology() - neg_lit_no: %d\n", clause->neg_lit_no);
+      //printf(COMCHAR" ClauseIsTautology() - neg_lit_no: %d\n", clause->neg_lit_no);
       return ClauseIsTrivial(clause);
    }
    work_copy = copy_cl ? ClauseCopy(clause, work_bank) : clause;

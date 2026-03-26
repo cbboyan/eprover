@@ -204,10 +204,11 @@ long TermTopCompare(Term_p t1, Term_p t2)
    assert(t2->type);
    //if(t1->sort!=t2->sort)
    //{
-   //      printf("# Sort clash (%ld): %d vs. %d\n", t1->f_code, t1->sort, t2->sort);
+   //      printf(COMCHAR" Sort clash (%ld): %d vs. %d\n", t1->f_code, t1->sort, t2->sort);
    //}
    assert(problemType == PROBLEM_HO || t1->type == t2->type);
-   assert(TermIsPhonyApp(t1) || problemType == PROBLEM_HO  || t1->arity == t2->arity);
+   //assert(TermIsPhonyApp(t1) || problemType == PROBLEM_HO  || t1->arity == t2->arity);
+   //Not true with polymorphism!
 
    if(problemType == PROBLEM_HO)
    {

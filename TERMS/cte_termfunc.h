@@ -67,6 +67,7 @@ void TermPrintDbgHO(FILE* out, Term_p term, Sig_p sig, DerefType deref);
 #endif
 
 void TermPrintSimple(FILE* out, Term_p term, Sig_p sig);
+void TermPrintSExpr(FILE* out, Term_p term, Sig_p sig);
 bool TermIsFlat(Term_p t);
 void TermPrettyPrintSimple(FILE* out, Term_p term, Sig_p sig, int level);
 
@@ -233,8 +234,8 @@ static inline Type_p GetHeadType(Sig_p sig, Term_p term)
       Term_p head = term->args[0];
       Type_p head_type = GetHeadType(sig, head);
       assert(TypeIsArrow(head_type));
-      //printf("# head_type->arity = %d\n", head_type->arity);
-      //printf("# head_type: "); TypePrintTSTP(stdout, sig->type_bank, head_type);
+      //printf(COMCHAR" head_type->arity = %d\n", head_type->arity);
+      //printf(COMCHAR" head_type: "); TypePrintTSTP(stdout, sig->type_bank, head_type);
       //printf("\n");
       assert(head_type->arity >= 2);
       Type_p res = TypeBankInsertTypeShared(sig->type_bank, TypeDropFirstArg(head_type));

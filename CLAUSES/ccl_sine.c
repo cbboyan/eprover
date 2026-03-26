@@ -328,6 +328,8 @@ void DRelationAddFormulaSet(DRelation_p drel,
 {
    WFormula_p handle;
 
+   //printf(COMCHAR" Adding formula set with %ld formulas (fd:%d)\n", FormulaSetCardinality(set),force_def);
+
    for(handle = set->anchor->succ;
        handle != set->anchor;
        handle = handle->succ)
@@ -553,16 +555,21 @@ long SelectDefiningAxioms(DRelation_p drel,
    PStackPointer sp, ssp;
    PStack_p   symbol_stack = PStackAlloc();
    int        recursion_level = 0;
+   //bool       pick_all = false;
 
    memset(dist_array, 0, (sig->f_count+1)*sizeof(long));
    PQueueStoreInt(axioms, ATNoType);
 
+   //printf("Drel has %ld elements\n", PDArrayMembers(drel->relation));
+   //DRelationPrintDebug(stdout, drel, sig);
+
    while(!PQueueEmpty(axioms))
    {
-      /* printf("Selecting %ld from %ld at %d\n",
-         res,
-         PQueueCardinality(axioms),
-         recursion_level); */
+      /* printf(COMCHAR" Selecting %ld from %ld at %d (%ld symbols)\n", */
+      /*        res, */
+      /*        PQueueCardinality(axioms), */
+      /*        recursion_level, */
+      /*        PStackGetSP(symbol_stack)); */
 
       if((res > max_set_size) ||
          (recursion_level > max_recursion_depth))
@@ -601,14 +608,22 @@ long SelectDefiningAxioms(DRelation_p drel,
             PStackPushP(res_formulas, form);
             // fprintf(stderr, "activating form: %s\n", WFormulaGetId(form));
             TermAddSymbolDistExist((FormulaIsConjecture(form) && trim_implications) ?
-                                    TermTrimImplications(sig, form->tformula) : form->tformula,
-                                    dist_array, symbol_stack);
+                                   TermTrimImplications(sig, form->tformula) :
+                                   form->tformula,
+                                   dist_array, symbol_stack);
             res++;
             break;
       default:
             assert(false && "Unknown axiom type!");
             break;
       }
+      //printf(COMCHAR" SymbolstackSP: %ld\n", PStackGetSP(symbol_stack));
+      //printf(COMCHAR" DRel total entries: %ld\n", DRelationTotalEntries(drel));
+      //if(recursion_level == 1)
+      //{
+      //fprintf(GlobalOut,
+      //COMCHAR" No seed symols in spec, switching critieria\n");
+      //}
       for(ssp=0; ssp<PStackGetSP(symbol_stack); ssp++)
       {
          i = PStackElementInt(symbol_stack, ssp);
@@ -616,8 +631,9 @@ long SelectDefiningAxioms(DRelation_p drel,
             (frel = PDArrayElementP(drel->relation, i)) &&
             !frel->activated)
          {
+            //printf("!frel->activated [%ld]\n", i);
             frel->activated = true;
-            // fprintf(stderr, " > |%s|: ", SigFindName(sig, i));
+            //fprintf(stdout, " > |%s|: ", SigFindName(sig, i));
             for(sp=0; sp<PStackGetSP(frel->d_clauses); sp++)
             {
                clause = PStackElementP(frel->d_clauses, sp);
@@ -626,10 +642,14 @@ long SelectDefiningAxioms(DRelation_p drel,
             for(sp=0; sp<PStackGetSP(frel->d_formulas); sp++)
             {
                form = PStackElementP(frel->d_formulas, sp);
-               // fprintf(stderr, "%s; ", WFormulaGetId(form));
+               //fprintf(stdout, "%s; ", WFormulaGetId(form));
                PQueueStoreFormula(axioms, form);
             }
-            // fprintf(stderr, "\n");
+            //fprintf(stdout, "\n");
+         }
+         else
+         {
+            //printf("frel->activated [%ld]\n", i);
          }
          dist_array[i] = 0;
       }
@@ -675,8 +695,10 @@ long SelectAxioms(GenDistrib_p      f_distrib,
 
    assert(PStackGetSP(clause_sets)==PStackGetSP(formula_sets));
 
-   /* fprintf(GlobalOut, "# Axiom selection starts (%lld)\n",
-      GetSecTimeMod()); */
+   //fprintf(GlobalOut, COMCHAR" Axiom selection starts (%ld, %lld)\n",
+   //seed_start, GetSecTimeMod());
+
+   //GenDistribPrint(stdout, f_distrib, 10);
    DRelationAddClauseSets(drel, f_distrib,
                           ax_filter->gen_measure,
                           ax_filter->benevolence,
@@ -689,10 +711,9 @@ long SelectAxioms(GenDistrib_p      f_distrib,
                            ax_filter->trim_implications,
                            ax_filter->defined_symbols_in_drel,
                            formula_sets);
-   /* fprintf(GlobalOut, "# DRelation constructed (%lld)\n",
+   /* fprintf(GlobalOut, COMCHAR" DRelation constructed (%lld)\n",
     * GetSecTimeMod()); */
    // DRelationPrintDebug(stderr, drel, f_distrib->sig);
-
    for(i=seed_start; i<PStackGetSP(clause_sets); i++)
    {
       seeds += ClauseSetFindAxSelectionSeeds(PStackElementP(clause_sets, i),
@@ -702,9 +723,9 @@ long SelectAxioms(GenDistrib_p      f_distrib,
                                               selq,
                                               ax_filter->use_hypotheses);
    }
-   /* fprintf(GlobalOut, "# Hypotheses found (%lld)\n",
-      GetSecTimeMod()); */
-   VERBOSE(fprintf(stderr, "# Found %ld seed clauses/formulas\n", seeds););
+   //fprintf(GlobalOut, COMCHAR" Hypotheses found %ld (%lld)\n", seeds,
+   //GetSecTimeMod());
+   VERBOSE(fprintf(stderr, COMCHAR" Found %ld seed clauses/formulas\n", seeds););
    if(!seeds)
    {
       /* No goals-> the empty set contains all relevant clauses */
@@ -719,6 +740,7 @@ long SelectAxioms(GenDistrib_p      f_distrib,
       {
          max_result_size = ax_filter->max_set_size;
       }
+      //printf(COMCHAR" max_result_size = %ld\n", max_result_size);
       if(true)
          /* "true" may be exported as an option eventually */
       {
@@ -730,6 +752,7 @@ long SelectAxioms(GenDistrib_p      f_distrib,
          }
          res = PStackGetSP(res_clauses)+PStackGetSP(res_formulas);
       }
+      //GenDistribPrint(stdout, f_distrib, 10);
       res += SelectDefiningAxioms(drel,
                                  f_distrib->sig,
                                  ax_filter->max_recursion_depth,
@@ -748,7 +771,7 @@ long SelectAxioms(GenDistrib_p      f_distrib,
    // }
    // fprintf(stderr, ".\n");
    PStackClauseDelProp(res_clauses, CPIsRelevant);
-   /* fprintf(GlobalOut, "# Axioms selected (%lld)\n",
+   /* fprintf(GlobalOut, COMCHAR" Axioms selected (%lld)\n",
       GetSecTimeMod()); */
    PQueueFree(selq);
    DRelationFree(drel);
@@ -818,7 +841,7 @@ long SelectThreshold(PStack_p          clause_sets,
 //
 // Function: SelectDefinitions()
 //
-//   Select lambda definitions only 
+//   Select lambda definitions only
 //
 // Global Variables: -
 //
@@ -834,7 +857,7 @@ long SelectDefinitions(PStack_p clause_sets, PStack_p formula_sets,
    FormulaSet_p fset;
    WFormula_p formula;
 
-   // ignoring clause sets because only formulas can be 
+   // ignoring clause sets because only formulas can be
    // tagged as definitions
    for(i=0; i<PStackGetSP(formula_sets); i++)
    {
@@ -874,15 +897,15 @@ long SelectDefinitions(PStack_p clause_sets, PStack_p formula_sets,
 
 void DRelPrintDebug(FILE* out, DRel_p rel, Sig_p sig)
 {
-   fprintf(out, "# %6ld %-15s: %6ld clauses, %6ld formulas\n",
+   fprintf(out, COMCHAR" %6ld %-15s: %6ld clauses, %6ld formulas\n",
            rel->f_code,
            SigFindName(sig, rel->f_code),
            PStackGetSP(rel->d_clauses),
            PStackGetSP(rel->d_formulas));
-   fprintf(out, "#formulas: ");
+   fprintf(out, COMCHAR"formulas: ");
    for(PStackPointer i = 0; i<PStackGetSP(rel->d_formulas); i++)
    {
-      fprintf(out, "%s, ", 
+      fprintf(out, "%s, ",
               WFormulaGetId(PStackElementP(rel->d_formulas, i)));
    }
    fputc('\n', stderr);
@@ -915,6 +938,38 @@ void DRelationPrintDebug(FILE* out, DRelation_p rel, Sig_p sig)
       }
    }
 }
+
+
+/*-----------------------------------------------------------------------
+//
+// Function: DRelationTotalEntries()
+//
+//   Return the total number of clause/formula references in the
+//   D-Relation.
+//
+// Global Variables: -
+//
+// Side Effects    : -
+//
+/----------------------------------------------------------------------*/
+
+long DRelationTotalEntries(DRelation_p rel)
+{
+   long i, res = 0;
+   DRel_p handle;
+
+   for(i=1; i<rel->relation->size; i++)
+   {
+      if(PDArrayElementP(rel->relation, i))
+      {
+         handle = PDArrayElementP(rel->relation, i);
+         res += PStackGetSP(handle->d_clauses);
+         res += PStackGetSP(handle->d_formulas);
+      }
+   }
+   return res;
+}
+
 
 
 

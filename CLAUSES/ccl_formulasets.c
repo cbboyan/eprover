@@ -8,7 +8,7 @@ Contents
 
   Wrapped formula set code.
 
-Copyright 1998-2011 by the author.
+Copyright 1998-2024 by the author.
   This code is released under the GNU General Public Licence and
   the GNU Lesser General Public License.
   See the file COPYING in the main E directory for details..
@@ -326,6 +326,35 @@ void FormulaSetDeleteEntry(WFormula_p form)
 }
 
 
+/*-----------------------------------------------------------------------
+//
+// Function: FormulaSetIsUntyped()
+//
+//   Return true if the formulaset is untyped, false otherwise.
+//
+// Global Variables:
+//
+// Side Effects    :
+//
+/----------------------------------------------------------------------*/
+
+bool FormulaSetIsUntyped(FormulaSet_p set)
+{
+   WFormula_p handle;
+
+   handle = set->anchor->succ;
+
+   while(handle!=set->anchor)
+   {
+      if(!WFormulaIsUntyped(handle))
+      {
+         return false;
+      }
+      handle = handle->succ;
+   }
+   return true;
+}
+
 
 /*-----------------------------------------------------------------------
 //
@@ -348,6 +377,38 @@ void FormulaSetPrint(FILE* out, FormulaSet_p set, bool fullterms)
    while(handle!=set->anchor)
    {
       WFormulaPrint(out, handle, fullterms);
+      fputc('\n', out);
+      handle = handle->succ;
+   }
+}
+
+
+/*-----------------------------------------------------------------------
+//
+// Function: FormulaSetPrintPrettyPrintTSTP()
+//
+//   Print a set of formulae.
+//
+// Global Variables: OutputFormat
+//
+// Side Effects    : -
+//
+/----------------------------------------------------------------------*/
+
+void FormulaSetPrettyPrintTSTP(FILE* out, FormulaSet_p set, bool fullterms)
+{
+   WFormula_p handle;
+
+   handle = set->anchor->succ;
+
+   if(!FormulaSetIsUntyped(set)) //Implies at least one formula!
+   {
+      assert(set->anchor->succ != set->anchor);
+      SigPrintTypeDeclsTSTP(out, set->anchor->succ->terms->sig);
+   }
+   while(handle!=set->anchor)
+   {
+      WFormulaTSTPPrintFlex(out, handle, fullterms, true, true);
       fputc('\n', out);
       handle = handle->succ;
    }
@@ -692,8 +753,6 @@ void FormulaSetDefinitionStatistics(FormulaSet_p orig, FormulaSet_p arch,
    *num_lams = _num_lams;
    *has_app_var_lits = _has_av_lits;
 }
-
-
 
 
 /*---------------------------------------------------------------------*/

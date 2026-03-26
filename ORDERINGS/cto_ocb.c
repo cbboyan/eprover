@@ -56,7 +56,7 @@ char* TONames[]=
 //
 // Function: free_val()
 //
-//   Frees the value stored in the 
+//   Frees the value stored in the
 //
 // Global Variables: -
 //
@@ -189,9 +189,8 @@ OCB_p OCBAlloc(TermOrdering type, bool prec_by_weight, Sig_p sig, HoOrderKind ho
    handle->pos_bal = 0;
    handle->neg_bal = 0;
    handle->max_var = 0;
-   handle->vb_size = ho_order_kind == LAMBDA_ORDER ? 0 : 64;
-   handle->vb      = ho_order_kind == LAMBDA_ORDER ?
-                        NULL : SizeMalloc(handle->vb_size*sizeof(int));
+   handle->vb_size = ho_order_kind == LAMBDA_ORDER ? 1 : 64;
+   handle->vb      = handle->vb_size? SizeMalloc(handle->vb_size*sizeof(int)):NULL;
    handle->db_weight = DEFAULT_DB_WEIGHT;
    handle->lam_weight = DEFAULT_LAMBDA_WEIGHT;
    handle->ho_vb   = NULL;
@@ -326,25 +325,25 @@ void OCBDebugPrint(FILE* out, OCB_p ocb)
 {
    long i,j;
 
-   fprintf(out, "# ==============OCB-Debug-Information============\n");
-   fprintf(out, "# ===============================================\n");
+   fprintf(out, COMCHAR" ==============OCB-Debug-Information============\n");
+   fprintf(out, COMCHAR" ===============================================\n");
    if(ocb->sig)
    {
       SigPrint(out, ocb->sig);
    }
    else
    {
-      fprintf(out, "# No sig!\n");
+      fprintf(out, COMCHAR" No sig!\n");
    }
-   fprintf(out, "# -----------------------------------------------\n");
+   fprintf(out, COMCHAR" -----------------------------------------------\n");
    if(ocb->weights)
    {
-      fprintf(out, "# Weights:");
+      fprintf(out, COMCHAR" Weights:");
       for(i=1; i<=ocb->sig_size;i++)
       {
          if(!((i-1)%8))
          {
-            fprintf(out, "\n# ");
+            fprintf(out, "\n"COMCHAR" ");
          }
          if(ocb->sig)
          {
@@ -359,12 +358,12 @@ void OCBDebugPrint(FILE* out, OCB_p ocb)
    }
    else
    {
-      fprintf(out, "# No weights!\n");
+      fprintf(out, COMCHAR" No weights!\n");
    }
-   fprintf(out, "# -----------------------------------------------\n");
+   fprintf(out, COMCHAR" -----------------------------------------------\n");
    if(ocb->precedence)
    {
-      fprintf(out, "# Precedence Matrix:\n#       ");
+      fprintf(out, COMCHAR" Precedence Matrix:\n"COMCHAR"       ");
       for(j=1; j<=ocb->sig_size; j++)
       {
          fprintf(out, " %2ld ", j);
@@ -372,7 +371,7 @@ void OCBDebugPrint(FILE* out, OCB_p ocb)
       fprintf(out, "\n");
       for(i=1; i<=ocb->sig_size; i++)
       {
-         fprintf(out, "# %2ld  | ", i);
+         fprintf(out, COMCHAR" %2ld  | ", i);
          fflush(stdout);
          for(j=1; j<=ocb->sig_size; j++)
          {
@@ -387,9 +386,9 @@ void OCBDebugPrint(FILE* out, OCB_p ocb)
    }
    else
    {
-      fprintf(out, "# No precedence!\n");
+      fprintf(out, COMCHAR" No precedence!\n");
    }
-   fprintf(out, "# ===============================================\n");
+   fprintf(out, COMCHAR" ===============================================\n");
 }
 
 

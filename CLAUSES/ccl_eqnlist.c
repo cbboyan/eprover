@@ -1025,7 +1025,7 @@ bool EqnListIsTrivial(Eqn_p list)
 {
    Eqn_p handle;
 
-   //printf("# EqnListIsTrivial(%d)\n", EqnListLength(list));
+   //printf(COMCHAR" EqnListIsTrivial(%d)\n", EqnListLength(list));
 
    while(list)
    {
@@ -1041,7 +1041,7 @@ bool EqnListIsTrivial(Eqn_p list)
       }
       list = list->next;
    }
-   //printf("# Done\n");
+   //printf(COMCHAR" Done\n");
    return false;
 }
 
@@ -1329,7 +1329,6 @@ int EqnListMaximalLiterals(OCB_p ocb, Eqn_p list)
 
    res = EqnListSetProp(list, EPIsStrictlyMaximal);
    EqnListDelProp(list, EPIsMaximal);
-   //printf("# Drinnen %d\n", res);
 
    while(list)
    {
@@ -1374,7 +1373,6 @@ int EqnListMaximalLiterals(OCB_p ocb, Eqn_p list)
    res = EqnListSetProp(maxlits, EPIsMaximal);
    list = EqnListFromStack(archive);
 
-   //printf("# Draussen\n");
    return res;
 }
 
@@ -2007,7 +2005,7 @@ long EqnListCollectSubterms(Eqn_p list, PStack_p collector)
 //
 /----------------------------------------------------------------------*/
 
-long EqnListCollectGroundTerms(Eqn_p list, PTree_p *res, bool top_only,
+long EqnListCollectGroundTerms(Eqn_p list, PTree_p *res, bool all_subterms,
                                bool pos_lits, bool neg_lits)
 {
    long count = 0;
@@ -2016,7 +2014,7 @@ long EqnListCollectGroundTerms(Eqn_p list, PTree_p *res, bool top_only,
    {
       if((EqnIsPositive(list)&&pos_lits)||(EqnIsNegative(list)&&neg_lits))
       {
-         count += EqnCollectGroundTerms(list, res, top_only);
+         count += EqnCollectGroundTerms(list, res, all_subterms);
       }
       list = list->next;
    }

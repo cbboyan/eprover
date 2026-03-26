@@ -143,8 +143,13 @@ static bool instance_is_rule(OCB_p ocb, TB_p bank,
 {
    assert(term);
 
+   //printf("### Start\n");
    while(TermIsTopRewritten(term)&&(!restricted_rw||TermIsRRewritten(term)))
    {
+      //printf("### Term: %p: ", term);
+      //TermPrintSExpr(stdout, term, term->owner_bank->sig);
+      //printf("\n");
+
       assert(term);
       if(TermCellQueryProp(term, TPIsSOSRewritten))
       {
@@ -156,6 +161,9 @@ static bool instance_is_rule(OCB_p ocb, TB_p bank,
       term = TermRWReplaceField(term);
       assert(term);
    }
+   //printf("### Final: %p: ", term);
+   //TermPrintSExpr(stdout, term, term->owner_bank->sig);
+   //printf("\n");
    return term;
 }
 
@@ -868,7 +876,8 @@ static Term_p term_li_normalform(RWDesc_p desc, Term_p term,
 // Function: eqn_li_normalform()
 //
 //   Compute the normal form of maximal, minimal or both terms in an
-//   equation. Return true if a term was rewritten.
+//   equation. Return rewritten sides (truth value is true if any side
+//   was rewritten).
 //
 // Global Variables: -
 //
@@ -1234,7 +1243,7 @@ long ClauseComputeLINormalform(OCB_p ocb, TB_p bank, Clause_p clause,
 
    old_deriv_sp =  clause->derivation?PStackGetSP(clause->derivation):0;
 
-   /* printf("# ClauseComputeLINormalform(%ld)...\n",clause->ident); */
+   /* printf(COMCHAR" ClauseComputeLINormalform(%ld)...\n",clause->ident); */
    /* if(prefer_general!=0)
       {
       printf("ClauseComputeLINormalform(level=%d prefer_general=%d)\n",

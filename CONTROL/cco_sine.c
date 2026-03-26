@@ -61,6 +61,32 @@ static AxFilter_p sine_get_filter(char* fname, AxFilterSet_p *filters)
 
    in = CreateScanner(StreamTypeOptionString, fname, true, NULL, true);
    CheckInpTok(in, Name);
+   *filters = AxFilterSetCreateInternal(AxFilterDefaultSet);
+   filter = AxFilterSetFindFilter(*filters, fname);
+   if(!filter)
+   {
+      DStr_p fstring = DStrAlloc();
+
+      AxFilterSetAddNames(fstring, *filters);
+      Error("Unknown SinE-filter '%s' selected (valid choices: %s)",
+            USAGE_ERROR,
+            fname,
+            DStrView(fstring));
+      DStrFree(fstring);
+   }
+   DestroyScanner(in);
+   return filter;
+}
+
+#ifdef NEVER_DEFINED
+
+static AxFilter_p sine_get_filter(char* fname, AxFilterSet_p *filters)
+{
+   AxFilter_p    filter;
+   Scanner_p     in;
+
+   in = CreateScanner(StreamTypeOptionString, fname, true, NULL, true);
+   CheckInpTok(in, Name);
    if(!TestInpId(in, "LambdaDef") && TestTok(LookToken(in,1), NoToken))
    {
       *filters = AxFilterSetCreateInternal(AxFilterDefaultSet);
@@ -87,6 +113,7 @@ static AxFilter_p sine_get_filter(char* fname, AxFilterSet_p *filters)
    return filter;
 }
 
+#endif
 
 /*-----------------------------------------------------------------------
 //
@@ -483,8 +510,7 @@ long StructFOFSpecParseAxioms(StructFOFSpec_p ctrl, PStack_p axfiles,
    long         res = 0;
    static IntOrP dummy = {0};
 
-   //printf("# XXX Called with %ld axiom files\n", PStackGetSP(axfiles));
-
+   //printf(COMCHAR" XXX Called with %ld axiom files\n", PStackGetSP(axfiles));
    for(i=0; i<PStackGetSP(axfiles); i++)
    {
       iname = PStackElementP(axfiles, i);
@@ -497,7 +523,7 @@ long StructFOFSpecParseAxioms(StructFOFSpec_p ctrl, PStack_p axfiles,
          {
             ScannerSetFormat(in, parse_format);
 
-            fprintf(GlobalOut, "# Parsing %s\n", iname);
+            fprintf(GlobalOut, COMCHAR" Parsing %s\n", iname);
             cset = ClauseSetAlloc();
             fset = FormulaSetAlloc();
             TBGCRegisterFormulaSet(ctrl->terms, fset);
@@ -508,13 +534,17 @@ long StructFOFSpecParseAxioms(StructFOFSpec_p ctrl, PStack_p axfiles,
             assert(ClauseSetCardinality(cset)==0);
             PStackPushP(ctrl->clause_sets, cset);
             PStackPushP(ctrl->formula_sets, fset);
+            // printf(COMCHAR" %s has %ld formulas\n", iname, FormulaSetCardinality(fset));
             StrTreeStore(&(ctrl->parsed_includes), iname, dummy, dummy);
 
             DestroyScanner(in);
-         }
+            //GenDistribSizeAdjust(ctrl->f_distrib, ctrl->terms->sig);
+            //GenDistribAddClauseSet(ctrl->f_distrib, clauses, 1);
+            //GenDistribAddFormulaSet(ctrl->f_distrib, formulas, trim, 1);
+        }
          else
          {
-            fprintf(GlobalOut, "# Could not find %s\n", iname);
+            fprintf(GlobalOut, COMCHAR" Could not find %s\n", iname);
          }
       }
    }
@@ -580,18 +610,18 @@ long ProofStateSinE(ProofState_p state, char* fname)
 
    if(!fname)
    {
-      printf("# No SInE strategy applied\n");
+      fprintf(GlobalOut, COMCHAR" No SInE strategy applied\n");
       return 0;
    }
-   printf("# SinE strategy is %s\n", fname);
+   fprintf(GlobalOut, COMCHAR" SinE strategy is %s\n", fname);
 
    filter = sine_get_filter(fname, &filters);
 
    axno_orig = ClauseSetCardinality(state->axioms)+
       FormulaSetCardinality(state->f_axioms);
 
-   /* printf("# Magic happens here %s!\n", fname);
-      printf("# Filter: ");
+   /* printf(COMCHAR" Magic happens here %s!\n", fname);
+      printf(COMCHAR" Filter: ");
       AxFilterPrint(stdout, filter);
       printf("\n"); */
 
@@ -604,7 +634,9 @@ long ProofStateSinE(ProofState_p state, char* fname)
    StructFOFSpecAddProblem(spec, state->axioms, state->f_axioms, filter->trim_implications);
 
 
-   StructFOFSpecInitDistrib(spec, filter->trim_implications);
+   //StructFOFSpecInitDistrib(spec, filter->trim_implications);
+
+   //GenDistribPrint(stdout, spec->f_distrib, 10);
    StructFOFSpecGetProblem(spec,
                            filter,
                            clauses,
@@ -630,7 +662,7 @@ long ProofStateSinE(ProofState_p state, char* fname)
    axno = ClauseSetCardinality(state->axioms)+
       FormulaSetCardinality(state->f_axioms);
 
-   //printf("# ...ProofStateSinE()=%ld/%ld\n", axno, axno_orig);
+   //printf(COMCHAR" ...ProofStateSinE()=%ld/%ld\n", axno, axno_orig);
 
    return axno_orig-axno;
 }
