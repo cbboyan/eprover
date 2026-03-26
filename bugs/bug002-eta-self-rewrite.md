@@ -17,6 +17,46 @@ eprover-ho: cte_replace.c:71: TermAddRWLink: Assertion `term!=replace' failed.
 
 ---
 
+## Root Cause
+
+The demodulator `![F: T>T]: (^[Z:T]: F @ Z) = F` (an eta-reduction rule) is matched
+against the identity term `^[Z:T]: Z` via HO matching:
+
+- LHS `^[Z]: F @ Z` matched against `^[Z]: Z`
+- Bodies: `F @ Z` vs `Z` — solved by `F ↦ ^[Z]:Z` (identity)
+- Instantiated RHS: `F` = `^[Z]:Z` = the **original term**
+- `repl == term` triggers `TermAddRWLink`'s assertion `term != replace`
+
+The ordering check (`instance_is_rule`) passes because it dereferences `F` only once
+(seeing `^[Z]:F(Z)` > `F`), but `MakeRewrittenTerm` then beta/eta-normalizes the RHS,
+collapsing it back to the LHS instance.
+
+### Why HO-only
+
+In FO mode `MakeRewrittenTerm` is a no-op and the RHS is never lambda-normalized, so it
+cannot collapse back to the LHS. In HO mode the `LambdaNormalizeDB` call inside
+`MakeRewrittenTerm` can produce this collapse.
+
+### Call chain
+
+```
+main
+└─ Saturate                          cco_proofproc.c:1763
+   └─ ProcessClause                  cco_proofproc.c:1595
+      └─ ForwardContractClause       cco_forward_contraction.c:368
+         └─ ForwardModifyClause      cco_forward_contraction.c:266
+            └─ ClauseComputeLINormalform  ccl_rewrite.c:1261
+               └─ eqn_li_normalform  ccl_rewrite.c:897
+                  └─ term_li_normalform   ccl_rewrite.c:842
+                     └─ term_subterm_rewrite  ccl_rewrite.c:773
+                        └─ term_li_normalform   ccl_rewrite.c:832
+                           └─ rewrite_with_clause_set  ccl_rewrite.c:680
+                              └─ TermAddRWLink(term, repl, ...)
+                                 // term == repl → assert fires
+```
+
+---
+
 ## Minimal problem
 
 ```tptp
@@ -65,46 +105,6 @@ The 3 proof axioms alone (`id_apply`, `deriv_id`, `conj_0`) find the proof immed
 
 Only then does the `deriv` clause (which rewrites `id → ^[Z]:Z`) have a live demodulator
 waiting to fire on `^[Z]:Z`.
-
----
-
-## Root Cause
-
-The demodulator `![F: T>T]: (^[Z:T]: F @ Z) = F` (an eta-reduction rule) is matched
-against the identity term `^[Z:T]: Z` via HO matching:
-
-- LHS `^[Z]: F @ Z` matched against `^[Z]: Z`
-- Bodies: `F @ Z` vs `Z` — solved by `F ↦ ^[Z]:Z` (identity)
-- Instantiated RHS: `F` = `^[Z]:Z` = the **original term**
-- `repl == term` triggers `TermAddRWLink`'s assertion `term != replace`
-
-The ordering check (`instance_is_rule`) passes because it dereferences `F` only once
-(seeing `^[Z]:F(Z)` > `F`), but `MakeRewrittenTerm` then beta/eta-normalizes the RHS,
-collapsing it back to the LHS instance.
-
-### Why HO-only
-
-In FO mode `MakeRewrittenTerm` is a no-op and the RHS is never lambda-normalized, so it
-cannot collapse back to the LHS. In HO mode the `LambdaNormalizeDB` call inside
-`MakeRewrittenTerm` can produce this collapse.
-
-### Call chain
-
-```
-main
-└─ Saturate                          cco_proofproc.c:1763
-   └─ ProcessClause                  cco_proofproc.c:1595
-      └─ ForwardContractClause       cco_forward_contraction.c:368
-         └─ ForwardModifyClause      cco_forward_contraction.c:266
-            └─ ClauseComputeLINormalform  ccl_rewrite.c:1261
-               └─ eqn_li_normalform  ccl_rewrite.c:897
-                  └─ term_li_normalform   ccl_rewrite.c:842
-                     └─ term_subterm_rewrite  ccl_rewrite.c:773
-                        └─ term_li_normalform   ccl_rewrite.c:832
-                           └─ rewrite_with_clause_set  ccl_rewrite.c:680
-                              └─ TermAddRWLink(term, repl, ...)
-                                 // term == repl → assert fires
-```
 
 ---
 
