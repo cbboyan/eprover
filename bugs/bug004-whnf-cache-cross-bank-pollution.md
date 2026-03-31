@@ -1,7 +1,9 @@
 # Bug: WHNF Cache Cross-Bank Pollution (use-after-free)
 
 **File:** `bugs/bug004-whnf-cache-cross-bank-pollution.p` (copy of `bugs/0112_Transcendental_01863.p` — not minimized)
+
 **Trigger:** `bash bugs/bug004-whnf-cache-cross-bank-pollution.sh`
+
 **Status:** Fixed.
 
 ---

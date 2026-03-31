@@ -1,7 +1,9 @@
 # Bug: Assertion `bank' failed in NormalizePatternAppVar
 
 **Triggered by:** `ConjectureTermPrefixWeight` heuristic (`-H` argument)
+
 **File:** `TERMS/cte_termbanks.c:2535`
+
 **Fix:** `TERMS/cte_termfunc.c` — two one-line additions
 
 **Reproduction:**

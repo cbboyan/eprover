@@ -1,6 +1,7 @@
 # Bug: Assertion `term!=replace' failed in TermAddRWLink
 
 **File:** `CLAUSES/cte_replace.c:71`
+
 **Fix:** `CLAUSES/ccl_rewrite.c` — four call sites guarded
 
 **Reproduction:**
