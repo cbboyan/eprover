@@ -109,6 +109,10 @@ When a bug is HO-only, the first question is whether applied free variables or l
 
 Terms are hash-consed into a term bank (`TB_p`). The `owner_bank` field on each term points back to its bank. Functions that copy terms (e.g., `TermTopCopyWithoutArgs`) zero out `owner_bank` — callers that need the bank on the copy must restore it via `TermSetBank(copy, TermGetBank(source))`. See `bugs/ALG247^2.md` for an example of this pattern.
 
+There are two live banks at runtime: `state->terms` (the main bank) and `state->tmp_terms` (scratch space). They have different GC regimes: `TBGCCollect(state->terms)` is a full mark-and-sweep rooted at all clause sets; `TBGCSweep(state->tmp_terms)` is called every saturation cycle and keeps only `true_term/false_term/min_terms` — everything else in `tmp_terms` is freed. A term from `state->terms` must never hold a pointer into `tmp_terms` across a sweep boundary.
+
+The WHNF cache (`binding_cache` field on lambda-headed phony apps) is one such pointer. `WHNF_step` uses `TermGetBank(t)` to decide which bank to allocate the cached result in, so `owner_bank` must be correct at call time. `TBInsertNoProps` temporarily sets `owner_bank` to the destination bank (the "cheat") before calling `WHNF_deref` — if the destination is `tmp_terms`, the cache gets a cross-bank pointer. The guard added in bug004 clears `binding_cache` after restoring `owner_bank` when banks differ. See `bugs/bug004-whnf-cache-cross-bank-pollution.md`.
+
 ### Heuristics and weight functions
 
 - Each weight function (e.g., `ConjectureTermPrefixWeight`) is registered in `HEURISTICS/` and lazily initializes state on first call
