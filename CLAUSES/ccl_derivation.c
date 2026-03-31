@@ -1539,7 +1539,7 @@ void DerivedTSTPPrint(FILE* out, Sig_p sig, Derived_p derived)
    {
       assert(derived->formula);
       // fprintf(out, "%p: ", derived->formula);
-      WFormulaTSTPPrint(out, derived->formula, true, false);
+      WFormulaTSTPPrintFlex(out, derived->formula, true, false,false);
       if(derived->formula->derivation)
       {
          fprintf(out, ", ");

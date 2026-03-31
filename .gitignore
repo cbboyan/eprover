@@ -67,3 +67,19 @@ CONTRIB/picosat-965/*
 setup.sh
 build.sh
 
+
+.cache/
+.claude/
+DOC/eprover.idx
+DOC/eprover.pdf
+DOC/eprover.toc
+PROVER/counter/
+PROVER/epatternize
+PROVER/eprover-ho
+SIMPLE_APPS/enigmatic-features
+SIMPLE_APPS/enigmatic-tensors
+compile_commands.json
+
+
+
+
