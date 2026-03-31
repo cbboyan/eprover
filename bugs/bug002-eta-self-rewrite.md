@@ -1,11 +1,12 @@
 # Bug: Assertion `term!=replace' failed in TermAddRWLink
 
 **File:** `CLAUSES/cte_replace.c:71`
-**Fix:** `CLAUSES/ccl_rewrite.c` — six-line guard
+**Fix:** `CLAUSES/ccl_rewrite.c` — four call sites guarded
 
 **Reproduction:**
-- `bugs/bug002-eta-self-rewrite.sh` + `bugs/bug002-eta-self-rewrite.p` — minimal (7-axiom problem)
-- `bugs/ITP035^1.sh` + `bugs/ITP035^1.p` — original report
+- `bugs/bug002-eta-self-rewrite.sh` + `bugs/bug002-eta-self-rewrite.p` — minimal (7-axiom problem), triggers via `rewrite_with_clause_set`
+- `bugs/ITP035^1.sh` + `bugs/ITP035^1.p` — original report, same path
+- `bugs/ITP137^1.sh` + `bugs/ITP137^1.p` — second trigger, via `term_is_top_rewritable` / `term_find_rw_clauses` (requires `--prefer-initial-clauses`)
 
 ---
 
@@ -37,7 +38,9 @@ In FO mode `MakeRewrittenTerm` is a no-op and the RHS is never lambda-normalized
 cannot collapse back to the LHS. In HO mode the `LambdaNormalizeDB` call inside
 `MakeRewrittenTerm` can produce this collapse.
 
-### Call chain
+### Call chains
+
+**Path 1** — `rewrite_with_clause_set` (triggered by ITP035^1, bug002-eta-self-rewrite):
 
 ```
 main
@@ -53,6 +56,23 @@ main
                            └─ rewrite_with_clause_set  ccl_rewrite.c:680
                               └─ TermAddRWLink(term, repl, ...)
                                  // term == repl → assert fires
+```
+
+**Path 2** — `term_is_top_rewritable` / `term_find_rw_clauses` (triggered by ITP137^1 with `--prefer-initial-clauses`):
+
+```
+main
+└─ Saturate
+   └─ ProcessClause
+      └─ ClauseIsRewritable / backward rewriting
+         └─ term_is_rewritable        ccl_rewrite.c:346
+            └─ term_is_top_rewritable ccl_rewrite.c:235 or :267
+               └─ TermAddRWLink(term, repl, ...)
+                  // term == repl → assert fires
+
+         └─ term_find_rw_clauses      ccl_rewrite.c:1087
+            └─ TermAddRWLink(term, repl, ...)
+               // term == repl → assert fires
 ```
 
 ---
@@ -110,31 +130,59 @@ waiting to fire on `^[Z]:Z`.
 
 ## Fix
 
-**`CLAUSES/ccl_rewrite.c`** — skip the rewrite if the result equals the original term:
+**`CLAUSES/ccl_rewrite.c`** — guard all four `TermAddRWLink` call sites where
+`MakeRewrittenTerm` is called in HO mode. When the normalized RHS equals the original
+term, treat the rewrite as a no-op: skip `TermAddRWLink` and undo any rewritability
+properties already set (to avoid the term being re-queued indefinitely).
+
+**Site 1 — `rewrite_with_clause_set` (line ~680):** return early:
 
 ```c
- repl = TBInsertInstantiated(bank, ClausePosGetOtherSide(pos));
  if(problemType == PROBLEM_HO)
- {
      repl = MakeRewrittenTerm(term, repl, 0, bank);
- }
-+if(repl == term)   /* trivial HO rewrite — skip */
-+{
-+    SubstDelete(subst);
-+    return term;
-+}
- assert(pos->clause->ident);
++if(repl == term) { SubstDelete(subst); return term; }
  TermAddRWLink(term, repl, ...);
 ```
 
-Safe: returning `term` unchanged still updates the NF date in `term_li_normalform`,
-preventing the same demodulator from re-firing. The `while(modified)` loop terminates.
+**Sites 2 & 3 — `term_is_top_rewritable` (lines ~235, ~267):** undo properties and reset result:
+
+```c
++if(repl == term)
++{
++   TermCellDelProp(term, TPIsRRewritable|TPIsRewritable);
++   res = RWNotRewritable;
++}
++else
++{
+    TermAddRWLink(term, repl, new_demod, ClauseIsSOS(new_demod), res);
+    RewriteUncached++;
++}
+```
+
+**Site 4 — `term_find_rw_clauses` (line ~1087):** same pattern with `rwres`:
+
+```c
++if(repl == term)
++{
++   TermCellDelProp(term, TPIsRRewritable|TPIsRewritable);
++   rwres = RWNotRewritable;
++}
++else
++{
+    TermAddRWLink(term, repl, demod, ClauseIsSOS(demod), rwres);
+    RewriteUncached++;
++}
+```
+
+Sites 2–4 must also undo the `TPIsRewritable` bits (unlike site 1) because those functions
+set them before computing `repl`, whereas `rewrite_with_clause_set` can simply return early.
 
 ---
 
 ## Verification
 
 ```sh
-bash bugs/bug002-eta-self-rewrite.sh   # → SZS status Theorem
-bash bugs/ITP035^1.sh                  # → SZS status Theorem
+eprover-ho --cpu-limit=5 bugs/bug002-eta-self-rewrite.p   # → SZS status Theorem
+bash bugs/ITP035^1.sh                                      # → SZS status Theorem
+eprover-ho --cpu-limit=5 --prefer-initial-clauses bugs/ITP137^1.p  # → no crash
 ```
