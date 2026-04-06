@@ -50,6 +50,8 @@ typedef enum
    OPT_JOIN_MAX,
    OPT_MERGE_CLAUSES,
    OPT_CONCAT_CLAUSES,
+   OPT_PARSE_HO_RAW,
+   OPT_PRINT_CLAUSE,
 }OptionCodes;
 
 
@@ -131,6 +133,15 @@ OptCell opts[] =
 	  NoArg, NULL,
 	  "Concatenate two clauses into a single feature vector with shared theory "
 	  "and goal sections.  Place a semi-colon after every second clause."},
+   {OPT_PARSE_HO_RAW,
+      '\0', "parse-ho-raw",
+      NoArg, NULL,
+      "Skip beta/eta normalization for HO (THF) formulas. By default, "
+      "LambdaNormalizeDB (beta+eta) is applied after De Bruijn conversion."},
+   {OPT_PRINT_CLAUSE,
+      '\0', "print-clause",
+      NoArg, NULL,
+      "Print each clause/formula (in its internal form) before its feature vector."},
    {OPT_NOOPT,
       '\0', NULL,
       NoArg, NULL,
@@ -153,6 +164,8 @@ bool compute_sum = false;
 int compute_joint = 0;
 bool merge_clauses = false;
 bool concat_clauses = false;
+bool parse_ho_raw = false;
+bool print_clause = false;
 
 /*---------------------------------------------------------------------*/
 /*                      Forward Declarations                           */
@@ -214,39 +227,28 @@ static void fill_max(void* data, long idx, float val)
    info->avgs[idx] = MAX(val, info->avgs[idx]);
 }
 
-static Clause_p read_clause(Scanner_p in, EnigmaticInfo_p info, ProofState_p state)
+static Clause_p read_clause(Scanner_p in, EnigmaticInfo_p info)
 {
-	Clause_p clause;
-	WFormula_p formula = NULL;
-    if (TestInpId(in, "input_clause|cnf"))
-    {
-       clause = ClauseParse(in, info->bank);
-    }
-    else
-    {
-       formula = WFormulaParse(in, info->bank);
-       //printf("PARSED: ");
-       //WFormulaPrint(GlobalOut, formula, true);
-       //printf("\n");
-       // FIXME: this does not work for THF's with db variables!
-       WTFormulaConjunctiveNF(formula, info->bank);
-       //printf("CNF: ");
-       //WFormulaPrint(GlobalOut, formula, true);
-       //printf("\n");
-       ////clause = EnigmaticFormulaToClause(formula, info);
-       TFormula_p tform = formula->tformula;
-       while(tform->f_code == info->sig->qall_code && tform->arity == 2)
-       {
-         tform = tform->args[1];
-       }
-       clause = TFormulaCollectClause(tform, info->bank, state->freshvars);
-       //EqnListMapTerms(clause->literals, (TermMapper_p)PostCNFEncodeFormulas, info->bank);
-       //printf("CONVERTED: ");
-       //ClausePrint(GlobalOut, clause, true);
-       //printf("\n");
-       WFormulaFree(formula);
-    }
-    return clause;
+   Clause_p clause;
+   if (TestInpId(in, "input_clause|cnf"))
+   {
+      clause = ClauseParse(in, info->bank);
+   }
+   else
+   {
+      WFormula_p formula = WFormulaParse(in, info->bank);
+      if (problemType == PROBLEM_HO)
+      {
+         formula->tformula = NamedToDB(info->bank, formula->tformula);
+         if (!parse_ho_raw)
+         {
+            formula->tformula = LambdaNormalizeDB(info->bank, formula->tformula);
+         }
+      }
+      clause = EnigmaticFormulaToClause(formula, info);
+      WFormulaFree(formula);
+   }
+   return clause;
 }
 
 static void print_vector(FILE* out, EnigmaticVector_p vector, EnigmaticInfo_p info)
@@ -270,7 +272,7 @@ static void print_vector(FILE* out, EnigmaticVector_p vector, EnigmaticInfo_p in
 	  }
 }
 
-static void process_clauses(FILE* out, char* filename, EnigmaticVector_p vector, EnigmaticInfo_p info, ProofState_p state)
+static void process_clauses(FILE* out, char* filename, EnigmaticVector_p vector, EnigmaticInfo_p info)
 {
    Scanner_p in = CreateScanner(StreamTypeFile, filename, true, NULL, true);
    ScannerSetFormat(in, TSTPFormat);
@@ -281,7 +283,8 @@ static void process_clauses(FILE* out, char* filename, EnigmaticVector_p vector,
    int count = 0;
    while (TestInpId(in, "input_formula|input_clause|fof|cnf|tff|tcf|thf"))
    {
-      clause = read_clause(in, info, state);
+      clause = read_clause(in, info);
+      if (print_clause) { fprintf(out, COMCHAR" "); ClausePrint(out, clause, true); fprintf(out, "\n"); }
       if (merge_clauses)
       {
          ClauseSetInsert(merge_set, clause);
@@ -301,7 +304,8 @@ static void process_clauses(FILE* out, char* filename, EnigmaticVector_p vector,
       {
          if (concat_clauses)
          {
-            clause2 = read_clause(in, info, state);
+            clause2 = read_clause(in, info);
+            if (print_clause) { fprintf(out, COMCHAR" "); ClausePrint(out, clause2, true); fprintf(out, "\n"); }
             AcceptInpTok(in, Semicolon);
             EnigmaticClause(vector, clause, info); // FIXME: delme
             EnigmaticClause(vector, clause2, info);
@@ -369,7 +373,7 @@ int main(int argc, char* argv[])
 
    process_problem(problem_file, vector, info);
    process_types(types_file, info);
-   process_clauses(GlobalOut, args->argv[0], vector, info, state);
+   process_clauses(GlobalOut, args->argv[0], vector, info);
   
    if (MapOut)
    {
@@ -482,6 +486,12 @@ CLState_p process_options(int argc, char* argv[])
             break;
          case OPT_CONCAT_CLAUSES:
             concat_clauses = true;
+            break;
+         case OPT_PARSE_HO_RAW:
+            parse_ho_raw = true;
+            break;
+         case OPT_PRINT_CLAUSE:
+            print_clause = true;
             break;
          default:
             assert(false);

@@ -50,6 +50,36 @@ cd PROVER && ./eprover-ho thf/some_problem.p
 
 There is no automated test suite invocation (no `make test`). Testing is done by running the prover on specific problem files and checking for crashes or wrong output.
 
+## enigmatic-features Tool
+
+`SIMPLE_APPS/enigmatic-features` computes ENIGMA feature vectors from TPTP files (cnf/fof/tff/thf). Built via `make -j$(nproc) enigmatic-features` in `SIMPLE_APPS/`.
+
+```sh
+enigmatic-features -f <features> [options] input.p
+enigmatic-features -f <features>          # print feature map and exit (no input file)
+```
+
+**Formula handling:** each formula/clause is read as-is (no CNF conversion). For THF input, named lambda variables are converted to De Bruijn indices (`NamedToDB`) and then beta+eta normalized (`LambdaNormalizeDB`) by default. The `problemType` global is set automatically to `PROBLEM_HO` when `thf(...)` syntax is encountered during parsing.
+
+**Key options:**
+
+| Option | Description |
+|--------|-------------|
+| `-f <spec>` | ENIGMA feature specifier string (required) |
+| `-p <file>` | Problem file for goal/theory/problem embedding |
+| `-t <file>` | File with additional type definitions |
+| `-o <file>` | Redirect output to file |
+| `-m <file>` | Write feature map to file |
+| `-b <file>` | Append feature hash/bucket info to file |
+| `--prefix <str>` | Prefix each vector line with string |
+| `--prefix-pos` | Prefix with `+1 ` (positive training label) |
+| `--prefix-neg` | Prefix with `-0 ` (negative training label) |
+| `--avg` / `--sum` / `--max` | Reduce all vectors to one (avg/sum/max) |
+| `--merge` | Merge clause groups into one vector (`;` separates groups) |
+| `--concat` | Concatenate pairs of clauses (`;` after every second) |
+| `--parse-ho-raw` | Skip beta/eta normalization for THF (DB conversion only) |
+| `--print-clause` | Print each clause/formula in internal form before its vector |
+
 ## Bug Tracking
 
 Bugs are documented in `bugs/` using a numbered scheme:
