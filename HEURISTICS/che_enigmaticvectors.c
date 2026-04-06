@@ -777,8 +777,16 @@ void EnigmaticExtractParents(Clause_p clause, PStack_p parents)
 
 Clause_p EnigmaticFormulaToClause(WFormula_p formula, EnigmaticInfo_p info)
 {
-   Eqn_p lits = EqnAlloc(formula->tformula, info->bank->false_term, info->bank, true);
-   Clause_p encode = ClauseAlloc(lits);
+   Clause_p encode;
+   if (formula->is_clause) 
+   {
+      encode = WFormClauseToClause(formula);
+   }
+   else
+   {
+      Eqn_p lits = EqnAlloc(formula->tformula, info->bank->false_term, info->bank, true);
+      encode = ClauseAlloc(lits);
+   }
    return encode;
 }
 
@@ -919,14 +927,8 @@ void EnigmaticInitProblem(EnigmaticVector_p vector, EnigmaticInfo_p info,
          {
             continue;
          }
-         if (handle->is_clause) 
-         {
-            clause = WFormClauseToClause(handle);
-         }
-         else
-         {
-            clause = EnigmaticFormulaToClause(handle, info);
-         }
+         clause = EnigmaticFormulaToClause(handle, info);
+         
          FormulaProperties props = FormulaQueryType(handle);
          ClauseSetInsert(is_goal(props) ? goal : theory, clause);
          // BEGIN
@@ -1032,6 +1034,26 @@ double EnigmaticWeight(double pred, int weight_type, double threshold)
    return res;
 }
 
+void PrintEnigmaticClause(FILE* out, Clause_p clause, 
+         EnigmaticVector_p vector, EnigmaticInfo_p info,
+         char* cls, char* label)
+{
+   if (!vector) { return; }
+
+   EnigmaticClause(vector, clause, info);
+   fprintf(out, "%s%s", cls, (label ? label : ""));
+   PrintEnigmaticVector(out, vector);
+	 fputc('\n', out);
+   EnigmaticVectorReset(vector);
+}
+
+void PrintEnigmaticClauseVectors(FILE* out, Clause_p clause, 
+         EnigmaticSetting_p enigmatic, char* label)
+{
+   if (!enigmatic) { return; }
+   PrintEnigmaticClause(out, clause, enigmatic->sel, enigmatic->info, "#SEL# ", label);
+   PrintEnigmaticClause(out, clause, enigmatic->gen, enigmatic->info, "#GEN# ", label);
+}
 
 /*---------------------------------------------------------------------*/
 /*                        End of File                                  */

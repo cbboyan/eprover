@@ -662,18 +662,6 @@ void ClauseParentsPrint(FILE* out, Clause_p clause, char* extra, Sig_p sig)
 //
 /----------------------------------------------------------------------*/
 
-static void print_enigmatic_vector(FILE* out, Clause_p clause, 
-      EnigmaticVector_p vector, EnigmaticInfo_p info, char* cls, char* label)
-{
-   if (!vector) { return; }
-
-   EnigmaticClause(vector, clause, info);
-   fprintf(out, "#%s# %s", cls, (label ? label : ""));
-   PrintEnigmaticVector(out, vector);
-	 fputc('\n', out);
-   EnigmaticVectorReset(vector);
-}
-
 void PStackClausePrint(FILE* out, PStack_p stack, char* extra, char* label,
       bool print_parents, EnigmaticSetting_p enigmatic, Sig_p sig)
 {
@@ -692,8 +680,8 @@ void PStackClausePrint(FILE* out, PStack_p stack, char* extra, char* label,
       }
       if (enigmatic)
       {
-         print_enigmatic_vector(out, clause, enigmatic->sel, enigmatic->info, "SEL", label);
-         print_enigmatic_vector(out, clause, enigmatic->gen, enigmatic->info, "GEN", label);
+         PrintEnigmaticClause(out, clause, enigmatic->sel, enigmatic->info, "#SEL# ", label);
+         PrintEnigmaticClause(out, clause, enigmatic->gen, enigmatic->info, "#GEN# ", label);
       }
    }
 }

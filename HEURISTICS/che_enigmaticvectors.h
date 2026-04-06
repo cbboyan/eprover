@@ -61,6 +61,10 @@ double EnigmaticPredict(Clause_p clause, EnigmaticModel_p model, void* data,
 
 double EnigmaticWeight(double pred, int weight_type, double threshold);
 
+void PrintEnigmaticClause(FILE* out, Clause_p clause, 
+         EnigmaticVector_p vector, EnigmaticInfo_p info,
+         char* cls, char* label);
+
 #endif
 
 /*---------------------------------------------------------------------*/
