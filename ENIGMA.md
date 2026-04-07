@@ -620,8 +620,9 @@ only parent features are available. This matches the P_cat design from FroCoS 20
 
 #### `enigmatic-features`
 
-Reads TPTP input files and prints feature vectors for each clause, supporting all
-specifier syntax. Used to build training datasets outside the prover loop:
+Reads TPTP input files and prints feature vectors for each clause/formula, supporting all
+specifier syntax. Handles `cnf`/`fof`/`tff`/`thf` input. Used to build training datasets
+outside the prover loop:
 
 ```sh
 enigmatic-features --features="C(l,p,x,s,r,v,h,c,d,a)" --problem=problem.p clauses.p
@@ -630,10 +631,18 @@ enigmatic-features --features="C(l,p,x,s,r,v,h,c,d,a)" --problem=problem.p claus
 Output: one line per clause, sparse `key:value` format, optionally prefixed with
 `+1`/`-0` class labels.
 
+**THF/HO input:** type annotation formulas (`thf(name, type, ...)`) are automatically
+skipped — they update the signature but produce no feature vector. Non-clause `thf`
+formulas are converted to a unit clause by wrapping the formula as a positive predicate
+atom (`formula = $true`). By default, THF formulas are parsed raw (De Bruijn conversion
+only, no beta/eta normalization). Pass `--normalize-ho` to apply `LambdaNormalizeDB`
+after De Bruijn conversion.
+
 #### `enigmatic-tensors`
 
 Serializes clause sets as hypergraph tensors for the GNN server (for batch offline
-evaluation or debugging the tensor encoding).
+evaluation or debugging the tensor encoding). **FOF only** — does not support TFF or THF
+input.
 
 ---
 

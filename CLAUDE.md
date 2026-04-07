@@ -59,7 +59,7 @@ enigmatic-features -f <features> [options] input.p
 enigmatic-features -f <features>          # print feature map and exit (no input file)
 ```
 
-**Formula handling:** each formula/clause is read as-is (no CNF conversion). For THF input, named lambda variables are converted to De Bruijn indices (`NamedToDB`) and then beta+eta normalized (`LambdaNormalizeDB`) by default. The `problemType` global is set automatically to `PROBLEM_HO` when `thf(...)` syntax is encountered during parsing.
+**Formula handling:** each formula/clause is read as-is (no CNF conversion). Type annotation formulas (`thf(name, type, ...)`) are skipped automatically. For THF input, named lambda variables are converted to De Bruijn indices (`NamedToDB`); beta+eta normalization (`LambdaNormalizeDB`) is applied only when `--normalize-ho` is passed (raw by default). Non-clause THF formulas are wrapped as a positive predicate atom (`formula = $true`) to produce a unit clause. The `problemType` global is set automatically to `PROBLEM_HO` when `thf(...)` syntax is encountered during parsing.
 
 **Key options:**
 
@@ -77,7 +77,7 @@ enigmatic-features -f <features>          # print feature map and exit (no input
 | `--avg` / `--sum` / `--max` | Reduce all vectors to one (avg/sum/max) |
 | `--merge` | Merge clause groups into one vector (`;` separates groups) |
 | `--concat` | Concatenate pairs of clauses (`;` after every second) |
-| `--parse-ho-raw` | Skip beta/eta normalization for THF (DB conversion only) |
+| `--normalize-ho` | Apply beta/eta normalization (`LambdaNormalizeDB`) for THF; default is raw (DB conversion only) |
 | `--print-clause` | Print each clause/formula in internal form before its vector |
 
 ## Bug Tracking

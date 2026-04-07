@@ -50,7 +50,7 @@ typedef enum
    OPT_JOIN_MAX,
    OPT_MERGE_CLAUSES,
    OPT_CONCAT_CLAUSES,
-   OPT_PARSE_HO_RAW,
+   OPT_NORMALIZE_HO,
    OPT_PRINT_CLAUSE,
 }OptionCodes;
 
@@ -133,11 +133,11 @@ OptCell opts[] =
 	  NoArg, NULL,
 	  "Concatenate two clauses into a single feature vector with shared theory "
 	  "and goal sections.  Place a semi-colon after every second clause."},
-   {OPT_PARSE_HO_RAW,
-      '\0', "parse-ho-raw",
+   {OPT_NORMALIZE_HO,
+      '\0', "normalize-ho",
       NoArg, NULL,
-      "Skip beta/eta normalization for HO (THF) formulas. By default, "
-      "LambdaNormalizeDB (beta+eta) is applied after De Bruijn conversion."},
+      "Apply beta/eta normalization (LambdaNormalizeDB) after De Bruijn "
+      "conversion for HO (THF) formulas. By default, formulas are parsed raw."},
    {OPT_PRINT_CLAUSE,
       '\0', "print-clause",
       NoArg, NULL,
@@ -164,7 +164,7 @@ bool compute_sum = false;
 int compute_joint = 0;
 bool merge_clauses = false;
 bool concat_clauses = false;
-bool parse_ho_raw = false;
+bool ho_normalize = false;
 bool print_clause = false;
 
 /*---------------------------------------------------------------------*/
@@ -237,10 +237,22 @@ static Clause_p read_clause(Scanner_p in, EnigmaticInfo_p info)
    else
    {
       WFormula_p formula = WFormulaParse(in, info->bank);
+      {
+         /* Skip type annotations: WFormulaTSTPParse encodes them as $true=$true */
+         Term_p tf = formula->tformula;
+         TB_p bank = info->bank;
+         if (tf == bank->true_term ||
+             (tf->f_code == bank->sig->eqn_code && tf->arity == 2 &&
+              tf->args[0] == bank->true_term && tf->args[1] == bank->true_term))
+         {
+            WFormulaFree(formula);
+            return NULL;
+         }
+      }
       if (problemType == PROBLEM_HO)
       {
          formula->tformula = NamedToDB(info->bank, formula->tformula);
-         if (!parse_ho_raw)
+         if (ho_normalize)
          {
             formula->tformula = LambdaNormalizeDB(info->bank, formula->tformula);
          }
@@ -284,6 +296,7 @@ static void process_clauses(FILE* out, char* filename, EnigmaticVector_p vector,
    while (TestInpId(in, "input_formula|input_clause|fof|cnf|tff|tcf|thf"))
    {
       clause = read_clause(in, info);
+      if (!clause) { continue; }
       if (print_clause) { fprintf(out, COMCHAR" "); ClausePrint(out, clause, true); fprintf(out, "\n"); }
       if (merge_clauses)
       {
@@ -305,6 +318,7 @@ static void process_clauses(FILE* out, char* filename, EnigmaticVector_p vector,
          if (concat_clauses)
          {
             clause2 = read_clause(in, info);
+            if (!clause2) { ClauseFree(clause); continue; }
             if (print_clause) { fprintf(out, COMCHAR" "); ClausePrint(out, clause2, true); fprintf(out, "\n"); }
             AcceptInpTok(in, Semicolon);
             EnigmaticClause(vector, clause, info); // FIXME: delme
@@ -487,8 +501,8 @@ CLState_p process_options(int argc, char* argv[])
          case OPT_CONCAT_CLAUSES:
             concat_clauses = true;
             break;
-         case OPT_PARSE_HO_RAW:
-            parse_ho_raw = true;
+         case OPT_NORMALIZE_HO:
+            ho_normalize = true;
             break;
          case OPT_PRINT_CLAUSE:
             print_clause = true;
