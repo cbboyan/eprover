@@ -385,16 +385,19 @@ static void update_horiz(EnigmaticClause_p enigma, EnigmaticInfo_p info, Term_p 
 {
    if (enigma->params->offset_horiz < 0) { return; }
 
+   // For phony apps (X @ a1 @ a2): use the head args[0] as root symbol and
+   // args[1..n] as children, mirroring how FO encodes f(a1, a2).
+   Term_p root = TermIsPhonyApp(term) ? term->args[0] : term;
+   int start   = TermIsPhonyApp(term) ? 1 : 0;
+
    unsigned long fid = 0;
    DStr_p fstr = info->collect_hashes ? DStrAlloc() : NULL;
    hash_update(&fid, ENIGMATIC_HORIZ, fstr);
-   hash_update(&fid, symbol_string(enigma, info, term), fstr);
-   //hash_symbol(&fid, term->f_code, enigma, info, fstr);
+   hash_update(&fid, symbol_string(enigma, info, root), fstr);
    hash_update(&fid, ENIGMATIC_HORIZ, fstr);
-   for (int i = 0; i<term->arity; i++)
+   for (int i = start; i<term->arity; i++)
    {
       hash_update(&fid, symbol_string(enigma, info, term->args[i]), fstr);
-      //hash_symbol(&fid, term->args[i]->f_code, enigma, info, fstr);
       hash_update(&fid, ENIGMATIC_HORIZ, fstr);
    }
    hash_base(&fid, enigma->params->base_horiz);
@@ -479,7 +482,14 @@ static void update_arities(EnigmaticClause_p enigma, EnigmaticInfo_p info, Term_
 
 static void update_term(EnigmaticClause_p enigma, EnigmaticInfo_p info, Term_p term)
 {
-   PStackPushP(info->path, term);
+   // For phony apps (X @ a1 @ a2): push the head args[0] onto the path (not
+   // the $@_var node) and recurse into args[1..n] only.  This makes the
+   // vertical walk at each argument see the actual head symbol as its parent,
+   // mirroring FO behaviour where f(a1,a2) puts f on the path above a1/a2.
+   Term_p path_node = TermIsPhonyApp(term) ? term->args[0] : term;
+   int    start     = TermIsPhonyApp(term) ? 1 : 0;
+
+   PStackPushP(info->path, path_node);
    if (TermIsAnyVar(term) || TermIsConst(term))
    {
       enigma->width++;
@@ -487,7 +497,7 @@ static void update_term(EnigmaticClause_p enigma, EnigmaticInfo_p info, Term_p t
    }
    else
    {
-      for (int i=0; i<term->arity; i++)
+      for (int i=start; i<term->arity; i++)
       {
          update_term(enigma, info, term->args[i]);
       }
@@ -784,7 +794,7 @@ Clause_p EnigmaticFormulaToClause(WFormula_p formula, EnigmaticInfo_p info)
    }
    else
    {
-      Eqn_p lits = EqnAlloc(formula->tformula, info->bank->false_term, info->bank, true);
+      Eqn_p lits = EqnAlloc(formula->tformula, info->bank->true_term, info->bank, true);
       encode = ClauseAlloc(lits);
    }
    return encode;
