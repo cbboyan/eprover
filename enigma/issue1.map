@@ -1,0 +1,24 @@
+features("C(v,h)").
+count(2049).
+offset("clause", 0).
+suboffset("clause:horiz", 0).
+suboffset("clause:vert", 1024).
+setting("clause:features", 2048).
+setting("clause:anonymous", 0).
+setting("clause:unified_hashing", 0).
+setting("clause:use_types", 0).
+setting("clause:use_len", 0).
+setting("clause:use_prios", 0).
+setting("clause:count_var", -1).
+setting("clause:count_sym", -1).
+setting("clause:count_arity", -1).
+setting("clause:length_vert", 3).
+setting("clause:all_vert", 0).
+setting("clause:base_horiz", 1024).
+setting("clause:base_vert", 1024).
+setting("clause:base_count", -1).
+setting("clause:base_depth", -1).
+feature_begin(0, "clause:horiz").
+feature_end(1023, "clause:horiz").
+feature_begin(1024, "clause:vert").
+feature_end(2047, "clause:vert").

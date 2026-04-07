@@ -1,0 +1,22 @@
+features("C(v[m=2:a])").
+count(1025).
+offset("clause", 0).
+suboffset("clause:vert", 0).
+setting("clause:features", 1024).
+setting("clause:anonymous", 0).
+setting("clause:unified_hashing", 0).
+setting("clause:use_types", 0).
+setting("clause:use_len", 0).
+setting("clause:use_prios", 0).
+setting("clause:count_var", -1).
+setting("clause:count_sym", -1).
+setting("clause:count_arity", -1).
+setting("clause:length_vert", 3).
+setting("clause:min_length_vert", 2).
+setting("clause:all_vert", 1).
+setting("clause:base_horiz", -1).
+setting("clause:base_vert", 1024).
+setting("clause:base_count", -1).
+setting("clause:base_depth", -1).
+feature_begin(0, "clause:vert").
+feature_end(1023, "clause:vert").
