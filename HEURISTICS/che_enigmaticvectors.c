@@ -509,7 +509,12 @@ static void update_term(EnigmaticClause_p enigma, EnigmaticInfo_p info, Term_p t
    }
    else
    {
-      for (int i=start; i<term->arity; i++)
+      // For $db_lam(^, body): args[0] is a placeholder DB var carrying no
+      // semantic content in untyped mode (always "^" — uniform noise).
+      // Skip it; only recurse into args[1] = body.  In typed mode keep
+      // visiting it so the bound variable's type is encoded.
+      int lam_start = (TermIsLambda(term) && !enigma->params->use_types) ? 1 : start;
+      for (int i=lam_start; i<term->arity; i++)
       {
          update_term(enigma, info, term->args[i]);
       }
