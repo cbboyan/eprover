@@ -4,7 +4,7 @@ Issues found in `HEURISTICS/che_enigmaticvectors.c` (enigma branch).
 
 ---
 
-## Issue 1 — Head of phony app invisible in vertical walks (High)
+## ~~Issue 1 — Head of phony app invisible in vertical walks~~ (Fixed)
 
 `update_term` recurses into all args uniformly with `term->arity`, so for phony app
 `X @ a @ b` (f_code=17, args=[X, a, b]) the path at leaf `a` is:
@@ -37,7 +37,7 @@ head/args asymmetry was recognized but not yet addressed.
 
 ---
 
-## Issue 2 — Head treated as sibling in horizontal walks (Medium)
+## ~~Issue 2 — Head treated as sibling in horizontal walks~~ (Fixed)
 
 `update_horiz` for phony app `X @ a1 @ a2` produces:
 
@@ -72,11 +72,11 @@ This means `λx.λy. x` and `λx.λy. y` produce identical features for the boun
 depth/scope within nested lambdas is lost. Analogous to how all free vars become `*`.
 
 Probably intentional (scope-independence), but worth reconsidering for HO problems
-where lambda depth matters.
+where lambda depth matters. Could be added as an option (e.g. `v[d]` to encode DB index).
 
 ---
 
-## Issue 4 — DB lambda placeholder visited (Low / typed-mode useful)
+## ~~Issue 4 — DB lambda placeholder visited in untyped mode~~ (Fixed)
 
 `$db_lam(^, body)`: `args[0]` is the placeholder DB var (carries type, no semantic
 content). `update_term` visits it, generating path features at `[..., $db_lam, ^]`.
@@ -85,8 +85,8 @@ content). `update_term` visits it, generating path features at `[..., $db_lam, ^
 - **Typed mode**: `symbol_string` returns `"^:type"`, encoding the bound variable's
   type — this is actually useful.
 
-No fix needed in typed mode. In untyped mode, consider skipping `args[0]` of a DB
-lambda (only recurse into `args[1]` = body).
+**Fix**: in `update_term`, skip `args[0]` of a DB lambda in untyped mode (only recurse
+into `args[1]` = body). Typed mode is unchanged.
 
 ---
 
@@ -100,9 +100,9 @@ practical concern.
 
 ## Summary Table
 
-| # | Issue | Severity | File | Fix |
-|---|-------|----------|------|-----|
-| 1 | Head invisible in vertical walks | High | `update_term`, `update_verts` | Use head as path node for phony apps |
-| 2 | Head as sibling in horizontal walks | Medium | `update_horiz` | Use head as root, `args[1..n]` as children |
-| 3 | DB var index not encoded | Design choice | `symbol_string`, `FCODE` | Reconsider if scope depth matters |
-| 4 | DB lambda placeholder traversed | Low | `update_term` | Skip `args[0]` of `$db_lam` in untyped mode |
+| # | Issue | Severity | File | Status |
+|---|-------|----------|------|--------|
+| 1 | Head invisible in vertical walks | High | `update_term`, `update_verts` | Fixed |
+| 2 | Head as sibling in horizontal walks | Medium | `update_horiz` | Fixed |
+| 3 | DB var index not encoded | Design choice | `symbol_string`, `FCODE` | Deferred (future option) |
+| 4 | DB lambda placeholder traversed in untyped mode | Low | `update_term` | Fixed |
