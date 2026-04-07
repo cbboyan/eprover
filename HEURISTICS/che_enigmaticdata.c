@@ -214,9 +214,10 @@ static void parse_one(char** spec, char key, long* val, long* def)
 }
 
 static void parse_vert(
-   char** spec, 
-   EnigmaticParams_p params, 
-   long* default_length, 
+   char** spec,
+   EnigmaticParams_p params,
+   long* default_length,
+   long* default_min_length,
    long* default_base)
 {
    if (**spec == '[')
@@ -226,7 +227,9 @@ static void parse_vert(
       {
          switch (**spec) 
          {
+            case 'a': params->all_vert = true; (*spec)++; break;
             case 'l': parse_keyval(spec, 'l', &params->length_vert, default_length); break;
+            case 'm': parse_keyval(spec, 'm', &params->min_length_vert, default_min_length); break;
             case 'b': parse_keyval(spec, 'b', &params->base_vert, default_base); break;
             default:
             Error("ENIGMA: Invalid feature specifier (expected vertical parameters ('l','b'), have '%s').",
@@ -238,14 +241,18 @@ static void parse_vert(
       parse_expect(spec, ']');
    }
 
-   // set to defaults if not set above   
-   if (params->length_vert == -1) 
-   { 
-      params->length_vert = *default_length; 
+   // set to defaults if not set above
+   if (params->length_vert == -1)
+   {
+      params->length_vert = *default_length;
    }
-   if (params->base_vert == -1) 
-   { 
-      params->base_vert = *default_base; 
+   if (params->min_length_vert == -1)
+   {
+      params->min_length_vert = *default_min_length;
+   }
+   if (params->base_vert == -1)
+   {
+      params->base_vert = *default_base;
    }
 }
 
@@ -253,6 +260,7 @@ static EnigmaticParams_p parse_block(char** spec)
 {
    static long default_count = EDV_COUNT;
    static long default_length = EDV_LENGTH;
+   static long default_min_length = EDV_MIN_LENGTH;
    static long default_base = EDV_BASE;
 
    if (**spec != '(') 
@@ -280,7 +288,7 @@ static EnigmaticParams_p parse_block(char** spec)
          case 'x': parse_one(spec, 'c', &params->count_var, &default_count); break;
          case 's': parse_one(spec, 'c', &params->count_sym, &default_count); break;
          case 'r': parse_one(spec, 'c', &params->count_arity, &default_count); break;
-         case 'v': parse_vert(spec, params, &default_length, &default_base); break;
+         case 'v': parse_vert(spec, params, &default_length, &default_min_length, &default_base); break;
          case 'h': parse_one(spec, 'b', &params->base_horiz, &default_base); break;
          case 'c': parse_one(spec, 'b', &params->base_count, &default_base); break;
          case 'd': parse_one(spec, 'b', &params->base_depth, &default_base); break;
@@ -400,6 +408,8 @@ static void info_settings(FILE* out, char* name, EnigmaticParams_p params)
    INFO_SETTING(out, name, params, count_sym);
    INFO_SETTING(out, name, params, count_arity);
    INFO_SETTING(out, name, params, length_vert);
+   INFO_SETTING(out, name, params, min_length_vert);
+   INFO_SETTING(out, name, params, all_vert);
    INFO_SETTING(out, name, params, base_horiz);
    INFO_SETTING(out, name, params, base_vert);
    INFO_SETTING(out, name, params, base_count);
@@ -618,6 +628,8 @@ EnigmaticParams_p EnigmaticParamsAlloc(void)
    params->count_sym = -1;
    params->count_arity = -1;
    params->length_vert = -1;
+   params->min_length_vert = -1;
+   params->all_vert = false;
    params->base_horiz = -1;
    params->base_vert = -1;
    params->base_count = -1;
@@ -653,6 +665,8 @@ EnigmaticParams_p EnigmaticParamsCopy(EnigmaticParams_p source)
    params->count_sym = source->count_sym;
    params->count_arity = source->count_arity;
    params->length_vert = source->length_vert;
+   params->min_length_vert = source->min_length_vert;
+   params->all_vert = source->all_vert;
    params->base_horiz = source->base_horiz;
    params->base_vert = source->base_vert;
    params->base_count = source->base_count;

@@ -339,19 +339,34 @@ static void update_stats(unsigned long fid, EnigmaticInfo_p info, DStr_p fstr)
    node->val2.i_val++; // increase the usage ('encounter') counter
 }
 
+static void emit_vert(EnigmaticClause_p enigma, EnigmaticInfo_p info, long begin, long len)
+{
+   unsigned long fid = 0;
+   DStr_p fstr = info->collect_hashes ? DStrAlloc() : NULL;
+   hash_update(&fid, ENIGMATIC_VERT, fstr);
+   for (long i = 0; i < len; i++)
+   {
+      Term_p path_term = info->path->stack[begin+i].p_val;
+      hash_update(&fid, symbol_string(enigma, info, path_term), fstr);
+      hash_update(&fid, ENIGMATIC_VERT, fstr);
+   }
+   hash_base(&fid, enigma->params->base_vert);
+   update_feature_inc(HASHMAP(enigma,vert), fid);
+   update_stats(fid, info, fstr);
+   if (fstr) { DStrFree(fstr); }
+}
+
 static void update_verts(EnigmaticClause_p enigma, EnigmaticInfo_p info, Term_p term)
 {
-   int i;
-
    if (enigma->params->offset_vert < 0) { return; }
 
    long len = enigma->params->length_vert;
-   if ((!TermIsAnyVar(term)) && 
-       (!TermIsConst(term)) && 
+   if ((!TermIsAnyVar(term)) &&
+       (!TermIsConst(term)) &&
        ((info->path->current < len) || (len == 0)))
-   { 
+   {
       // not enough symbols yet && not yet the end && not infinite paths
-      return; 
+      return;
    }
    if (len == 0)
    {
@@ -363,22 +378,19 @@ static void update_verts(EnigmaticClause_p enigma, EnigmaticInfo_p info, Term_p 
       len += begin;
       begin = 0;
    }
-   
-   unsigned long fid = 0; // feature id
-   DStr_p fstr = info->collect_hashes ? DStrAlloc() : NULL;
-   hash_update(&fid, ENIGMATIC_VERT, fstr);
-   for (i=0; i<len; i++)
+
+   long min_len = enigma->params->min_length_vert;
+   if (enigma->params->all_vert)
    {
-      //FunCode f_code = info->path->stack[begin+i].i_val;
-      //hash_update(&fid, symbol_string(enigma, info, f_code), fstr);
-      Term_p path_term = info->path->stack[begin+i].p_val;
-      hash_update(&fid, symbol_string(enigma, info, path_term), fstr);
-      hash_update(&fid, ENIGMATIC_VERT, fstr);
+      for (long l = min_len; l <= len; l++)
+      {
+         emit_vert(enigma, info, begin + (len - l), l);
+      }
    }
-   hash_base(&fid, enigma->params->base_vert);
-   update_feature_inc(HASHMAP(enigma,vert), fid);
-   update_stats(fid, info, fstr);
-   if (fstr) { DStrFree(fstr); }
+   else if (len >= min_len)
+   {
+      emit_vert(enigma, info, begin, len);
+   }
 }
    
 static void update_horiz(EnigmaticClause_p enigma, EnigmaticInfo_p info, Term_p term)

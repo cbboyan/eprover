@@ -41,6 +41,7 @@ extern ClausePrioFun ecb_prios[];
 #define EDV_COUNT           6
 #define EDV_BASE            1024
 #define EDV_LENGTH          3
+#define EDV_MIN_LENGTH      1
 
 /* Enigmatic Feature Count */
 #define EFC_LEN             25
@@ -94,6 +95,8 @@ typedef struct enigmaticparamscell
    long count_sym;
    long count_arity;
    long length_vert;
+   long min_length_vert;
+   bool all_vert;
    long base_vert;
    long base_horiz;
    long base_count;
