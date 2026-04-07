@@ -407,7 +407,7 @@ Block arguments select feature sub-types:
 | `x` | Variable occurrence histograms | 3×count |
 | `s` | Symbol occurrence histograms | 6×count |
 | `r` | Arity histograms | 4×count |
-| `v[l=3;b=1024]` | Vertical (depth-first path) walks, length `l`, hashed to `b` buckets | `b` |
+| `v[l=3:m=1:a:b=1024]` | Vertical (depth-first path) walks; `l`=max length (0=full path), `m`=min length (default 1), `a`=emit all suffix lengths from `m` to `l`, hashed to `b` buckets | `b` |
 | `h[b=1024]` | Horizontal (sibling) walks | `b` |
 | `c[b=1024]` | Symbol count hashes | `b` |
 | `d[b=1024]` | Symbol depth hashes | `b` |
@@ -437,8 +437,18 @@ Both functions build up feature strings by traversing the path stack `info->path
 - **`update_verts`** (`che_enigmaticvectors.c:342`): reads the last `length_vert` entries
   from the path stack. Each entry is a `Term_p`; its symbol string is joined with `|`
   separators. The concatenated string is hashed via `sdbm` and mapped into `[0, base_vert)`.
+  With `all_vert`, instead of one path of length `l`, all suffix lengths from `min_length_vert`
+  to `l` are emitted (e.g. `A|B|C`, `B|C`, `C` for `l=3,m=1`). The actual hashing is
+  factored into a helper `emit_vert(begin, len)`.
 - **`update_horiz`** (`che_enigmaticvectors.c:384`): records the current node and all its
   argument symbols as a `.`-separated string, hashed similarly.
+- **Phony app encoding**: for phony apps `X @ a1 @ a2` (`f_code=SIG_PHONY_APP_CODE`),
+  `update_term` pushes `args[0]` (the actual head — a free var `*` or DB var `^`) onto the
+  path instead of the `$@_var` node, and recurses into `args[1..n]` only. This makes
+  vertical walks at each argument see the real head symbol as their parent, matching FO
+  behaviour for `f(a1,a2)`. Similarly, `update_horiz` uses `args[0]` as the root symbol
+  and `args[1..n]` as children, so the horizontal walk is `.*|a1|a2.` rather than
+  `.$@_var|X|a1|a2.`.
 
 The sdbm hash (`hash_sdbm`) is applied character-by-character as the string is built,
 avoiding temporary string allocation in the hot path.
@@ -638,6 +648,18 @@ atom (`formula = $true`). By default, THF formulas are parsed raw (De Bruijn con
 only, no beta/eta normalization). Pass `--normalize-ho` to apply `LambdaNormalizeDB`
 after De Bruijn conversion.
 
+#### `enigma/encode.sh`
+
+Convenience script for running `enigmatic-features` from the `enigma/` working directory.
+Produces `problem.in` (vectors), `problem.map`, and `problem.buckets` from `problem.p`:
+
+```sh
+cd enigma
+./encode.sh [-f features] problem.p
+```
+
+Default features: `C(v,h)`. Override with `-f`, e.g. `./encode.sh -f "C(v[a:l=0])" issue1.p`.
+
 #### `enigmatic-tensors`
 
 Serializes clause sets as hypergraph tensors for the GNN server (for batch offline
@@ -674,9 +696,10 @@ Several commits extend ENIGMA features to handle higher-order (HO) terms:
   This is how DB-bound variables become symbol-independent in HO features.
 - The `use_types` parameter (triggered by the `a` modifier + `use_types` flag) appends
   type strings via `DStrAppendType`, enabling typed features for TFF/THF problems.
-- HO-specific terms (lambda nodes `f_code=18/19`, phony apps `f_code=17`) are treated as
-  regular symbols in the feature paths — their `f_code` maps to the internal `$db_lam` /
-  `$@_var` names in the signature, which the feature code handles via `symbol_internal`.
+- HO-specific terms (lambda nodes `f_code=18/19`) appear in feature paths as `$db_lam`
+  via `symbol_internal`. Phony apps (`f_code=17`, `$@_var`) are handled specially: the
+  head (`args[0]`, a free var `*` or DB var `^`) is pushed onto the path and used as the
+  horizontal root, while `$@_var` itself is invisible — see Walk computation above.
 - Commit `ho enigma: disable term cache` disables E's term weight cache for HO problems
   (the cache assumes FO-style weight stability which HO rewriting violates).
 
