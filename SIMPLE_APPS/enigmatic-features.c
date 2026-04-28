@@ -238,12 +238,16 @@ static Clause_p read_clause(Scanner_p in, EnigmaticInfo_p info)
    {
       WFormula_p formula = WFormulaParse(in, info->bank);
       {
-         /* Skip type annotations: WFormulaTSTPParse encodes them as $true=$true */
+         /* Skip type annotations: WFormulaTSTPParse encodes them as $true=$true
+            (via TFormulaPropConstantAlloc). Guard with CPTypeAxiom so that
+            non-axiom roles (conjecture, hypothesis, etc.) with a $true body
+            are not silently dropped. */
          Term_p tf = formula->tformula;
          TB_p bank = info->bank;
-         if (tf == bank->true_term ||
-             (tf->f_code == bank->sig->eqn_code && tf->arity == 2 &&
-              tf->args[0] == bank->true_term && tf->args[1] == bank->true_term))
+         if (FormulaQueryType(formula) == CPTypeAxiom &&
+             (tf == bank->true_term ||
+              (tf->f_code == bank->sig->eqn_code && tf->arity == 2 &&
+               tf->args[0] == bank->true_term && tf->args[1] == bank->true_term)))
          {
             WFormulaFree(formula);
             return NULL;
