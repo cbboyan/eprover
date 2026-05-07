@@ -182,3 +182,35 @@ Pref is fastest to evaluate. Lev/Ted are O(n²)/O(n³) in term size; Struc is O(
 - Inference rules: `CONTROL/cco_inferences.c` (FO), `CONTROL/cco_ho_inferences.c` (HO)
 - Rewriting: `CLAUSES/ccl_rewrite.c` — `ClauseRewrite`, `TermRewrite`, `MakeRewrittenTerm`
 - Term weight: `TERMS/cte_termfunc.c` — `TermWeightCompute`, `TermStandardWeight`
+
+### ProcessClause flow (`cco_proofproc.c:ProcessClause`)
+
+One saturation step, in order:
+1. Select the best clause from `state->unprocessed` via `hcb->hcb_select`
+2. Forward-simplify it via `ForwardContractClause` — if the clause is subsumed or reduces to a tautology it is discarded (returns NULL)
+3. If the clause becomes empty/false → found proof, return it
+4. `document_processing()` emits "new_given" at `OutputLevel ≥ 6`
+5. `replacing_inferences()` — try to replace the clause by a cheaper version (e.g., splitting)
+6. Backward simplification: `eliminate_backward_rewritten_clauses`, `eliminate_backward_subsumed_clauses`, `eliminate_unit_simplified_clauses`, `eliminate_context_sr_clauses` — each deletes clauses from the processed sets and puts them in `state->tmp_store` with `CPIsIRVictim`
+7. The given clause is indexed into the appropriate processed set (`processed_pos_rules`, `processed_pos_eqns`, `processed_neg_units`, or `processed_non_units`)
+8. `generate_new_clauses()` — paramodulation, resolution, factoring, HO inferences; results land in `state->tmp_store`
+9. `insert_new_clauses()` — forward-simplifies `tmp_store` clauses and moves survivors to `state->unprocessed`
+
+`state->archive` holds all clauses ever created (for proof extraction); dead clauses are moved there with `CPIsDead`.
+
+### Clause identity fields
+
+Each `Clause_p` has two ID fields:
+- `ident` — mutable; re-assigned by every `DocClause*` call that produces a PCL/TSTP log line (bumps global `ClauseIdentCounter`). Do not use as a stable key.
+- `perm_ident` — assigned exactly once in `ClauseAlloc` from `clause_perm_ident_counter`; never modified. Use this as the stable clause identity, e.g., for saturation logs.
+
+### Proof-logging infrastructure (`CLAUSES/ccl_inferencedoc.c`)
+
+- `DocOutputFormat` global (`no_format` / `pcl_format` / `tstp_format`) — set via `--pcl-print` (maps to `-l4`) or `--tstp-format`
+- `OutputLevel` global — set via `-l N`; level 1 prints given clauses; level 6 adds per-event commentary via `DocClauseQuote`
+- `DocClauseCreation` — emits a new inference step when a clause is born
+- `DocClauseModification` — emits a step when a clause is rewritten/simplified in place
+- `DocClauseQuote` — emits a "quote" step linking the clause to itself with a comment (e.g., `"new_given"`, `"subsumed"`); **side-effect: bumps `clause->ident`**
+- `DocClauseRewrite` — records a single rewrite event at a literal position
+
+PCL output (`--pcl-print`) produces one line per inference step with parent IDs; used by `eprover-pcl` for proof checking. TSTP output (`--proof-object`) is the standard proof format. Both are driven by the same `Doc*` calls gated on `OutputLevel`.

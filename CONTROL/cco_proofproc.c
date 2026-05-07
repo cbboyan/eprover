@@ -720,7 +720,8 @@ static Clause_p insert_new_clauses(ProofState_p state, ProofControl_p control, b
             continue;
          }
       }
-      if(ClauseQueryProp(handle,CPIsIRVictim))
+      bool is_ir_victim = ClauseQueryProp(handle, CPIsIRVictim);
+      if(is_ir_victim)
       {
          assert(ClauseQueryProp(handle, CPLimitedRW));
          ForwardModifyClause(state, control, handle,
@@ -741,6 +742,10 @@ static Clause_p insert_new_clauses(ProofState_p state, ProofControl_p control, b
 
       if(ClauseIsTrivial(handle))
       {
+         if(ProofLog && !is_ir_victim)
+         {
+            ProofLogAdd('F', handle->perm_ident, ClauseLiteralNumber(handle));
+         }
          ClauseFree(handle);
          continue;
       }
@@ -772,6 +777,10 @@ static Clause_p insert_new_clauses(ProofState_p state, ProofControl_p control, b
          }
          else
          {
+            if(ProofLog && !is_ir_victim)
+            {
+               ProofLogAdd('F', handle->perm_ident, ClauseLiteralNumber(handle));
+            }
             ClauseFree(handle);
             continue;
          }
@@ -819,6 +828,10 @@ static Clause_p insert_new_clauses(ProofState_p state, ProofControl_p control, b
       }
       //      HCBClauseEvaluate(control->hcb, handle);
 
+      if(ProofLog && !is_ir_victim)
+      {
+         ProofLogAdd('G', handle->perm_ident, ClauseLiteralNumber(handle));
+      }
       ClauseSetInsert(state->eval_store, handle);
    }
    eval_clause_set(state, control);
@@ -1683,6 +1696,7 @@ Clause_p ProcessClause(ProofState_p state, ProofControl_p control,
    check_ac_status(state, control, pclause->clause);
 
    document_processing(pclause->clause);
+   ProofLogReset();
    ProofStateClauseProcessedCall(state, pclause->clause);
    state->proc_non_trivial_count++;
 
@@ -1713,6 +1727,16 @@ Clause_p ProcessClause(ProofState_p state, ProofControl_p control,
                                        control->heuristic_parms.lambda_demod);
       eliminate_context_sr_clauses(state, control, pclause->clause,
                                    control->heuristic_parms.lambda_demod);
+      if(ProofLog)
+      {
+         Clause_p bw_scan;
+         for(bw_scan = state->tmp_store->anchor->succ;
+             bw_scan != state->tmp_store->anchor;
+             bw_scan = bw_scan->succ)
+         {
+            ProofLogAdd('B', bw_scan->perm_ident, ClauseLiteralNumber(bw_scan));
+         }
+      }
       ClauseSetSetProp(state->tmp_store, CPIsIRVictim);
    }
 
@@ -1779,9 +1803,11 @@ Clause_p ProcessClause(ProofState_p state, ProofControl_p control,
    }
    if((empty = insert_new_clauses(state, control, false)))
    {
+      ProofLogFlush(clause->perm_ident, ClauseLiteralNumber(clause), clause);
       PStackPushP(state->extract_roots, empty);
       return empty;
    }
+   ProofLogFlush(clause->perm_ident, ClauseLiteralNumber(clause), clause);
    return NULL;
 }
 

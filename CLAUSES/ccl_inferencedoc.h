@@ -144,6 +144,7 @@ extern OutputFormatType DocOutputFormat;
 extern bool             PCLFullTerms;
 extern bool             PCLStepCompact;
 extern int              PCLShellLevel;
+extern FILE            *ProofLog;
 
 char*  PCLTypeStr(FormulaProperties type);
 
@@ -217,6 +218,10 @@ void    DocClauseApplyDefs(FILE* out, long level, Clause_p clause,
 #define DocClauseApplyDefsDefault(clause, parent_id, def_ids)\
         DocClauseApplyDefs(GlobalOut, OutputLevel, (clause), \
                            (parent_id), (def_ids), NULL)
+
+void ProofLogReset(void);
+void ProofLogAdd(char kind, long perm_id, int lits);
+void ProofLogFlush(long given_perm_id, int given_lits, Clause_p given_clause);
 
 #endif
 

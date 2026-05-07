@@ -55,6 +55,7 @@ PERF_CTR_DEFINE(SatTimer);
 /*---------------------------------------------------------------------*/
 
 char              *outname = NULL;
+char              *proof_log_name = NULL;
 char              *watchlist_filename = NULL;
 char              *parse_strategy_filename = NULL;
 char              *select_strategy = NULL;
@@ -590,6 +591,15 @@ int main(int argc, char* argv[])
    state = process_options(argc, argv);
 
    OpenGlobalOut(outname);
+   if(proof_log_name)
+   {
+      ProofLog = fopen(proof_log_name, "w");
+      if(!ProofLog)
+      {
+         TmpErrno = errno;
+         SysError("Cannot open proof log file", FILE_ERROR);
+      }
+   }
 
    print_info();
 
@@ -880,6 +890,22 @@ int main(int argc, char* argv[])
       }
       deriv = DerivationCompute(proofstate->extract_roots,
                               proofstate->signature);
+
+      if(ProofLog)
+      {
+         PStackPointer sp;
+         fprintf(ProofLog, "PROOF");
+         for(sp = 0; sp < PStackGetSP(deriv->ordered_deriv); sp++)
+         {
+            Derived_p d = PStackElementP(deriv->ordered_deriv, sp);
+            if(d->clause && DerivedInProof(d))
+            {
+               fprintf(ProofLog, " %ld", d->clause->perm_ident);
+            }
+         }
+         fputc('\n', ProofLog);
+         fflush(ProofLog);
+      }
 
       if(!proofstate->status_reported)
       {
@@ -2250,6 +2276,9 @@ CLState_p process_options(int argc, char* argv[])
             break;
       case OPT_ENIGMATIC_OUTPUT_BUCKETS:
             enigmatic_buckets_out = fopen(arg, "w");
+            break;
+      case OPT_PROOF_LOG:
+            proof_log_name = arg;
             break;
       default:
             assert(false && "Unknown option");

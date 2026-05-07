@@ -1,0 +1,101 @@
+GIVEN 48 gen=0 bw=0 fw=0 lits=1: (butler!=agatha)
+GIVEN 56 gen=0 bw=0 fw=0 lits=1: (~killed(agatha,agatha))
+GIVEN 49 gen=0 bw=0 fw=0 lits=1: (lives(agatha))
+GIVEN 53 gen=0 bw=0 fw=0 lits=1: (killed(esk1_0,agatha))
+GIVEN 50 gen=0 bw=0 fw=0 lits=1: (lives(butler))
+GIVEN 51 gen=0 bw=0 fw=0 lits=1: (lives(charles))
+GIVEN 52 gen=0 bw=0 fw=0 lits=1: (lives(esk1_0))
+GIVEN 58 gen=0 bw=0 fw=0 lits=1: (~hates(X1,esk2_1(X1)))
+GIVEN 62 gen=0 bw=0 fw=0 lits=2: (~richer(X1,X2)|~killed(X1,X2))
+GIVEN 61 gen=0 bw=0 fw=0 lits=2: (~hates(agatha,X1)|~hates(charles,X1))
+GIVEN 60 gen=0 bw=0 fw=0 lits=2: (hates(X1,X2)|~killed(X1,X2))
+GIVEN 55 gen=0 bw=0 fw=0 lits=2: (X1=butler|hates(agatha,X1))
+GIVEN 59 gen=0 bw=0 fw=0 lits=2: (hates(butler,X1)|~hates(agatha,X1))
+GIVEN 57 gen=0 bw=0 fw=0 lits=2: (richer(X1,agatha)|hates(butler,X1))
+GIVEN 54 gen=0 bw=0 fw=0 lits=4: (X1=charles|X1=butler|X1=agatha|~lives(X1))
+GIVEN 87 gen=0 bw=0 fw=0 lits=1: (~killed(agatha,agatha))
+GIVEN 81 gen=0 bw=0 fw=0 lits=1: (lives(agatha))
+GIVEN 82 gen=0 bw=0 fw=0 lits=1: (killed(esk1_0,agatha))
+GIVEN 86 gen=0 bw=0 fw=0 lits=1: (butler!=agatha)
+GIVEN 88 gen=0 bw=0 fw=0 lits=1: (~hates(X1,esk2_1(X1)))
+GIVEN 89 gen=0 bw=0 fw=0 lits=2: (~richer(X1,X2)|~killed(X1,X2))
+GIVEN 83 gen=0 bw=0 fw=0 lits=1: (lives(butler))
+GIVEN 84 gen=0 bw=0 fw=0 lits=1: (lives(charles))
+GIVEN 85 gen=0 bw=0 fw=0 lits=1: (lives(esk1_0))
+GIVEN 90 gen=0 bw=0 fw=0 lits=2: (~hates(agatha,X1)|~hates(charles,X1))
+GIVEN 91 gen=1 bw=0 fw=0 lits=2: (hates(X1,X2)|~killed(X1,X2))
+  + GEN 108 lits=1
+GIVEN 108 gen=0 bw=0 fw=0 lits=1: (hates(esk1_0,agatha))
+GIVEN 92 gen=1 bw=0 fw=0 lits=2: (X1=butler|hates(agatha,X1))
+  + GEN 111 lits=1
+GIVEN 111 gen=1 bw=0 fw=0 lits=1: (esk2_1(agatha)=butler)
+  + GEN 113 lits=1
+GIVEN 113 gen=0 bw=0 fw=0 lits=1: (~hates(agatha,butler))
+GIVEN 93 gen=1 bw=0 fw=0 lits=2: (hates(butler,X1)|~hates(agatha,X1))
+  + GEN 117 lits=1
+GIVEN 117 gen=1 bw=0 fw=0 lits=1: (~hates(agatha,esk2_1(butler)))
+  + GEN 119 lits=1
+GIVEN 119 gen=1 bw=1 fw=0 lits=1: (esk2_1(butler)=butler)
+  - BW  120
+  + GEN 122 lits=1
+GIVEN 122 gen=1 bw=0 fw=0 lits=1: (~hates(butler,butler))
+  + GEN 124 lits=1
+GIVEN 94 gen=1 bw=0 fw=0 lits=2: (richer(X1,agatha)|hates(butler,X1))
+  + GEN 126 lits=2
+GIVEN 126 gen=1 bw=0 fw=0 lits=2: (hates(butler,X1)|~killed(X1,agatha))
+  + GEN 129 lits=1
+GIVEN 95 gen=1 bw=0 fw=0 lits=4: (X1=agatha|X1=butler|X1=charles|~lives(X1))
+  + GEN 132 lits=3
+GIVEN 129 gen=0 bw=0 fw=0 lits=1: (hates(butler,esk1_0))
+GIVEN 132 gen=5 bw=0 fw=1 lits=3: (esk1_0=charles|esk1_0=butler|esk1_0=agatha)
+  + GEN 135 lits=3
+  + GEN 136 lits=3
+  + GEN 137 lits=3
+  ! FW  138 lits=3
+  + GEN 139 lits=3
+  + GEN 140 lits=3
+GIVEN 140 gen=0 bw=0 fw=0 lits=3: (esk1_0=agatha|esk1_0=butler|hates(butler,charles))
+GIVEN 135 gen=4 bw=0 fw=1 lits=3: (esk1_0=agatha|esk1_0=butler|charles!=butler)
+  + GEN 144 lits=3
+  + GEN 145 lits=3
+  ! FW  146 lits=3
+  + GEN 147 lits=3
+  + GEN 148 lits=2
+GIVEN 148 gen=3 bw=0 fw=1 lits=2: (esk1_0=agatha|charles!=butler)
+  + GEN 151 lits=1
+  ! FW  152 lits=2
+  + GEN 153 lits=2
+  + GEN 154 lits=2
+GIVEN 151 gen=0 bw=0 fw=0 lits=1: (charles!=butler)
+GIVEN 136 gen=4 bw=0 fw=1 lits=3: (esk1_0=agatha|esk1_0=butler|charles!=agatha)
+  + GEN 158 lits=3
+  + GEN 159 lits=3
+  ! FW  160 lits=3
+  + GEN 161 lits=3
+  + GEN 162 lits=2
+GIVEN 162 gen=3 bw=0 fw=1 lits=2: (esk1_0=agatha|charles!=agatha)
+  + GEN 165 lits=1
+  ! FW  166 lits=2
+  + GEN 167 lits=2
+  + GEN 168 lits=2
+GIVEN 165 gen=0 bw=0 fw=0 lits=1: (charles!=agatha)
+GIVEN 137 gen=2 bw=0 fw=0 lits=3: (esk1_0=agatha|esk1_0=butler|killed(charles,agatha))
+  + GEN 171 lits=3
+  + GEN 172 lits=3
+GIVEN 139 gen=1 bw=0 fw=0 lits=3: (esk1_0=agatha|esk1_0=butler|hates(charles,agatha))
+  + GEN 174 lits=3
+GIVEN 174 gen=1 bw=0 fw=0 lits=3: (esk1_0=butler|esk1_0=agatha|~hates(agatha,agatha))
+  + GEN 177 lits=2
+GIVEN 177 gen=4 bw=0 fw=1 lits=2: (esk1_0=agatha|esk1_0=butler)
+  + GEN 179 lits=2
+  + GEN 180 lits=2
+  ! FW  181 lits=2
+  + GEN 182 lits=2
+  + GEN 183 lits=1
+GIVEN 183 gen=0 bw=5 fw=0 lits=1: (esk1_0=agatha)
+  - BW  184
+  - BW  185
+  - BW  186
+  - BW  187
+  - BW  188
+PROOF 188 43 183 122 177 129 119 42 174 126 38 117 139 37 39 36 40 41 132 108 30 34 29 35

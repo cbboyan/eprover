@@ -247,6 +247,7 @@ typedef enum
    OPT_ENIGMATIC_GEN_THRESHOLD,
    OPT_ENIGMATIC_OUTPUT_MAP,
    OPT_ENIGMATIC_OUTPUT_BUCKETS,
+   OPT_PROOF_LOG,
    OPT_DUMMY
 }OptionCodes;
 
@@ -1811,6 +1812,15 @@ OptCell opts[] =
     '\0', "enigmatic-output-buckets",
     ReqArg, NULL,
     "Write Enigmatic feature hashes (buckets info) into the named file."},
+
+   {OPT_PROOF_LOG,
+    '\0', "proof-log",
+    ReqArg, NULL,
+    "Write a saturation trace to the given file (overwritten each run). Each processed (given) "
+    "clause produces one block recording the clauses generated from it, "
+    "backward-deleted clauses, and forward-deleted generated clauses. "
+    "IDs are stable perm_idents. On success, a PROOF line lists the "
+    "perm_idents of all proof-relevant clauses."},
 
    {OPT_NOOPT,
     '\0', NULL,

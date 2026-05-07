@@ -1,0 +1,73 @@
+GIVEN 65 gen=0 bw=0 fw=0 lits=1: ((is_a @ zoey @ islander))
+GIVEN 66 gen=0 bw=0 fw=0 lits=1: ((is_a @ mel @ islander))
+GIVEN 68 gen=0 bw=0 fw=0 lits=2: ((says @ zoey @ $true)|~(is_a @ mel @ knave))
+GIVEN 71 gen=0 bw=0 fw=0 lits=3: ((is_a @ mel @ knave)|(is_a @ zoey @ knave)|(says @ mel @ $true))
+GIVEN 72 gen=0 bw=0 fw=0 lits=2: (~(says @ X1 @ $true)|~(is_a @ X1 @ knave))
+GIVEN 69 gen=0 bw=0 fw=0 lits=2: ((says @ mel @ $false)|~(is_a @ zoey @ knave))
+GIVEN 70 gen=0 bw=0 fw=0 lits=2: ((says @ mel @ $false)|~(is_a @ mel @ knave))
+GIVEN 67 gen=0 bw=0 fw=0 lits=2: ((is_a @ mel @ knave)|(says @ zoey @ $false))
+GIVEN 73 gen=0 bw=0 fw=0 lits=2: (~(says @ X1 @ $false)|~(is_a @ X1 @ knight))
+GIVEN 74 gen=0 bw=0 fw=0 lits=3: ((is_a @ X1 @ knave)|(is_a @ X1 @ knight)|~(is_a @ X1 @ islander))
+GIVEN 75 gen=0 bw=0 fw=0 lits=3: ((knight=knave)|~(is_a @ zoey @ knave)|~(is_a @ mel @ knave))
+GIVEN 76 gen=0 bw=0 fw=0 lits=3: ((knight=knave)|~(is_a @ zoey @ knight)|~(is_a @ mel @ knave))
+GIVEN 77 gen=0 bw=0 fw=0 lits=3: ((knight=knave)|~(is_a @ zoey @ knave)|~(is_a @ mel @ knight))
+GIVEN 78 gen=0 bw=0 fw=0 lits=3: ((knight=knave)|~(is_a @ zoey @ knight)|~(is_a @ mel @ knight))
+GIVEN 121 gen=0 bw=0 fw=0 lits=1: ((is_a @ zoey @ islander))
+GIVEN 122 gen=0 bw=0 fw=0 lits=1: ((is_a @ mel @ islander))
+GIVEN 123 gen=0 bw=0 fw=0 lits=2: ((says @ zoey @ $true)|~(is_a @ mel @ knave))
+GIVEN 131 gen=0 bw=0 fw=0 lits=3: ((knight=knave)|~(is_a @ zoey @ knave)|~(is_a @ mel @ knave))
+GIVEN 125 gen=1 bw=0 fw=0 lits=2: (~(says @ X1 @ $true)|~(is_a @ X1 @ knave))
+  + GEN 142 lits=2
+GIVEN 129 gen=0 bw=0 fw=0 lits=2: (~(says @ X1 @ $false)|~(is_a @ X1 @ knight))
+GIVEN 142 gen=0 bw=0 fw=0 lits=2: (~(is_a @ zoey @ knave)|~(is_a @ mel @ knave))
+GIVEN 132 gen=0 bw=0 fw=0 lits=3: ((knight=knave)|~(is_a @ zoey @ knight)|~(is_a @ mel @ knave))
+GIVEN 124 gen=0 bw=0 fw=1 lits=3: ((says @ mel @ $true)|(is_a @ zoey @ knave)|(is_a @ mel @ knave))
+  ! FW  148 lits=3
+GIVEN 126 gen=1 bw=0 fw=0 lits=2: ((says @ mel @ $false)|~(is_a @ zoey @ knave))
+  + GEN 151 lits=2
+GIVEN 127 gen=1 bw=0 fw=0 lits=2: ((says @ mel @ $false)|~(is_a @ mel @ knave))
+  + GEN 154 lits=2
+GIVEN 128 gen=1 bw=0 fw=0 lits=2: ((says @ zoey @ $false)|(is_a @ mel @ knave))
+  + GEN 156 lits=2
+GIVEN 130 gen=2 bw=0 fw=0 lits=3: ((is_a @ X1 @ knight)|(is_a @ X1 @ knave)|~(is_a @ X1 @ islander))
+  + GEN 159 lits=2
+  + GEN 160 lits=2
+GIVEN 151 gen=0 bw=0 fw=0 lits=2: (~(is_a @ mel @ knight)|~(is_a @ zoey @ knave))
+GIVEN 156 gen=0 bw=0 fw=0 lits=2: ((is_a @ mel @ knave)|~(is_a @ zoey @ knight))
+GIVEN 154 gen=0 bw=0 fw=0 lits=2: (~(is_a @ mel @ knight)|~(is_a @ mel @ knave))
+GIVEN 134 gen=0 bw=0 fw=0 lits=3: ((knight=knave)|~(is_a @ zoey @ knight)|~(is_a @ mel @ knight))
+GIVEN 159 gen=0 bw=0 fw=1 lits=2: ((is_a @ mel @ knave)|(is_a @ mel @ knight))
+  ! FW  169 lits=2
+GIVEN 160 gen=3 bw=0 fw=0 lits=2: ((is_a @ zoey @ knave)|(is_a @ zoey @ knight))
+  + GEN 171 lits=3
+  + GEN 172 lits=3
+  + GEN 173 lits=2
+GIVEN 173 gen=1 bw=0 fw=1 lits=2: ((is_a @ zoey @ knave)|(is_a @ mel @ knave))
+  + GEN 175 lits=2
+  ! FW  176 lits=2
+GIVEN 175 gen=0 bw=9 fw=0 lits=1: ((is_a @ mel @ knave))
+  - BW  178
+  - BW  179
+  - BW  180
+  - BW  181
+  - BW  182
+  - BW  183
+  - BW  184
+  - BW  185
+  - BW  186
+GIVEN 186 gen=1 bw=0 fw=0 lits=1: ((says @ zoey @ $true))
+  + GEN 189 lits=1
+GIVEN 185 gen=1 bw=0 fw=0 lits=1: ((says @ mel @ $false))
+  + GEN 191 lits=1
+GIVEN 181 gen=0 bw=0 fw=0 lits=1: (~(is_a @ mel @ knight))
+GIVEN 182 gen=0 bw=1 fw=0 lits=1: (~(is_a @ zoey @ knave))
+  - BW  193
+GIVEN 183 gen=0 bw=0 fw=0 lits=2: ((knight=knave)|~(is_a @ zoey @ knight))
+GIVEN 193 gen=0 bw=1 fw=0 lits=1: ((is_a @ zoey @ knight))
+  - BW  197
+GIVEN 197 gen=0 bw=4 fw=0 lits=1: ((knight=knave))
+  - BW  199
+  - BW  200
+  - BW  201
+  - BW  202
+PROOF 199 197 193 183 182 76 175 142 53 159 173 151 48 44 45 160 156 50 46 42 47 43

@@ -34,6 +34,12 @@ OutputFormatType DocOutputFormat   = no_format;
 bool             PCLFullTerms   = true;
 bool             PCLStepCompact = false;
 int              PCLShellLevel = 0;
+FILE            *ProofLog       = NULL;
+
+typedef struct { char kind; long perm_id; int lits; } PLEntry;
+static PLEntry  *pl_buf     = NULL;
+static int       pl_buf_len = 0;
+static int       pl_buf_cap = 0;
 
 /*---------------------------------------------------------------------*/
 /*                      Forward Declarations                           */
@@ -1877,6 +1883,91 @@ void DocClauseApplyDefs(FILE* out, long level, Clause_p clause,
 
 
 
+
+
+/*-----------------------------------------------------------------------
+//
+// Function: ProofLogReset()
+//
+//   Clear the per-given-step buffer.
+//
+/----------------------------------------------------------------------*/
+
+void ProofLogReset(void)
+{
+   pl_buf_len = 0;
+}
+
+
+/*-----------------------------------------------------------------------
+//
+// Function: ProofLogAdd()
+//
+//   Append one entry to the buffer for the current given step.
+//   kind: 'G'=generated, 'F'=forward-deleted, 'B'=backward-deleted.
+//
+/----------------------------------------------------------------------*/
+
+void ProofLogAdd(char kind, long perm_id, int lits)
+{
+   if(!ProofLog)
+   {
+      return;
+   }
+   if(pl_buf_len >= pl_buf_cap)
+   {
+      pl_buf_cap = pl_buf_cap ? pl_buf_cap * 2 : 64;
+      pl_buf = SecureRealloc(pl_buf, (size_t)pl_buf_cap * sizeof(PLEntry));
+   }
+   pl_buf[pl_buf_len].kind    = kind;
+   pl_buf[pl_buf_len].perm_id = perm_id;
+   pl_buf[pl_buf_len].lits    = lits;
+   pl_buf_len++;
+}
+
+
+/*-----------------------------------------------------------------------
+//
+// Function: ProofLogFlush()
+//
+//   Write the buffered GIVEN block to ProofLog.
+//
+/----------------------------------------------------------------------*/
+
+void ProofLogFlush(long given_perm_id, int given_lits, Clause_p given_clause)
+{
+   if(!ProofLog)
+   {
+      return;
+   }
+   int gen = 0, bw = 0, fw = 0;
+   for(int i = 0; i < pl_buf_len; i++)
+   {
+      switch(pl_buf[i].kind)
+      {
+      case 'G': gen++; break;
+      case 'F': fw++;  break;
+      default:  bw++;  break;
+      }
+   }
+   fprintf(ProofLog, "GIVEN %ld gen=%d bw=%d fw=%d lits=%d: ",
+           given_perm_id, gen, bw, fw, given_lits);
+   fputc('(', ProofLog);
+   EqnListPrint(ProofLog, given_clause->literals, "|", false, true);
+   fputc(')', ProofLog);
+   fputc('\n', ProofLog);
+   for(int i = 0; i < pl_buf_len; i++)
+   {
+      PLEntry *e = &pl_buf[i];
+      switch(e->kind)
+      {
+      case 'G': fprintf(ProofLog, "  + GEN %ld lits=%d\n", e->perm_id, e->lits); break;
+      case 'F': fprintf(ProofLog, "  ! FW  %ld lits=%d\n", e->perm_id, e->lits); break;
+      default:  fprintf(ProofLog, "  - BW  %ld\n",         e->perm_id);           break;
+      }
+   }
+   fflush(ProofLog);
+}
 
 
 /*---------------------------------------------------------------------*/
