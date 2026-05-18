@@ -412,7 +412,12 @@ char* tstp_get_clauseform_id(DerivationCode op, int select,
          if(DCOpHasCnfArg1(op))
          {
             clause = clauseform;
-            sprintf(result, "c_0_%ld", clause->ident);
+#ifdef CLAUSE_PERM_IDENT
+            if(clause->given_ident >= 0)
+               sprintf(result, "i_0_%ld", clause->given_ident);
+            else
+#endif
+               sprintf(result, "c_0_%ld", clause->ident);
          }
          else if(DCOpHasFofArg1(op))
          {
@@ -428,7 +433,12 @@ char* tstp_get_clauseform_id(DerivationCode op, int select,
          if(DCOpHasCnfArg2(op))
          {
             clause = clauseform;
-            sprintf(result, "c_0_%ld", clause->ident);
+#ifdef CLAUSE_PERM_IDENT
+            if(clause->given_ident >= 0)
+               sprintf(result, "i_0_%ld", clause->given_ident);
+            else
+#endif
+               sprintf(result, "c_0_%ld", clause->ident);
          }
          else if(DCOpHasFofArg2(op))
          {
@@ -2265,19 +2275,34 @@ void DerivationRenumber(Derivation_p derivation)
    assert(derivation->ordered);
 
    idents = derivation_find_max_id(derivation)+1;
+#ifdef CLAUSE_PERM_IDENT
+   /* If any CNF clauses carry given_ident (from proof-log), their ids
+      must not collide with the fresh FOF counter we're about to assign.
+      Find the max given_ident and start above it. */
+   for(sp=PStackGetSP(derivation->ordered_deriv)-1; sp>=0; sp--)
+   {
+      node = PStackElementP(derivation->ordered_deriv, sp);
+      if(node->clause && node->clause->given_ident >= idents)
+      {
+         idents = node->clause->given_ident + 1;
+      }
+   }
+#endif
    for(sp=PStackGetSP(derivation->ordered_deriv)-1; sp>=0; sp--)
    {
       node = PStackElementP(derivation->ordered_deriv, sp);
       if(node->clause)
       {
+#ifdef CLAUSE_PERM_IDENT
+         if(node->clause->given_ident >= 0)
+            continue; /* keep given_ident; ClauseTSTPPrint will use it */
+#endif
          node->clause->ident = idents++;
       }
       else
       {
          assert(node->formula);
-         //printf("Renumbering step %ld",  node->formula->ident);
          node->formula->ident = idents++;
-         //printf(" to %ld\n",  node->formula->ident);
       }
    }
 }

@@ -140,6 +140,9 @@ typedef struct clause_cell
 #ifdef CLAUSE_PERM_IDENT
    long                  perm_ident;  /* Running number, given on
                                          alloc, never modified */
+   long                  given_ident; /* ident at the time this clause
+                                         was selected as given in the
+                                         proof log; -1 if never given */
 #endif
    SysDate               date;        /* ...at which this clause
                                          became a demodulator */

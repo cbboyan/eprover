@@ -238,6 +238,7 @@ Clause_p ClauseCellAlloc(void)
 
 #ifdef CLAUSE_PERM_IDENT
    handle->perm_ident = clause_perm_ident_counter++;
+   handle->given_ident = -1;
 #endif
 
 
@@ -1512,19 +1513,20 @@ void ClauseTSTPPrint(FILE* out, Clause_p clause, bool fullterms, bool complete)
          break;
    }
    source = ClauseQueryCSSCPASource(clause);
+#ifdef CLAUSE_PERM_IDENT
+   if(clause->given_ident >= 0)
+   {
+      fprintf(out, "%s(i_%d_%ld, ", kind, source, clause->given_ident);
+   }
+   else
+#endif
    if(clause->ident >= 0)
    {
-      fprintf(out, "%s(c_%d_%ld, ",
-              kind,
-              source,
-              clause->ident);
+      fprintf(out, "%s(c_%d_%ld, ", kind, source, clause->ident);
    }
    else
    {
-      fprintf(out, "%s(i_%d_%ld, ",
-              kind,
-              source,
-              clause->ident-LONG_MIN);
+      fprintf(out, "%s(i_%d_%ld, ", kind, source, clause->ident-LONG_MIN);
    }
    fprintf(out, "%s, ", typename);
 

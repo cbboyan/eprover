@@ -2091,6 +2091,7 @@ void ProofLogFlush(long given_perm_id, int given_lits, Clause_p given_clause)
       }
    }
    given_clause->ident = ++ClauseIdentCounter;
+   given_clause->given_ident = given_clause->ident;
    fprintf(ProofLog, "GIVEN %ld i_0_%ld gen=%d bw=%d fw=%d lits=%d: ",
            given_perm_id, given_clause->ident, gen, bw, fw, given_lits);
    fputc('(', ProofLog);
