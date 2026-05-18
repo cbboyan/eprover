@@ -1,21 +1,13 @@
 #!/usr/bin/env python3
 """
-Analyze E Prover proof logs produced by --proof-log.
+Analyze E Prover proof traces produced by --proof-log.
 
-Input format:
-  INIT axiom <name>
-    + CNF <id> lits=<n>: (<formula>)
-  COPY <orig>: <copy>
-  GIVEN <id> [<clause_id>] gen=<n> bw=<n> fw=<n> lits=<n>: (<formula>)
-    + GEN <id> lits=<n>
-    - BW  <id>
-    ! FW  <id> lits=<n>
-  PROOF <id1> <id2> ...        (absent for failed/incomplete searches)
+Uses prooftrace.py for parsing. See that module for trace format details.
 
 Output CSV columns:
   perm_id          stable clause identifier
   lits             literal count of the given clause
-  direct_gen       clauses generated directly from this given
+  direct_gen       clauses generated directly from this given (GEN + FW)
   bw               backward-simplified clauses produced by this step
   fw               forward-deleted generated clauses (killed before unprocessed)
   net              clauses that entered unprocessed (direct_gen - fw)
@@ -29,129 +21,9 @@ Usage:
 """
 
 import sys
-import re
 import csv
 import argparse
-from dataclasses import dataclass, field
-
-
-@dataclass
-class GivenStep:
-    perm_id: int
-    lits: int
-    gen_ids: list = field(default_factory=list)
-    bw_ids: list = field(default_factory=list)
-    fw_ids: list = field(default_factory=list)
-
-
-RE_GIVEN = re.compile(r'^GIVEN (\d+)(?:\s+\S+)? gen=\d+ bw=\d+ fw=\d+ lits=(\d+):')
-RE_GEN   = re.compile(r'^\s+\+ GEN (\d+)')
-RE_BW    = re.compile(r'^\s+- BW\s+(\d+)')
-RE_FW    = re.compile(r'^\s+! FW\s+(\d+)')
-RE_COPY  = re.compile(r'^COPY (\d+): (\d+)')
-RE_PROOF = re.compile(r'^PROOF(.*)')
-
-
-def parse_log(lines):
-    """Parse a proof log into (given_steps, copy_map, proof_ids).
-
-    copy_map maps original CNF perm_id -> copy perm_id (from COPY lines).
-    """
-    given_steps = {}
-    copy_map = {}
-    current = None
-
-    for raw in lines:
-        line = raw.rstrip('\n')
-
-        m = RE_GIVEN.match(line)
-        if m:
-            current = GivenStep(perm_id=int(m.group(1)), lits=int(m.group(2)))
-            given_steps[current.perm_id] = current
-            continue
-
-        if current:
-            m = RE_GEN.match(line)
-            if m:
-                current.gen_ids.append(int(m.group(1)))
-                continue
-            m = RE_BW.match(line)
-            if m:
-                current.bw_ids.append(int(m.group(1)))
-                continue
-            m = RE_FW.match(line)
-            if m:
-                current.fw_ids.append(int(m.group(1)))
-                continue
-
-        m = RE_COPY.match(line)
-        if m:
-            copy_map[int(m.group(1))] = int(m.group(2))
-            continue
-
-        m = RE_PROOF.match(line)
-        if m:
-            proof_ids = {int(x) for x in m.group(1).split()}
-            return given_steps, copy_map, proof_ids
-
-    return given_steps, copy_map, set()  # failed/incomplete search
-
-
-def proof_relevant_givens(given_steps, copy_map, proof_ids):
-    """
-    Return the set of perm_ids of GIVENs that contributed to the proof,
-    either directly (perm_id in proof_ids) or as an ancestor
-    (generated a clause that is transitively proof-relevant).
-
-    PROOF ids may reference original CNF perm_ids that were COPYed to a
-    different perm_id before being processed; copy_map resolves these.
-    """
-    generated_by = {}
-    for pid, step in given_steps.items():
-        for gid in step.gen_ids:
-            generated_by[gid] = pid
-
-    # Seed with both direct proof ids and their copies
-    seed = set(proof_ids)
-    for orig, copy in copy_map.items():
-        if orig in proof_ids:
-            seed.add(copy)
-
-    relevant = set()
-    queue = list(seed)
-    while queue:
-        gid = queue.pop()
-        if gid in relevant:
-            continue
-        relevant.add(gid)
-        parent = generated_by.get(gid)
-        if parent is not None and parent not in relevant:
-            queue.append(parent)
-
-    return relevant & given_steps.keys()
-
-
-def blast_radius(root_id, given_steps, cache=None):
-    """
-    Transitive count of all clauses spawned from root_id:
-    counts direct GEN/BW/FW, plus recursively all clauses spawned by each GEN
-    that itself became a GIVEN.
-    """
-    if cache is None:
-        cache = {}
-    if root_id in cache:
-        return cache[root_id]
-
-    step = given_steps.get(root_id)
-    if step is None:
-        return 0
-
-    cache[root_id] = 0  # guard against cycles
-    total = len(step.gen_ids) + len(step.bw_ids) + len(step.fw_ids)
-    for gid in step.gen_ids:
-        total += blast_radius(gid, given_steps, cache)
-    cache[root_id] = total
-    return total
+import prooftrace
 
 
 FIELDS = ['perm_id', 'lits', 'direct_gen', 'bw', 'fw', 'net',
@@ -162,21 +34,21 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument('logfile', nargs='?', default='-',
-                        help='proof log file (default: stdin)')
+                        help='proof trace file (default: stdin)')
     parser.add_argument('-o', '--output', default='-',
                         help='output CSV file (default: stdout)')
     args = parser.parse_args()
 
-    infile  = sys.stdin  if args.logfile == '-' else open(args.logfile)
-    outfile = sys.stdout if args.output  == '-' else open(args.output, 'w', newline='')
+    infile  = prooftrace.open_trace(args.logfile)
+    outfile = sys.stdout if args.output == '-' else open(args.output, 'w', newline='')
 
-    given_steps, copy_map, proof_ids = parse_log(infile)
-    relevant = proof_relevant_givens(given_steps, copy_map, proof_ids)
-    cache = {}
+    data     = prooftrace.parse_trace(infile)
+    relevant = prooftrace.proof_relevant_givens(data)
+    cache    = {}
 
     writer = csv.DictWriter(outfile, fieldnames=FIELDS, delimiter='\t', lineterminator='\n')
     writer.writeheader()
-    for pid, step in given_steps.items():
+    for pid, step in data.given_steps.items():
         fw   = len(step.fw_ids)
         dgen = len(step.gen_ids) + fw
         bw   = len(step.bw_ids)
@@ -187,7 +59,7 @@ def main():
             'bw':                bw,
             'fw':                fw,
             'net':               dgen - fw,
-            'blast_radius':      blast_radius(pid, given_steps, cache),
+            'blast_radius':      prooftrace.blast_radius(pid, data, cache),
             'is_proof_relevant': 1 if pid in relevant else 0,
         })
 
