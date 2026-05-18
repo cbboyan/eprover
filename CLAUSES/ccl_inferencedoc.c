@@ -22,6 +22,8 @@ Changes
 -----------------------------------------------------------------------*/
 
 #include "ccl_inferencedoc.h"
+#include <ccl_derivation.h>
+#include <ccl_clausesets.h>
 
 
 
@@ -35,8 +37,9 @@ bool             PCLFullTerms   = true;
 bool             PCLStepCompact = false;
 int              PCLShellLevel = 0;
 FILE            *ProofLog       = NULL;
+bool             ProofLogDebug  = false;
 
-typedef struct { char kind; long perm_id; int lits; } PLEntry;
+typedef struct { char kind; long perm_id; int lits; char *formula; } PLEntry;
 static PLEntry  *pl_buf     = NULL;
 static int       pl_buf_len = 0;
 static int       pl_buf_cap = 0;
@@ -1887,6 +1890,124 @@ void DocClauseApplyDefs(FILE* out, long level, Clause_p clause,
 
 /*-----------------------------------------------------------------------
 //
+// Function: ProofLogAxioms()
+//
+//   Emit INIT/CNF blocks for all axiom clauses, grouped by their
+//   source FOF formula.
+//
+/----------------------------------------------------------------------*/
+
+typedef struct { long form_id; const char *name; const char *role; long arch_perm_id; long perm_id; int lits; char *formula; } PLInitEntry;
+
+static int pl_init_cmp(const void *a, const void *b)
+{
+   long da = ((const PLInitEntry*)a)->form_id;
+   long db = ((const PLInitEntry*)b)->form_id;
+   return (da > db) - (da < db);
+}
+
+void ProofLogAxioms(ClauseSet_p unprocessed)
+{
+   if(!ProofLog)
+   {
+      return;
+   }
+   long cap = unprocessed->members;
+   PLInitEntry *entries = SecureMalloc(cap * sizeof(PLInitEntry));
+   long n = 0;
+
+   for(Clause_p clause = unprocessed->anchor->succ;
+       clause != unprocessed->anchor;
+       clause = clause->succ)
+   {
+      if(!clause->derivation || PStackGetSP(clause->derivation) < 2) continue;
+      if(PStackElementInt(clause->derivation, 0) != DCCnfQuote)      continue;
+
+      Clause_p orig = ClauseDerivFindFirst(PStackElementP(clause->derivation, 1));
+      if(!orig->derivation || PStackGetSP(orig->derivation) < 2)     continue;
+      if(!DCOpHasFofArg1(PStackElementInt(orig->derivation, 0)))      continue;
+
+      WFormula_p form = PStackElementP(orig->derivation, 1);
+      while(form->derivation && PStackGetSP(form->derivation) >= 2 &&
+            PStackElementInt(form->derivation, 0) == DCFofQuote)
+      {
+         form = PStackElementP(form->derivation, 1);
+      }
+
+      char *formula = NULL;
+      if(ProofLogDebug)
+      {
+         size_t sz = 0;
+         FILE *f = open_memstream(&formula, &sz);
+         fputc('(', f);
+         EqnListPrint(f, clause->literals, "|", false, true);
+         fputc(')', f);
+         fclose(f);
+      }
+      entries[n].form_id      = form->ident;
+      entries[n].name         = (form->info && form->info->name)
+                                ? form->info->name : WFormulaGetId(form);
+      switch(FormulaQueryType(form))
+      {
+      case CPTypeConjecture:    entries[n].role = "conjecture"; break;
+      case CPTypeNegConjecture: entries[n].role = "negated_conjecture"; break;
+      case CPTypeHypothesis:    entries[n].role = "hypothesis"; break;
+      case CPTypeLemma:         entries[n].role = "lemma"; break;
+      default:                  entries[n].role = "axiom"; break;
+      }
+      entries[n].arch_perm_id = orig->perm_ident;
+      entries[n].perm_id      = clause->perm_ident;
+      entries[n].lits         = ClauseLiteralNumber(clause);
+      entries[n].formula      = formula;
+      n++;
+   }
+
+   qsort(entries, n, sizeof(PLInitEntry), pl_init_cmp);
+
+   long i = 0;
+   while(i < n)
+   {
+      long j = i;
+      long cur_form_id = entries[i].form_id;
+      fprintf(ProofLog, "INIT %s %s\n", entries[i].role, entries[i].name);
+      while(j < n && entries[j].form_id == cur_form_id)
+      {
+         fprintf(ProofLog, "  + CNF %ld lits=%d", entries[j].arch_perm_id, entries[j].lits);
+         if(entries[j].formula) fprintf(ProofLog, ": %s", entries[j].formula);
+         fputc('\n', ProofLog);
+         j++;
+      }
+      j = i;
+      while(j < n && entries[j].form_id == cur_form_id)
+      {
+         fprintf(ProofLog, "COPY %ld: %ld\n", entries[j].arch_perm_id, entries[j].perm_id);
+         FREE(entries[j].formula);
+         j++;
+      }
+      i = j;
+   }
+   FREE(entries);
+   fflush(ProofLog);
+}
+
+
+/*-----------------------------------------------------------------------
+//
+// Function: ProofLogCopy()
+//
+//   Emit a COPY entry recording that new_perm_id is a copy of old_perm_id
+//   (e.g. after presaturation interreduction reset).
+//
+/----------------------------------------------------------------------*/
+
+void ProofLogCopy(long old_perm_id, long new_perm_id)
+{
+   if(!ProofLog) return;
+   fprintf(ProofLog, "COPY %ld: %ld\n", old_perm_id, new_perm_id);
+}
+
+/*-----------------------------------------------------------------------
+//
 // Function: ProofLogReset()
 //
 //   Clear the per-given-step buffer.
@@ -1895,6 +2016,10 @@ void DocClauseApplyDefs(FILE* out, long level, Clause_p clause,
 
 void ProofLogReset(void)
 {
+   for(int i = 0; i < pl_buf_len; i++)
+   {
+      FREE(pl_buf[i].formula);
+   }
    pl_buf_len = 0;
 }
 
@@ -1908,7 +2033,7 @@ void ProofLogReset(void)
 //
 /----------------------------------------------------------------------*/
 
-void ProofLogAdd(char kind, long perm_id, int lits)
+void ProofLogAdd(char kind, long perm_id, int lits, Clause_p clause)
 {
    if(!ProofLog)
    {
@@ -1922,6 +2047,21 @@ void ProofLogAdd(char kind, long perm_id, int lits)
    pl_buf[pl_buf_len].kind    = kind;
    pl_buf[pl_buf_len].perm_id = perm_id;
    pl_buf[pl_buf_len].lits    = lits;
+   if(ProofLogDebug)
+   {
+      char *buf = NULL;
+      size_t sz = 0;
+      FILE *f = open_memstream(&buf, &sz);
+      fputc('(', f);
+      EqnListPrint(f, clause->literals, "|", false, true);
+      fputc(')', f);
+      fclose(f);
+      pl_buf[pl_buf_len].formula = buf;
+   }
+   else
+   {
+      pl_buf[pl_buf_len].formula = NULL;
+   }
    pl_buf_len++;
 }
 
@@ -1950,8 +2090,9 @@ void ProofLogFlush(long given_perm_id, int given_lits, Clause_p given_clause)
       default:  bw++;  break;
       }
    }
-   fprintf(ProofLog, "GIVEN %ld gen=%d bw=%d fw=%d lits=%d: ",
-           given_perm_id, gen, bw, fw, given_lits);
+   given_clause->ident = ++ClauseIdentCounter;
+   fprintf(ProofLog, "GIVEN %ld i_0_%ld gen=%d bw=%d fw=%d lits=%d: ",
+           given_perm_id, given_clause->ident, gen, bw, fw, given_lits);
    fputc('(', ProofLog);
    EqnListPrint(ProofLog, given_clause->literals, "|", false, true);
    fputc(')', ProofLog);
@@ -1961,9 +2102,15 @@ void ProofLogFlush(long given_perm_id, int given_lits, Clause_p given_clause)
       PLEntry *e = &pl_buf[i];
       switch(e->kind)
       {
-      case 'G': fprintf(ProofLog, "  + GEN %ld lits=%d\n", e->perm_id, e->lits); break;
-      case 'F': fprintf(ProofLog, "  ! FW  %ld lits=%d\n", e->perm_id, e->lits); break;
-      default:  fprintf(ProofLog, "  - BW  %ld\n",         e->perm_id);           break;
+      case 'G': fprintf(ProofLog, "  + GEN %ld lits=%d", e->perm_id, e->lits);
+                if(e->formula) fprintf(ProofLog, ": %s", e->formula);
+                fputc('\n', ProofLog); break;
+      case 'F': fprintf(ProofLog, "  ! FW  %ld lits=%d", e->perm_id, e->lits);
+                if(e->formula) fprintf(ProofLog, ": %s", e->formula);
+                fputc('\n', ProofLog); break;
+      default:  fprintf(ProofLog, "  - BW  %ld lits=%d", e->perm_id, e->lits);
+                if(e->formula) fprintf(ProofLog, ": %s", e->formula);
+                fputc('\n', ProofLog); break;
       }
    }
    fflush(ProofLog);

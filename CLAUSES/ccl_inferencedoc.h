@@ -28,6 +28,8 @@ Changes
 #include <ccl_clausepos.h>
 #include <ccl_formula_wrapper.h>
 
+typedef struct clausesetcell *ClauseSet_p;
+
 /*---------------------------------------------------------------------*/
 /*                    Data type declarations                           */
 /*---------------------------------------------------------------------*/
@@ -145,6 +147,7 @@ extern bool             PCLFullTerms;
 extern bool             PCLStepCompact;
 extern int              PCLShellLevel;
 extern FILE            *ProofLog;
+extern bool             ProofLogDebug;
 
 char*  PCLTypeStr(FormulaProperties type);
 
@@ -219,8 +222,10 @@ void    DocClauseApplyDefs(FILE* out, long level, Clause_p clause,
         DocClauseApplyDefs(GlobalOut, OutputLevel, (clause), \
                            (parent_id), (def_ids), NULL)
 
+void ProofLogAxioms(ClauseSet_p axioms);
+void ProofLogCopy(long old_perm_id, long new_perm_id);
 void ProofLogReset(void);
-void ProofLogAdd(char kind, long perm_id, int lits);
+void ProofLogAdd(char kind, long perm_id, int lits, Clause_p clause);
 void ProofLogFlush(long given_perm_id, int given_lits, Clause_p given_clause);
 
 #endif

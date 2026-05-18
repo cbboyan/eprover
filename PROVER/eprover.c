@@ -2280,6 +2280,9 @@ CLState_p process_options(int argc, char* argv[])
       case OPT_PROOF_LOG:
             proof_log_name = arg;
             break;
+      case OPT_PROOF_LOG_DEBUG:
+            ProofLogDebug = true;
+            break;
       default:
             assert(false && "Unknown option");
             break;

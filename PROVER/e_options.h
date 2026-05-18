@@ -248,6 +248,7 @@ typedef enum
    OPT_ENIGMATIC_OUTPUT_MAP,
    OPT_ENIGMATIC_OUTPUT_BUCKETS,
    OPT_PROOF_LOG,
+   OPT_PROOF_LOG_DEBUG,
    OPT_DUMMY
 }OptionCodes;
 
@@ -1821,6 +1822,12 @@ OptCell opts[] =
     "backward-deleted clauses, and forward-deleted generated clauses. "
     "IDs are stable perm_idents. On success, a PROOF line lists the "
     "perm_idents of all proof-relevant clauses."},
+
+   {OPT_PROOF_LOG_DEBUG,
+    '\0', "proof-log-debug",
+    NoArg, NULL,
+    "When set, include clause formulas in the --proof-log saturation trace for generated, "
+    "backward-deleted, and forward-deleted clauses. Default: disabled."},
 
    {OPT_NOOPT,
     '\0', NULL,

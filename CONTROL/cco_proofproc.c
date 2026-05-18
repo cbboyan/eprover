@@ -744,7 +744,7 @@ static Clause_p insert_new_clauses(ProofState_p state, ProofControl_p control, b
       {
          if(ProofLog && !is_ir_victim)
          {
-            ProofLogAdd('F', handle->perm_ident, ClauseLiteralNumber(handle));
+            ProofLogAdd('F', handle->perm_ident, ClauseLiteralNumber(handle), handle);
          }
          ClauseFree(handle);
          continue;
@@ -779,7 +779,7 @@ static Clause_p insert_new_clauses(ProofState_p state, ProofControl_p control, b
          {
             if(ProofLog && !is_ir_victim)
             {
-               ProofLogAdd('F', handle->perm_ident, ClauseLiteralNumber(handle));
+               ProofLogAdd('F', handle->perm_ident, ClauseLiteralNumber(handle), handle);
             }
             ClauseFree(handle);
             continue;
@@ -830,7 +830,7 @@ static Clause_p insert_new_clauses(ProofState_p state, ProofControl_p control, b
 
       if(ProofLog && !is_ir_victim)
       {
-         ProofLogAdd('G', handle->perm_ident, ClauseLiteralNumber(handle));
+         ProofLogAdd('G', handle->perm_ident, ClauseLiteralNumber(handle), handle);
       }
       ClauseSetInsert(state->eval_store, handle);
    }
@@ -1293,6 +1293,7 @@ void ProofStateResetProcessedSet(ProofState_p state,
       }
       tmpclause = ClauseFlatCopy(handle);
       ClausePushDerivation(tmpclause, DCCnfQuote, handle, NULL);
+      ProofLogCopy(handle->perm_ident, tmpclause->perm_ident);
       ClauseSetInsert(state->archive, handle);
       handle = tmpclause;
       HCBClauseEvaluate(control->hcb, handle);
@@ -1589,6 +1590,8 @@ void ProofStateInit(ProofState_p state, ProofControl_p control)
    ClauseSetMarkSOS(state->unprocessed, control->heuristic_parms.use_tptp_sos);
    EvalTreeTraverseExit(traverse);
 
+   ProofLogAxioms(state->unprocessed);
+
    if(control->heuristic_parms.ac_handling!=NoACHandling)
    {
       if(OutputLevel)
@@ -1734,7 +1737,7 @@ Clause_p ProcessClause(ProofState_p state, ProofControl_p control,
              bw_scan != state->tmp_store->anchor;
              bw_scan = bw_scan->succ)
          {
-            ProofLogAdd('B', bw_scan->perm_ident, ClauseLiteralNumber(bw_scan));
+            ProofLogAdd('B', bw_scan->perm_ident, ClauseLiteralNumber(bw_scan), bw_scan);
          }
       }
       ClauseSetSetProp(state->tmp_store, CPIsIRVictim);
