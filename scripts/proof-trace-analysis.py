@@ -3,7 +3,10 @@
 Analyze E Prover proof logs produced by --proof-log.
 
 Input format:
-  GIVEN <id> gen=<n> bw=<n> fw=<n> lits=<n>: (<formula>)
+  INIT axiom <name>
+    + CNF <id> lits=<n>: (<formula>)
+  COPY <orig>: <copy>
+  GIVEN <id> [<clause_id>] gen=<n> bw=<n> fw=<n> lits=<n>: (<formula>)
     + GEN <id> lits=<n>
     - BW  <id>
     ! FW  <id> lits=<n>
@@ -20,9 +23,9 @@ Output CSV columns:
   is_proof_relevant  1 if this given contributed to the proof (directly or as ancestor)
 
 Usage:
-  python3 proof_log_analysis.py agatha.proof
-  python3 proof_log_analysis.py agatha.proof -o agatha.csv
-  python3 proof_log_analysis.py -          # read from stdin
+  python3 proof-trace-analysis.py agatha.trace
+  python3 proof-trace-analysis.py agatha.trace -o agatha.csv
+  python3 proof-trace-analysis.py -          # read from stdin
 """
 
 import sys
@@ -41,16 +44,21 @@ class GivenStep:
     fw_ids: list = field(default_factory=list)
 
 
-RE_GIVEN = re.compile(r'^GIVEN (\d+) gen=\d+ bw=\d+ fw=\d+ lits=(\d+):')
+RE_GIVEN = re.compile(r'^GIVEN (\d+)(?:\s+\S+)? gen=\d+ bw=\d+ fw=\d+ lits=(\d+):')
 RE_GEN   = re.compile(r'^\s+\+ GEN (\d+)')
 RE_BW    = re.compile(r'^\s+- BW\s+(\d+)')
 RE_FW    = re.compile(r'^\s+! FW\s+(\d+)')
+RE_COPY  = re.compile(r'^COPY (\d+): (\d+)')
 RE_PROOF = re.compile(r'^PROOF(.*)')
 
 
 def parse_log(lines):
-    """Parse a single proof log into (given_steps, proof_ids)."""
+    """Parse a proof log into (given_steps, copy_map, proof_ids).
+
+    copy_map maps original CNF perm_id -> copy perm_id (from COPY lines).
+    """
     given_steps = {}
+    copy_map = {}
     current = None
 
     for raw in lines:
@@ -76,27 +84,41 @@ def parse_log(lines):
                 current.fw_ids.append(int(m.group(1)))
                 continue
 
+        m = RE_COPY.match(line)
+        if m:
+            copy_map[int(m.group(1))] = int(m.group(2))
+            continue
+
         m = RE_PROOF.match(line)
         if m:
             proof_ids = {int(x) for x in m.group(1).split()}
-            return given_steps, proof_ids
+            return given_steps, copy_map, proof_ids
 
-    return given_steps, set()  # failed/incomplete search
+    return given_steps, copy_map, set()  # failed/incomplete search
 
 
-def proof_relevant_givens(given_steps, proof_ids):
+def proof_relevant_givens(given_steps, copy_map, proof_ids):
     """
     Return the set of perm_ids of GIVENs that contributed to the proof,
     either directly (perm_id in proof_ids) or as an ancestor
     (generated a clause that is transitively proof-relevant).
+
+    PROOF ids may reference original CNF perm_ids that were COPYed to a
+    different perm_id before being processed; copy_map resolves these.
     """
     generated_by = {}
     for pid, step in given_steps.items():
         for gid in step.gen_ids:
             generated_by[gid] = pid
 
+    # Seed with both direct proof ids and their copies
+    seed = set(proof_ids)
+    for orig, copy in copy_map.items():
+        if orig in proof_ids:
+            seed.add(copy)
+
     relevant = set()
-    queue = list(proof_ids)
+    queue = list(seed)
     while queue:
         gid = queue.pop()
         if gid in relevant:
@@ -148,16 +170,16 @@ def main():
     infile  = sys.stdin  if args.logfile == '-' else open(args.logfile)
     outfile = sys.stdout if args.output  == '-' else open(args.output, 'w', newline='')
 
-    given_steps, proof_ids = parse_log(infile)
-    relevant = proof_relevant_givens(given_steps, proof_ids)
+    given_steps, copy_map, proof_ids = parse_log(infile)
+    relevant = proof_relevant_givens(given_steps, copy_map, proof_ids)
     cache = {}
 
     writer = csv.DictWriter(outfile, fieldnames=FIELDS, delimiter='\t', lineterminator='\n')
     writer.writeheader()
     for pid, step in given_steps.items():
-        dgen = len(step.gen_ids)
-        bw   = len(step.bw_ids)
         fw   = len(step.fw_ids)
+        dgen = len(step.gen_ids) + fw
+        bw   = len(step.bw_ids)
         writer.writerow({
             'perm_id':           pid,
             'lits':              step.lits,
