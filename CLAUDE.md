@@ -61,7 +61,15 @@ Bugs are documented in `bugs/` using a numbered scheme:
 When investigating a new bug: minimize the eprover args in `.sh` (usually just `-H'(...)'`),
 minimize the `.p` to the smallest TPTP problem that triggers it, then write the `.md`.
 
-Current open bugs: none
+Current open bugs:
+- `bug005-nonbool-toplevel-lambda-segfault` — an ill-typed top-level lambda
+  (`thf(c,axiom, ^ [X: $o] : ( p & X ) ).`, type `$o > $o` where `$o` is
+  required) is not rejected and crashes in `TFormulaNNF` during clausification
+  (`CLAUSES/ccl_tcnf.c`); NULL `form` on recursive entry. Documented only,
+  root cause not yet established.
+
+Working files from past investigations live in `bugs/dust/` (see its
+`README.md`) — e.g. the parse-scoping test corpus and runner scripts.
 
 Fixed bugs:
 - `bug001-prefix-weight-null-owner-bank` — assertion `bank` failed in `NormalizePatternAppVar` (triggered by `ALG247^2` and `SYO548^1`; fix: `TermSetBank` in `TermCopyRenameVars` and `TermCopyUnifyVars` in `TERMS/cte_termfunc.c`)

@@ -1,0 +1,198 @@
+=== 01-geoff.p
+  in : thf(c,axiom, ? [X: $o] : p = X ).
+  out: thf(c, axiom, ?[X1:$o]:(((p)<=>(X1)))).
+
+=== 02-all-var-eq.p
+  in : thf(c,axiom, ! [X: $i] : X = a ).
+  out: thf(c, axiom, ![X1:$i]:(((X1)=(a)))).
+
+=== 03-all-app-eq.p
+  in : thf(c,axiom, ! [X: $i] : (f @ X) = a ).
+  out: thf(c, axiom, ![X1:$i]:(((f @ X1)=(a)))).
+
+=== 04-ex-var-eq.p
+  in : thf(c,axiom, ? [X: $i] : X = a ).
+  out: thf(c, axiom, ?[X1:$i]:(((X1)=(a)))).
+
+=== 05-all-var-neq.p
+  in : thf(c,axiom, ! [X: $i] : X != a ).
+  out: thf(c, axiom, ![X1:$i]:(((X1)!=(a)))).
+
+=== 06-multivar-eq.p
+  in : thf(c,axiom, ! [X: $i,Y: $i] : (f @ X) = (g @ Y) ).
+  out: thf(c, axiom, ![X1:$i, X2:$i]:(((f @ X1)=(g @ X2)))).
+
+=== 07-nested-binders.p
+  in : thf(c,axiom, ! [X: $i] : ? [Y: $i] : (f @ X) = (g @ Y) ).
+  out: thf(c, axiom, ![X1:$i]:(?[X2:$i]:(((f @ X1)=(g @ X2))))).
+
+=== 10-parens-inner.p
+  in : thf(c,axiom, ! [X: $i] : ( X = a ) ).
+  out: thf(c, axiom, ![X1:$i]:(((X1)=(a)))).
+
+=== 11-parens-outer.p
+  in : thf(c,axiom, ( ! [X: $i] : (pp @ X) ) = q ).
+  out: thf(c, axiom, (![X1:$i]:((pp @ X1))<=>(q))).
+
+=== 12-parens-outer-neq.p
+  in : thf(c,axiom, ( ? [X: $i] : (pp @ X) ) != q ).
+  out: thf(c, axiom, (?[X1:$i]:((pp @ X1))<~>(q))).
+
+=== 13-eq-both-quant.p
+  in : thf(c,axiom, ( ! [X: $i] : (pp @ X) ) = ( ? [Y: $i] : (pp @ Y) ) ).
+  out: thf(c, axiom, (![X1:$i]:((pp @ X1))<=>?[X2:$i]:((pp @ X2)))).
+
+=== 14-bool-body-eq-closed.p
+  in : thf(c,axiom, ! [X: $i] : (pp @ X) = q ).
+  out: thf(c, axiom, ![X1:$i]:(((pp @ X1)<=>(q)))).
+
+=== 15-bool-body-neq-closed.p
+  in : thf(c,axiom, ! [X: $i] : (pp @ X) != q ).
+  out: thf(c, axiom, ![X1:$i]:(((pp @ X1)<~>(q)))).
+
+=== 16-bool-body-eq-open.p
+  in : thf(c,axiom, ! [X: $i] : (pp @ X) = (pp @ X) ).
+  out: thf(c, axiom, ![X1:$i]:(((pp @ X1)<=>(pp @ X1)))).
+
+=== 20-conn-and.p
+  in : thf(c,axiom, ! [X: $i] : (pp @ X) & q ).
+  out: thf(c, axiom, (![X1:$i]:((pp @ X1))&(q))).
+
+=== 21-conn-or.p
+  in : thf(c,axiom, ! [X: $i] : (pp @ X) | q ).
+  out: thf(c, axiom, (![X1:$i]:((pp @ X1))|(q))).
+
+=== 22-conn-impl.p
+  in : thf(c,axiom, ! [X: $i] : (pp @ X) => q ).
+  out: thf(c, axiom, (![X1:$i]:((pp @ X1))=>(q))).
+
+=== 23-conn-equiv.p
+  in : thf(c,axiom, ! [X: $i] : (pp @ X) <=> q ).
+  out: thf(c, axiom, (![X1:$i]:((pp @ X1))<=>(q))).
+
+=== 24-conn-app.p
+  in : thf(c,axiom, hh @ ( ^ [X: $i] : (pp @ X) ) ).
+  out: thf(decl_23, type, a: $i).
+  out: thf(decl_24, type, b: $i).
+  out: thf(decl_25, type, f: $i > $i).
+  out: thf(decl_26, type, g: $i > $i).
+  out: thf(decl_27, type, pp: $i > $o).
+  out: thf(decl_28, type, q: $o).
+  out: thf(decl_29, type, hh: ($i > $o) > $o).
+  out: thf(c, axiom, (hh @ (^[X1:$i]:((pp @ X1))))).
+
+=== 30-lambda-eq.p
+  in : thf(c,axiom, hh @ ( ^ [X: $i] : (f @ X) = (g @ X) ) ).
+  out: thf(decl_23, type, a: $i).
+  out: thf(decl_24, type, b: $i).
+  out: thf(decl_25, type, f: $i > $i).
+  out: thf(decl_26, type, g: $i > $i).
+  out: thf(decl_27, type, pp: $i > $o).
+  out: thf(decl_28, type, q: $o).
+  out: thf(decl_29, type, hh: ($i > $o) > $o).
+  out: thf(c, axiom, (hh @ (^[X1:$i]:(((f @ X1)=(g @ X1)))))).
+
+=== 31-lambda-eq-parens.p
+  in : thf(c,axiom, hh @ ( ^ [X: $i] : ( (f @ X) = (g @ X) ) ) ).
+  out: thf(decl_23, type, a: $i).
+  out: thf(decl_24, type, b: $i).
+  out: thf(decl_25, type, f: $i > $i).
+  out: thf(decl_26, type, g: $i > $i).
+  out: thf(decl_27, type, pp: $i > $o).
+  out: thf(decl_28, type, q: $o).
+  out: thf(decl_29, type, hh: ($i > $o) > $o).
+  out: thf(c, axiom, (hh @ (^[X1:$i]:(((f @ X1)=(g @ X1)))))).
+
+=== 32-lam-bool-eq-bare.p
+  in : thf(c,axiom, ^ [X: $o] : p = X ).
+  out: thf(decl_23, type, p: $o).
+  out: thf(decl_24, type, f: $i > $i).
+  out: thf(decl_25, type, g: $i > $i).
+  out: thf(decl_26, type, hq: ($o > $o) > $o).
+  out: thf(c, axiom, ^[X1:$o]:(((p)<=>(X1)))).
+
+=== 33-lam-bool-eq-arg.p
+  in : thf(c,axiom, hq @ ( ^ [X: $o] : p = X ) ).
+  out: thf(decl_23, type, p: $o).
+  out: thf(decl_24, type, f: $i > $i).
+  out: thf(decl_25, type, g: $i > $i).
+  out: thf(decl_26, type, hq: ($o > $o) > $o).
+  out: thf(c, axiom, (hq @ (^[X1:$o]:((((p))<=>((X1))))))).
+
+=== 34-lam-bool-eq-parens.p
+  in : thf(c,axiom, hq @ ( ^ [X: $o] : ( p = X ) ) ).
+  out: thf(decl_23, type, p: $o).
+  out: thf(decl_24, type, f: $i > $i).
+  out: thf(decl_25, type, g: $i > $i).
+  out: thf(decl_26, type, hq: ($o > $o) > $o).
+  out: thf(c, axiom, (hq @ (^[X1:$o]:((((p))<=>((X1))))))).
+
+=== 35-lam-eq-lam.p
+  in : thf(c,axiom, ( ^ [X: $i] : (f @ X) ) = ( ^ [X: $i] : (g @ X) ) ).
+  out: thf(decl_23, type, p: $o).
+  out: thf(decl_24, type, f: $i > $i).
+  out: thf(decl_25, type, g: $i > $i).
+  out: thf(decl_26, type, hq: ($o > $o) > $o).
+  out: thf(c, axiom, ((^[X1:$i]:(f @ X1))=(^[X1:$i]:(g @ X1)))).
+
+=== 36-lam-eq-nonlam.p
+  in : thf(c,axiom, ( ^ [X: $i] : (f @ X) ) = g ).
+  out: thf(decl_23, type, p: $o).
+  out: thf(decl_24, type, f: $i > $i).
+  out: thf(decl_25, type, g: $i > $i).
+  out: thf(decl_26, type, hq: ($o > $o) > $o).
+  out: thf(c, axiom, ((^[X1:$i]:(f @ X1))=(g))).
+
+=== 40-eq-then-and.p
+  in : thf(c,axiom, ! [X: $i] : X = a & q ).
+  out: thf(c, axiom, (![X1:$i]:(((X1)=(a)))&(q))).
+
+=== 41-eq-then-impl.p
+  in : thf(c,axiom, ! [X: $i] : X = a => q ).
+  out: thf(c, axiom, (![X1:$i]:(((X1)=(a)))=>(q))).
+
+=== 50-neg-binder-eq.p
+  in : thf(c,axiom, ~ ( ! [X: $i] : X = a ) ).
+  out: thf(c, axiom, ~(![X1:$i]:(((X1)=(a))))).
+
+=== 51-left-conn.p
+  in : thf(c,axiom, q & ( ! [X: $i] : X = a ) ).
+  out: thf(c, axiom, ((q)&![X1:$i]:(((X1)=(a))))).
+
+=== 60-fof.p
+  in : fof(c1,axiom, ! [X] : X = a ).
+  in : fof(c2,axiom, ! [X] : f(X) = a ).
+  in : fof(c3,axiom, ! [X] : p(X) & q ).
+  in : fof(c4,axiom, ? [X] : X != a ).
+  in : fof(c5,axiom, ! [X] : ? [Y] : f(X) = g(Y) ).
+  out: fof(c1, axiom, ![X1]:(X1=a)).
+  out: fof(c2, axiom, ![X1]:(f(X1)=a)).
+  out: fof(c3, axiom, (![X1]:(p(X1))&q)).
+  out: fof(c4, axiom, ?[X1]:(X1!=a)).
+  out: fof(c5, axiom, ![X1]:(?[X2]:(f(X1)=g(X2)))).
+
+=== 61-tff.p
+  in : tff(c1,axiom, ! [X: $i] : X = a ).
+  in : tff(c2,axiom, ! [X: $i] : f(X) = a ).
+  in : tff(c3,axiom, ! [X: $i] : pp(X) & q ).
+  in : tff(c4,axiom, ? [X: $i] : X != a ).
+  out: fof(c1, axiom, ![X1]:(X1=a)).
+  out: fof(c2, axiom, ![X1]:(f(X1)=a)).
+  out: fof(c3, axiom, (![X1]:(pp(X1))&q)).
+  out: fof(c4, axiom, ?[X1]:(X1!=a)).
+
+=== 62-tff-bool.p
+  in : tff(c1,axiom, ? [X: $o] : p = X ).
+  out: fof(c1, axiom, ?[X1:$o]:((p<=>X1))).
+
+=== 63-cnf.p
+  in : cnf(c1,axiom, X = a | p(X) ).
+  in : cnf(c2,axiom, f(X) != g(X) ).
+  out: fof(c1, axiom, ![X1]:((X1=a|p(X1)))).
+  out: fof(c2, axiom, ![X1]:(f(X1)!=g(X1))).
+
+=== 90-lam-bare-parens.p
+  in : thf(c,axiom, ^ [X: $o] : ( p = X ) ).
+  out: thf(decl_23, type, p: $o).
+  out: thf(c, axiom, ^[X1:$o]:(((p)<=>(X1)))).
+
