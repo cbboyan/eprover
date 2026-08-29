@@ -1,0 +1,195 @@
+=== 01-lam-and-var2.p
+  in : thf(c,axiom, ^ [X: $o] : ( p & X ) ).
+  rc : 139
+  out: *** SIGSEGV *** 
+
+=== 02-lam-and-var1.p
+  in : thf(c,axiom, ^ [X: $o] : ( X & p ) ).
+  rc : 0
+  out: SZS status Unsatisfiable
+
+=== 03-lam-eq-var2.p
+  in : thf(c,axiom, ^ [X: $o] : ( p = X ) ).
+  rc : 139
+  out: *** SIGSEGV *** 
+
+=== 04-lam-nonbool-body.p
+  in : thf(c,axiom, ^ [X: $i] : ( f @ X ) ).
+  rc : 0
+  out: SZS status Unsatisfiable
+
+=== 05-lam-const-body.p
+  in : thf(c,axiom, ^ [X: $o] : p ).
+  rc : 0
+  out: SZS status Unsatisfiable
+
+=== 06-bare-const.p
+  in : thf(c,axiom, a ).
+  rc : 4
+  out: eprover: type error
+
+=== 07-nonbool-app.p
+  in : thf(c,axiom, f @ a ).
+  rc : 139
+  out: *** SIGSEGV *** 
+
+=== 08-lam-arg-of-and.p
+  in : thf(c,axiom, p & (^ [X: $o] : X) ).
+  rc : 0
+  out: SZS status Unsatisfiable
+
+=== 09-lam-arg-of-not.p
+  in : thf(c,axiom, ~ (^ [X: $o] : X) ).
+  rc : 0
+  out: SZS status Unsatisfiable
+
+=== 10-lam-quant-body.p
+  in : thf(c,axiom, ! [X: $o] : (^ [Y: $o] : Y) ).
+  rc : 0
+  out: SZS status Unsatisfiable
+
+=== 11-const-arg-of-and.p
+  in : thf(c,axiom, p & a ).
+  rc : 4
+  out: eprover: type error
+
+=== 12-app-arg-of-or.p
+  in : thf(c,axiom, p | (f @ a) ).
+  rc : 139
+  out: *** SIGSEGV *** 
+
+=== 13-app-arg-of-impl.p
+  in : thf(c,axiom, (g @ a) => a ).
+  rc : 4
+  out: eprover: type error
+
+=== 14-conjecture.p
+  in : thf(c,conjecture, ^ [X: $o] : ( p & X ) ).
+  rc : 139
+  out: *** SIGSEGV *** 
+
+=== 15-lam-bare-eq.p
+  in : thf(c,axiom, ^ [X: $i] : (f @ X) = f ).
+  rc : 0
+  out: SZS status Unsatisfiable
+
+=== 16-nested-lam-const.p
+  in : thf(c,axiom, hq @ (^ [X: $o] : ( p & a )) ).
+  rc : 4
+  out: eprover: type error
+
+=== 17-nested-lam-app.p
+  in : thf(c,axiom, hq @ (^ [X: $o] : ( p & (f @ a) )) ).
+  rc : 139
+  out: *** SIGSEGV *** 
+
+=== 18-nested-lam-lam.p
+  in : thf(c,axiom, hq @ (^ [X: $o] : ( p & (^ [Y: $o] : Y) )) ).
+  rc : 10
+  out: SZS status GaveUp
+
+=== 19-nested-ite.p
+  in : thf(c,axiom, hq @ (^ [X: $o] : $ite(X, p, ( p & a )) ) ).
+  rc : 10
+  out: SZS status GaveUp
+
+=== 20-applied-and.p
+  in : thf(c,axiom, ((&) @ p) @ q ).
+  rc : 10
+  out: SZS status GaveUp
+
+=== 21-applied-not.p
+  in : thf(c,axiom, (~) @ p ).
+  rc : 10
+  out: SZS status GaveUp
+
+=== 22-bool-var-body.p
+  in : thf(c,axiom, ! [X: $o] : X ).
+  rc : 0
+  out: SZS status Unsatisfiable
+
+=== 23-pred-var-applied.p
+  in : thf(c,axiom, ! [P: $i > $o] : (P @ a) ).
+  rc : 0
+  out: SZS status Unsatisfiable
+
+=== 24-ite.p
+  in : thf(c,axiom, $ite(p, q, p) ).
+  rc : 10
+  out: SZS status GaveUp
+
+=== 25-quant-eq.p
+  in : thf(c,axiom, ! [X: $i] : ((f @ X) = a) ).
+  rc : 10
+  out: SZS status GaveUp
+
+=== 26-quant-under-and.p
+  in : thf(c,axiom, p & (! [X: $i] : ((f @ X) = a)) ).
+  rc : 10
+  out: SZS status GaveUp
+
+=== 27-bool-app.p
+  in : thf(c,axiom, g @ a ).
+  rc : 10
+  out: SZS status GaveUp
+
+=== 28-bool-var-connective.p
+  in : thf(c,axiom, ! [P: $o] : (P => P) ).
+  rc : 10
+  out: SZS status GaveUp
+
+=== 29-applied-lambda.p
+  in : thf(c,axiom, (^ [X: $o] : ( p & X )) @ p ).
+  rc : 10
+  out: SZS status GaveUp
+
+=== 30-argtype-mismatch.p
+  in : thf(c,axiom, hq @ p ).
+  rc : 3
+  out: % Type mismatch in argument #1 of hq @ ($eq @ p @ $true): expected $o > $o but got $o
+
+=== 31-tff-nonbool-atom.p
+  in : tff(c,axiom, f(a) ).
+  rc : 4
+  out: eprover: type error
+
+=== 32-too-many-args.p
+  in : thf(c,axiom, (f @ a @ a) = a ).
+  rc : 3
+  out: eprover: 32-too-many-args.p:8:(Column 21):(just read '@'):  Too many arguments applied to the term
+
+=== 33-overapplied-connective.p
+  in : thf(c,axiom, ((&) @ p @ q) @ q ).
+  rc : 3
+  out: % too many arguments supplied for $and
+
+=== 34-var-head-argtype.p
+  in : thf(c,axiom, ! [F: $i > $i] : ((F @ p) = a) ).
+  rc : 3
+  out: % Type mismatch in argument #2 of X1 @ ((p)): expected $i but got $o
+
+=== 35-apply-bool-atom.p
+  in : thf(c,axiom, p @ q ).
+  rc : 139
+  out: *** SIGSEGV *** 
+
+=== 36-apply-equation.p
+  in : thf(c,axiom, (a = a) @ p ).
+  rc : 139
+  out: *** SIGSEGV *** 
+
+=== 37-apply-true.p
+  in : thf(c,axiom, $true @ p ).
+  rc : 139
+  out: *** SIGSEGV *** 
+
+=== 40-nested-lam-ok.p
+  in : thf(c,axiom, hq @ (^ [X: $o] : ( X & p )) ).
+  rc : 10
+  out: SZS status GaveUp
+
+=== 41-nested-eqn-ok.p
+  in : thf(c,axiom, (^ [X: $o] : ( X & p )) = (^ [X: $o] : ( p & X )) ).
+  rc : 10
+  out: SZS status GaveUp
+

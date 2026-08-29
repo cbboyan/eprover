@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PULL-REQUEST</title>
+<style>
+* { box-sizing: border-box; }
+body {
+   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+   font-size: 15px;
+   line-height: 1.6;
+   color: #333;
+   max-width: 960px;
+   margin: 0 auto;
+   padding: 2rem 1.5rem;
+   background: #fff;
+}
+h1, h2, h3, h4 { margin-top: 1.4em; margin-bottom: 0.4em; font-weight: 600; }
+h1 { font-size: 1.8em; border-bottom: 2px solid #e0e0e0; padding-bottom: 0.3em; }
+h2 { font-size: 1.4em; border-bottom: 1px solid #e0e0e0; padding-bottom: 0.2em; }
+h3 { font-size: 1.15em; }
+table {
+   border-collapse: collapse;
+   width: 100%;
+   margin: 1em 0;
+   font-size: 0.9em;
+}
+th, td {
+   border: 1px solid #d0d0d0;
+   padding: 0.4em 0.75em;
+   text-align: left;
+}
+th { background: #f4f4f4; font-weight: 600; }
+tr:nth-child(even) { background: #fafafa; }
+pre {
+   background: #f6f8fa;
+   border: 1px solid #e0e0e0;
+   border-radius: 4px;
+   padding: 1em;
+   overflow-x: auto;
+   font-size: 0.85em;
+   line-height: 1.5;
+}
+code {
+   background: #f0f0f0;
+   border-radius: 3px;
+   padding: 0.1em 0.35em;
+   font-size: 0.88em;
+   font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+}
+pre code {
+   background: none;
+   padding: 0;
+   font-size: inherit;
+}
+blockquote {
+   border-left: 4px solid #ccc;
+   margin: 0;
+   padding: 0.5em 1em;
+   color: #555;
+   background: #f9f9f9;
+}
+a { color: #0366d6; text-decoration: none; }
+a:hover { text-decoration: underline; }
+.highlight { background: #f6f8fa; border-radius: 4px; }
+</style>
+</head>
+<body>
+<h1>Reject non-Boolean formulas instead of crashing on them</h1>
+<p>Fixes the crash reported at the end of the binder/equation-scoping PR: a THF
+annotated formula whose type is not <code>$o</code> is not rejected, reaches
+clausification, and segfaults.</p>
+<div class="highlight" style="background: #f8f8f8"><pre style="line-height: 125%;"><span></span><code>thf(p_decl,type,p: $o).
+thf(c,axiom, ^ [X: $o] : ( p &amp; X ) ).
+</code></pre></div>
+<div class="highlight" style="background: #f8f8f8"><pre style="line-height: 125%;"><span></span><code>eprover-ho: ccl_tcnf.c:2040: TFormulaNNF: Assertion `form &amp;&amp; terms&#39; failed.
+Segmentation fault (core dumped)      # release build, exit 139
+</code></pre></div>
+<p>The axiom is ill-typed — an annotated formula must have type <code>$o</code>, but this
+one has type <code>$o &gt; $o</code>.</p>
+<p>Two commits:</p>
+<ol>
+<li><code>CLAUSES/ccl_tformulae.{c,h}</code> + <code>CLAUSES/ccl_formula_wrapper.c</code> — the
+   check itself.</li>
+<li><code>TERMS/cte_typecheck.c</code> — four stray <code>assert(false)</code> that turn an ordinary
+   type error into an abort in any debug build. Related but separable; happy
+   to drop this commit.</li>
+</ol>
+<hr />
+<h2>1. The check</h2>
+<h3>Scope: bigger than the reported crash</h3>
+<p>The reported case is a top-level lambda, but the defect is not specific to
+lambdas, nor to the top level. Any non-Boolean term that reaches formula
+position does something wrong, and <em>what</em> it does depends on the shape:</p>
+<table>
+<thead>
+<tr>
+<th>input (<code>p,q: $o</code>, <code>a: $i</code>, <code>f: $i&gt;$i</code>, <code>g: $i&gt;$o</code>)</th>
+<th>before</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>^ [X: $o] : ( p &amp; X )</code></td>
+<td><strong>SIGSEGV</strong></td>
+</tr>
+<tr>
+<td><code>^ [X: $o] : ( p = X )</code></td>
+<td><strong>SIGSEGV</strong></td>
+</tr>
+<tr>
+<td><code>f @ a</code></td>
+<td><strong>SIGSEGV</strong></td>
+</tr>
+<tr>
+<td><code>p \| (f @ a)</code></td>
+<td><strong>SIGSEGV</strong></td>
+</tr>
+<tr>
+<td><code>^ [X: $o] : ( X &amp; p )</code></td>
+<td>accepted, "SZS status Unsatisfiable"</td>
+</tr>
+<tr>
+<td><code>^ [X: $o] : p</code></td>
+<td>accepted, "SZS status Unsatisfiable"</td>
+</tr>
+<tr>
+<td><code>^ [X: $i] : ( f @ X )</code></td>
+<td>accepted, "SZS status Unsatisfiable"</td>
+</tr>
+<tr>
+<td><code>p &amp; (^ [X: $o] : X)</code></td>
+<td>accepted, "SZS status Unsatisfiable"</td>
+</tr>
+<tr>
+<td><code>~ (^ [X: $o] : X)</code></td>
+<td>accepted, "SZS status Unsatisfiable"</td>
+</tr>
+<tr>
+<td><code>! [X: $o] : (^ [Y: $o] : Y)</code></td>
+<td>accepted, "SZS status Unsatisfiable"</td>
+</tr>
+<tr>
+<td><code>p &amp; a</code></td>
+<td>"type error", exit 4 (during preprocessing)</td>
+</tr>
+<tr>
+<td><code>(g @ a) =&gt; a</code></td>
+<td>"type error", exit 4 (during preprocessing)</td>
+</tr>
+</tbody>
+</table>
+<p>The silent "Unsatisfiable" answers are arguably worse than the crash. Note
+also that <code>f @ a</code> involves no lambda at all — it just prints as <code>~(a)</code>,
+because the formula printer reinterprets the phony app as a connective.</p>
+<p>All of these now stop at parse time with a normal syntax error:</p>
+<div class="highlight" style="background: #f8f8f8"><pre style="line-height: 125%;"><span></span><code>% Subformula has type $o &gt; $o, but a formula must have type $o
+eprover: bug005.p:2:(Column 14): Formula is not Boolean (check parentheses and quantifier precedence)
+</code></pre></div>
+<p>exit code 3 (<code>SYNTAX_ERROR</code>), same as any other parse error.</p>
+<h3>Why nothing caught it</h3>
+<p>The type was never <em>wrong</em> — it was simply never read. <code>TypeInferSort()</code>
+infers the lambda's type correctly as <code>$o &gt; $o</code> and stores it in
+<code>tform-&gt;type</code>; <code>TFormulaFCodeAlloc()</code> rightly leaves it alone, since a lambda
+does have an arrow type (it stamps <code>bool_type</code> only for <code>op !=
+SIG_NAMED_LAMBDA_CODE</code>). What is missing is anyone comparing that type
+against what the position demands.</p>
+<p>E's type checking is entirely <em>argument</em>-position based — every diagnostic in
+<code>TypeInferSort()</code> is of the form "Type mismatch in argument #N of …". A
+top-level annotated formula is not an argument of anything, so no check ever
+runs on it. In FO the gap is invisible, because <code>parse_atom()</code> /
+<code>EqnParseInfix()</code> build a literal directly and a non-predicate cannot appear
+there; in LFHO <code>parse_ho_atom()</code> parses a term of any type and the gap opens.
+So after parsing, the only validation <code>WFormulaTSTPParse()</code> did was
+<code>TFormulaHasFreeVars()</code> — and the bound <code>X</code> passes that.</p>
+<p>The formula then reaches clausification, which assumes a Boolean skeleton and
+descends into the lambda body as if the binder were a connective. For
+<code>^ [X: $o] : p</code> the result is not a crash but an outright refutation:</p>
+<div class="highlight" style="background: #f8f8f8"><pre style="line-height: 125%;"><span></span><code>$ eprover-ho --auto --proof-object c05.p
+thf(c,     axiom, ^[X1:$o]:((p)),     file(&#39;c05.p&#39;, c)).
+thf(c_0_1, plain, (UNNAMED_DBXXX(p)), inference(fof_simplification,[status(thm)],[c])).
+thf(c_0_2, plain, ($false),           inference(split_conjunct,[status(thm)],[c_0_1]), [&#39;proof&#39;]).
+% SZS status Unsatisfiable
+</code></pre></div>
+<p><code>UNNAMED_DBXXX</code> is an internal De Bruijn placeholder leaking into the proof
+object; <code>split_conjunct</code> then collapses the unrecognised literal to <code>$false</code>.
+That is how a file whose entire content is an atom <code>p</code> reports a refutation.
+Whether a given shape crashes or "proves" <code>$false</code> just depends on which of
+the two the clausifier reaches first — hence <code>( X &amp; p )</code> being "fine" and
+<code>( p &amp; X )</code> segfaulting.</p>
+<h3>Why a <em>recursive</em> check</h3>
+<p>The obvious fix — "check that the annotated formula has type <code>$o</code>" — catches
+the reported crash but misses half the table above: <code>p &amp; (^[X:$o]:X)</code>,
+<code>p | (f @ a)</code> and friends have top-level type <code>$o</code> and are only ill-typed
+below a connective. <code>p | (f @ a)</code> is one of the segfaults.</p>
+<p>So the check walks the formula <em>skeleton</em>: the arguments of the propositional
+connectives and the body of a quantifier. It deliberately does <strong>not</strong>
+descend into anything that is a term rather than a formula — the sides of a
+(dis)equation, the arguments of an application, the body of a lambda,
+<code>$ite</code>/<code>$let</code> — since those may legitimately have any type.</p>
+<p>That distinction already exists in the codebase as <code>TFormulaHasSubForm1/2()</code>,
+which tests the <code>FPFOFOp</code> signature property, set by <code>SigInsertFOFOp()</code> on
+exactly <code>~ &amp; | =&gt; &lt;=&gt; &lt;~&gt; ~&amp; ~|</code>. The new function is 20 lines and reuses it:</p>
+<div class="highlight" style="background: #f8f8f8"><pre style="line-height: 125%;"><span></span><code>TFormula_p<span style="color: #BBB"> </span><span style="color: #00F">TFormulaHasNonBoolSubForm</span>(Sig_p<span style="color: #BBB"> </span>sig,<span style="color: #BBB"> </span>TFormula_p<span style="color: #BBB"> </span>form)
+{
+<span style="color: #BBB">   </span>TFormula_p<span style="color: #BBB"> </span>res<span style="color: #BBB"> </span><span style="color: #666">=</span><span style="color: #BBB"> </span><span style="color: #008000">NULL</span>;
+
+<span style="color: #BBB">   </span><span style="color: #008000; font-weight: bold">if</span>(form<span style="color: #666">-&gt;</span>type<span style="color: #BBB"> </span><span style="color: #666">!=</span><span style="color: #BBB"> </span>sig<span style="color: #666">-&gt;</span>type_bank<span style="color: #666">-&gt;</span>bool_type)
+<span style="color: #BBB">   </span>{
+<span style="color: #BBB">      </span><span style="color: #008000; font-weight: bold">return</span><span style="color: #BBB"> </span>form;
+<span style="color: #BBB">   </span>}
+<span style="color: #BBB">   </span><span style="color: #008000; font-weight: bold">if</span>(TermIsAnyVar(form))
+<span style="color: #BBB">   </span>{
+<span style="color: #BBB">      </span><span style="color: #3D7B7B; font-style: italic">/* A Boolean variable is a perfectly good atom, and has no</span>
+<span style="color: #3D7B7B; font-style: italic">         f_code that could be looked up in the signature. */</span>
+<span style="color: #BBB">      </span><span style="color: #008000; font-weight: bold">return</span><span style="color: #BBB"> </span><span style="color: #008000">NULL</span>;
+<span style="color: #BBB">   </span>}
+<span style="color: #BBB">   </span><span style="color: #008000; font-weight: bold">if</span>(TFormulaHasSubForm1(sig,<span style="color: #BBB"> </span>form))
+<span style="color: #BBB">   </span>{
+<span style="color: #BBB">      </span>res<span style="color: #BBB"> </span><span style="color: #666">=</span><span style="color: #BBB"> </span>TFormulaHasNonBoolSubForm(sig,<span style="color: #BBB"> </span>form<span style="color: #666">-&gt;</span>args[<span style="color: #666">0</span>]);
+<span style="color: #BBB">      </span><span style="color: #008000; font-weight: bold">if</span>(<span style="color: #666">!</span>res<span style="color: #BBB"> </span><span style="color: #666">&amp;&amp;</span><span style="color: #BBB"> </span>TFormulaHasSubForm2(sig,<span style="color: #BBB"> </span>form))
+<span style="color: #BBB">      </span>{
+<span style="color: #BBB">         </span>res<span style="color: #BBB"> </span><span style="color: #666">=</span><span style="color: #BBB"> </span>TFormulaHasNonBoolSubForm(sig,<span style="color: #BBB"> </span>form<span style="color: #666">-&gt;</span>args[<span style="color: #666">1</span>]);
+<span style="color: #BBB">      </span>}
+<span style="color: #BBB">   </span>}
+<span style="color: #BBB">   </span><span style="color: #008000; font-weight: bold">else</span><span style="color: #BBB"> </span><span style="color: #008000; font-weight: bold">if</span>(TFormulaIsQuantifiedNL(sig,<span style="color: #BBB"> </span>form)<span style="color: #BBB"> </span><span style="color: #666">&amp;&amp;</span><span style="color: #BBB"> </span>(form<span style="color: #666">-&gt;</span>arity<span style="color: #BBB"> </span><span style="color: #666">==</span><span style="color: #BBB"> </span><span style="color: #666">2</span>))
+<span style="color: #BBB">   </span>{
+<span style="color: #BBB">      </span>res<span style="color: #BBB"> </span><span style="color: #666">=</span><span style="color: #BBB"> </span>TFormulaHasNonBoolSubForm(sig,<span style="color: #BBB"> </span>form<span style="color: #666">-&gt;</span>args[<span style="color: #666">1</span>]);
+<span style="color: #BBB">   </span>}
+<span style="color: #BBB">   </span><span style="color: #008000; font-weight: bold">return</span><span style="color: #BBB"> </span>res;
+}
+</code></pre></div>
+<p>It returns the offending subformula (or NULL), mirroring
+<code>TFormulaHasFreeVars()</code> immediately above it.</p>
+<h3>Where it is called</h3>
+<p>One place — <code>WFormulaTSTPParse()</code>, immediately after the existing
+free-variable check, which is the established "reject a badly-shaped input
+formula" spot and already has the source position at hand:</p>
+<div class="highlight" style="background: #f8f8f8"><pre style="line-height: 125%;"><span></span><code><span style="color: #BBB"> </span><span style="color: #008000; font-weight: bold">if</span>(TFormulaHasFreeVars(terms,<span style="color: #BBB"> </span>tform))
+<span style="color: #BBB"> </span>{
+<span style="color: #BBB">    </span>Error(<span style="color: #BA2121">&quot;%s Formula has free variables ...&quot;</span>,<span style="color: #BBB"> </span>SYNTAX_ERROR,<span style="color: #BBB"> </span>PosRep(...));
+<span style="color: #BBB"> </span>}
+<span style="color: #666">+</span>nonbool<span style="color: #BBB"> </span><span style="color: #666">=</span><span style="color: #BBB"> </span>TFormulaHasNonBoolSubForm(terms<span style="color: #666">-&gt;</span>sig,<span style="color: #BBB"> </span>tform);
+<span style="color: #666">+</span><span style="color: #008000; font-weight: bold">if</span>(nonbool)
+<span style="color: #666">+</span>{
+<span style="color: #666">+</span><span style="color: #BBB">   </span>...
+<span style="color: #666">+</span><span style="color: #BBB">   </span>Error(<span style="color: #BA2121">&quot;%s Formula is not Boolean ...&quot;</span>,<span style="color: #BBB"> </span>SYNTAX_ERROR,<span style="color: #BBB"> </span>PosRep(...));
+<span style="color: #666">+</span>}
+</code></pre></div>
+<p>The offending subformula is <em>not</em> printed, only its type — the formula
+printers assume a well-typed skeleton and produce truncated garbage on these
+inputs (that is how <code>f @ a</code> prints as <code>~(a)</code>).</p>
+<p>The call is unguarded, i.e. it also runs for FOF/TFF/TCF. There it is inert:
+in FO an ill-typed atom is already rejected by <code>TypeInferSort()</code> while the
+term is being built, so the walk always returns NULL. Confirmed empirically
+below.</p>
+<p><code>TFormulaHasNonBoolSubForm()</code> allocates nothing and has no side effects, so
+on every input it does not reject, behaviour is unchanged by construction.</p>
+<hr />
+<h2>2. <code>TERMS/cte_typecheck.c</code> — <code>assert(false)</code> before a graceful exit</h2>
+<p><code>TypeInferSort()</code> reports type errors like this:</p>
+<div class="highlight" style="background: #f8f8f8"><pre style="line-height: 125%;"><span></span><code>fprintf(stderr,<span style="color: #BBB"> </span>COMCHAR<span style="color: #BA2121">&quot; Type mismatch in argument #%d of &quot;</span>,<span style="color: #BBB"> </span>i<span style="color: #666">+1</span>);
+...
+assert(<span style="color: #008000">false</span>);
+TI_ERROR(<span style="color: #BA2121">&quot;Type error&quot;</span>);
+</code></pre></div>
+<p><code>TI_ERROR</code> expands to <code>AktTokenError(in, msg, false)</code> or <code>Error(msg,
+SYNTAX_ERROR)</code>, and both end in <code>exit()</code> — so the <code>assert(false)</code> on the line
+before can only ever convert that clean exit into a SIGABRT. In a debug build:</p>
+<div class="highlight" style="background: #f8f8f8"><pre style="line-height: 125%;"><span></span><code>thf(hq_decl,type,hq: ( $o &gt; $o ) &gt; $o).
+thf(c,axiom, hq @ p ).
+</code></pre></div>
+<div class="highlight" style="background: #f8f8f8"><pre style="line-height: 125%;"><span></span><code>% Type mismatch in argument #1 of hq @ ($eq @ p @ $true): expected $o &gt; $o but got $o
+eprover-ho: cte_typecheck.c:327: TypeInferSort: Assertion `false&#39; failed.
+Aborted (core dumped)                 # exit 134
+</code></pre></div>
+<p>after:</p>
+<div class="highlight" style="background: #f8f8f8"><pre style="line-height: 125%;"><span></span><code>% Type mismatch in argument #1 of hq @ ($eq @ p @ $true): expected $o &gt; $o but got $o
+eprover: Type error                   # exit 3
+</code></pre></div>
+<p>This is user error in an input file, not an invariant violation, so aborting
+on it seems wrong — but the asserts do give you a core dump at the point of
+the error, which may be the reason they are there. All four are removed here
+(lines 327, 348, 358, 371); happy to drop this commit if you would rather
+keep them.</p>
+<hr />
+<h2>Testing</h2>
+<p>Built with <code>./configure --enable-ho &amp;&amp; make rebuild</code>, release and debug
+(<code>DEBUGGER</code> on, <code>NODEBUG</code> off) and once more with <code>MEMDEBUG</code>. No new compiler
+warnings.</p>
+<p><strong>No real-world problem changes its parse.</strong> Dumped <code>--print-formulas
+--syntax-only</code> for all 115 <code>.p</code>/<code>.tptp</code>/<code>.lop</code> files in the tree, patched vs
+unpatched. Exactly three differ, and all three are deliberately ill-typed bug
+reproductions: <code>bugs/bug005-nonbool-toplevel-lambda-segfault.p</code> and the two
+lambda cases <code>32</code>/<code>90</code> from the previous PR's corpus. The other 112 are
+byte-identical, exit codes included.</p>
+<p><strong>Targeted corpus of 28 hand-written cases</strong> (<code>bugs/dust/nonbool/</code>). 15
+ill-typed cases that must be rejected, 10 well-typed ones that must keep
+working, 3 type errors that must terminate gracefully. Before → after:</p>
+<div class="highlight" style="background: #f8f8f8"><pre style="line-height: 125%;"><span></span><code>139 -&gt; 3   ^ [X: $o] : ( p &amp; X )        (SIGSEGV -&gt; syntax error)
+139 -&gt; 3   ^ [X: $o] : ( p = X )
+139 -&gt; 3   f @ a
+139 -&gt; 3   p | (f @ a)
+139 -&gt; 3   thf(c,conjecture, ^ [X: $o] : ( p &amp; X ))
+  0 -&gt; 3   ^ [X: $o] : ( X &amp; p )        (bogus &quot;Unsatisfiable&quot; -&gt; syntax error)
+  0 -&gt; 3   ^ [X: $o] : p
+  0 -&gt; 3   ^ [X: $i] : ( f @ X )
+  0 -&gt; 3   p &amp; (^ [X: $o] : X)
+  0 -&gt; 3   ~ (^ [X: $o] : X)
+  0 -&gt; 3   ! [X: $o] : (^ [Y: $o] : Y)
+  0 -&gt; 3   ^ [X: $i] : (f @ X) = f
+  4 -&gt; 3   p &amp; a                        (late type error -&gt; parse-time)
+  4 -&gt; 3   a
+  4 -&gt; 3   (g @ a) =&gt; a
+ 10 -&gt; 10  ((&amp;) @ p) @ q                (unchanged)
+ 10 -&gt; 10  (~) @ p
+  0 -&gt;  0  ! [X: $o] : X
+  0 -&gt;  0  ! [P: $i &gt; $o] : (P @ a)
+ 10 -&gt; 10  $ite(p, q, p)
+ 10 -&gt; 10  ! [X: $i] : ((f @ X) = a)
+ 10 -&gt; 10  p &amp; (! [X: $i] : ((f @ X) = a))
+ 10 -&gt; 10  g @ a
+ 10 -&gt; 10  ! [P: $o] : (P =&gt; P)
+ 10 -&gt; 10  (^ [X: $o] : ( p &amp; X )) @ p
+  3 -&gt;  3  hq @ p                       (134 -&gt; 3 in a debug build)
+  4 -&gt;  4  tff(c,axiom, f(a))
+  3 -&gt;  3  (f @ a @ a) = a
+</code></pre></div>
+<p><strong>No memory leaks.</strong> With <code>CLB_MEMORY_DEBUG</code>, <code>SizeMalloc()ed == SizeFree()ed</code>
+and <code>New requests == Returned</code>: 10/10 accepted targeted cases, 33/33 cases of
+the previous PR's corpus, and 105/105 real problem files. The remaining
+no-footer files are pre-existing failures plus the three newly-rejected ones,
+which exit via <code>Error()</code> like any other parse error.</p>
+<p><strong>No regressions.</strong> With assertions enabled, all reproductions in <code>bugs/</code>
+behave as before — no new assertion failures; <code>bug005</code> now exits 3 instead of
+segfaulting. The bundled first-order problems (<code>BOO001</code>, <code>LUSK3</code>, <code>PUZ031</code>)
+still find their proofs.</p>
+<hr />
+<h2>Note on <code>^ [X: $i] : (f @ X) = f</code></h2>
+<p>One shape worth flagging, since it interacts with the binder/equation change
+that just went in. Written without parentheses, lambda extensionality now
+parses as <code>^ [X: $i] : ((f @ X) = f)</code> — type <code>$i &gt; $o</code> — and is therefore
+rejected by this patch. The parenthesised form
+<code>( ^ [X: $i] : (f @ X) ) = f</code> is unaffected and still works.</p>
+<p>That follows from the TPTP BNF (the body of a binder is a
+<code>&lt;thf_unit_formula&gt;</code>, and <code>s = t</code> is one), so rejecting it looks correct to
+me — but it does mean a file relying on the old associativity now gets an
+error rather than a wrong answer. It appears in none of the problem files in
+the tree.</p>
+</body>
+</html>

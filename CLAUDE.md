@@ -61,17 +61,28 @@ Bugs are documented in `bugs/` using a numbered scheme:
 When investigating a new bug: minimize the eprover args in `.sh` (usually just `-H'(...)'`),
 minimize the `.p` to the smallest TPTP problem that triggers it, then write the `.md`.
 
-Current open bugs:
-- `bug005-nonbool-toplevel-lambda-segfault` — an ill-typed top-level lambda
-  (`thf(c,axiom, ^ [X: $o] : ( p & X ) ).`, type `$o > $o` where `$o` is
-  required) is not rejected and crashes in `TFormulaNNF` during clausification
-  (`CLAUSES/ccl_tcnf.c`); NULL `form` on recursive entry. Documented only,
-  root cause not yet established.
+Current open bugs: none.
 
 Working files from past investigations live in `bugs/dust/` (see its
-`README.md`) — e.g. the parse-scoping test corpus and runner scripts.
+`README.md`) — one subdirectory per investigation, each with a test corpus,
+runner scripts and the upstream PR text.
 
 Fixed bugs:
+- `bug005-nonbool-toplevel-lambda-segfault` — a non-Boolean term at formula
+  position (e.g. `thf(c,axiom, ^ [X: $o] : ( p & X ) ).`, type `$o > $o`, but
+  also `f @ a` and `p | (f @ a)` with no lambda at all) was not rejected and
+  crashed `TFormulaNNF` during clausification — or, for other shapes, was
+  silently accepted and answered "Unsatisfiable". Fix: new
+  `TFormulaHasNonBoolSubForm` in `CLAUSES/ccl_tformulae.c`, called from
+  `WFormulaTSTPParse` (`CLAUSES/ccl_formula_wrapper.c`) beside the existing
+  free-variable check; it walks the formula skeleton via the existing
+  `TFormulaHasSubForm1/2` macros. Also removed four `assert(false)` in
+  `TERMS/cte_typecheck.c` that aborted debug builds on ordinary type errors,
+  and guarded a NULL `GetHeadType()` in `applied_tform_tstp_parse`
+  (`CLAUSES/ccl_tformulae.c`) — a second, independent segfault on `p @ q`,
+  i.e. applying an argument to a Boolean atom (the head is an equation after
+  `EncodePredicateAsEqn`, and equations are polymorphic, so `SigGetType`
+  returns NULL).
 - `bug001-prefix-weight-null-owner-bank` — assertion `bank` failed in `NormalizePatternAppVar` (triggered by `ALG247^2` and `SYO548^1`; fix: `TermSetBank` in `TermCopyRenameVars` and `TermCopyUnifyVars` in `TERMS/cte_termfunc.c`)
 - `bug002-eta-self-rewrite` — assertion `term!=replace` in `TermAddRWLink` (HO self-rewrite: `MakeRewrittenTerm` normalizes RHS back to original term; fix: guard all 4 `TermAddRWLink` call sites in `CLAUSES/ccl_rewrite.c`; triggered by `ITP035^1` and `ITP137^1 --prefer-initial-clauses`)
 - `ITP109^1` — assertion `false` in `indexed_find_demodulator` (HO demodulator match requires beta-normalization that debug check skips; fix: guard with `problemType != PROBLEM_HO` in `CLAUSES/ccl_rewrite.c`; minimal: `bugs/bug003-demodulator-ho-assertion.p` — 4 formulae, synthesized directly)

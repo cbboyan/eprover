@@ -680,7 +680,15 @@ static TFormula_p applied_tform_tstp_parse(Scanner_p in, TB_p terms, TFormula_p 
 
    // printf("applied_tform_tstp_parse()...\n");
    const Type_p hd_type = GetHeadType(terms->sig, head);
-   assert(hd_type);
+   if(!hd_type)
+   {
+      /* GetHeadType() has no type to return for a polymorphic head, i.e.
+         for an equation - including one that EncodePredicateAsEqn() has
+         just built out of a Boolean atom, as in "p @ q". Such a head is
+         saturated by construction, so applying anything to it is an
+         error rather than something to compute a max arity from. */
+      AktTokenError(in, " Too many arguments applied to the term", false);
+   }
    const int max_args = TypeGetMaxArity(hd_type);
    int i = 0;
    const TermRef args = TermArgTmpArrayAlloc(max_args);
@@ -2319,6 +2327,104 @@ TFormula_p TFormulaHasFreeVars(TB_p bank, TFormula_p form)
    PTreeFree(dummy);
    return res;
 }
+
+
+/*-----------------------------------------------------------------------
+//
+// Function: tform_find_nonbool()
+//
+//   Recursive worker for TFormulaHasNonBoolSubForm(). Descends through
+//   the whole term, and wherever it meets a propositional connective or
+//   a quantifier, checks that the arguments that have to be Boolean
+//   are.
+//
+//   The descent cannot stop at the formula skeleton. A term may contain
+//   a formula again - most obviously the body of a lambda, but also an
+//   $ite branch - so e.g. "hq @ (^[X:$o]:(p & (f @ a)))" hides an
+//   ill-typed "&" below an application and a binder.
+//
+// Global Variables: -
+//
+// Side Effects    : -
+//
+/----------------------------------------------------------------------*/
+
+static TFormula_p tform_find_nonbool(Sig_p sig, TFormula_p form)
+{
+   Type_p     bool_type = sig->type_bank->bool_type;
+   TFormula_p res       = NULL;
+   int        i;
+
+   if(TermIsAnyVar(form))
+   {
+      /* A variable is a perfectly good atom, and has no f_code that
+         could be looked up in the signature. */
+      return NULL;
+   }
+   if(TFormulaHasSubForm1(sig, form))
+   {
+      if(form->args[0]->type != bool_type)
+      {
+         return form->args[0];
+      }
+      if(TFormulaHasSubForm2(sig, form) && (form->args[1]->type != bool_type))
+      {
+         return form->args[1];
+      }
+   }
+   else if(TFormulaIsQuantifiedNL(sig, form) && (form->arity == 2))
+   {
+      if(form->args[1]->type != bool_type)
+      {
+         return form->args[1];
+      }
+   }
+   for(i=0; i<form->arity; i++)
+   {
+      res = tform_find_nonbool(sig, form->args[i]);
+      if(res)
+      {
+         break;
+      }
+   }
+   return res;
+}
+
+
+/*-----------------------------------------------------------------------
+//
+// Function: TFormulaHasNonBoolSubForm()
+//
+//   Check that every position of form that has to be Boolean actually
+//   is, i.e. form itself, the arguments of every propositional
+//   connective, and the body of every quantifier. If so, return NULL,
+//   otherwise return the offending subformula.
+//
+//   Positions that are terms rather than formulas - the sides of a
+//   (dis)equation, the arguments of an application, the body of a
+//   lambda - are not required to be Boolean, but are still descended
+//   into, because a formula can occur inside them again.
+//
+//   In LFHO a partially applied term can end up in formula position,
+//   where the FO parser would already have rejected it - see e.g.
+//   "^[X:$o]:(p & X)", which has type $o>$o, not $o. Without this
+//   check such a formula reaches clausification and crashes it.
+//
+// Global Variables: -
+//
+// Side Effects    : -
+//
+/----------------------------------------------------------------------*/
+
+TFormula_p TFormulaHasNonBoolSubForm(Sig_p sig, TFormula_p form)
+{
+   if(form->type != sig->type_bank->bool_type)
+   {
+      return form;
+   }
+   return tform_find_nonbool(sig, form);
+}
+
 
 /*-----------------------------------------------------------------------
 //

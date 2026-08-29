@@ -1,4 +1,15 @@
-# Working files: binder/equation parse scoping
+# Working files from past investigations
+
+One subdirectory per investigation; each has its own `README.md`.
+
+| dir | what |
+|---|---|
+| `parse/` | binder/equation parse scoping (merged upstream, PR #32) — described below |
+| `nonbool/` | rejecting non-Boolean formulas, fix for `bug005` |
+
+---
+
+## `parse/` — binder/equation parse scoping
 
 Test artifacts from the change that makes a binder scope over a complete
 literal, so `? [X: $o] : p = X` parses as `? [X: $o] : (p = X)` rather than
