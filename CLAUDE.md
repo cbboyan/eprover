@@ -91,13 +91,12 @@ Bugs are documented in `bugs/` using a numbered scheme:
 When investigating a new bug: minimize the eprover args in `.sh` (usually just `-H'(...)'`),
 minimize the `.p` to the smallest TPTP problem that triggers it, then write the `.md`.
 
-Current open bugs: none
+**This branch's `bugs/` is scoped to enigma-specific issues only** (none
+currently). General (non-enigma) eprover bugs are tracked on `master` —
+see that branch's `CLAUDE.md`/`bugs/` for the full history and any
+currently open ones.
 
-Fixed bugs:
-- `bug001-prefix-weight-null-owner-bank` — assertion `bank` failed in `NormalizePatternAppVar` (triggered by `ALG247^2` and `SYO548^1`; fix: `TermSetBank` in `TermCopyRenameVars` and `TermCopyUnifyVars` in `TERMS/cte_termfunc.c`)
-- `bug002-eta-self-rewrite` — assertion `term!=replace` in `TermAddRWLink` (HO self-rewrite: `MakeRewrittenTerm` normalizes RHS back to original term; fix: guard all 4 `TermAddRWLink` call sites in `CLAUSES/ccl_rewrite.c`; triggered by `ITP035^1` and `ITP137^1 --prefer-initial-clauses`)
-- `ITP109^1` — assertion `false` in `indexed_find_demodulator` (HO demodulator match requires beta-normalization that debug check skips; fix: guard with `problemType != PROBLEM_HO` in `CLAUSES/ccl_rewrite.c`; minimal: `bugs/bug003-demodulator-ho-assertion.p` — 4 formulae, synthesized directly)
-- `bug004-whnf-cache-cross-bank-pollution` — assertion `TermIsShared(res)` in `do_beta_normalize_db` (WHNF cache cross-bank pollution: `TBInsertNoProps` cheat temporarily sets `term->owner_bank=tmp_terms`, causing `WHNF_deref` to cache a `tmp_terms` result on a `state->terms` term; `TBGCSweep(tmp_terms)` then frees the cached result, leaving a dangling `binding_cache`; fix: clear `TermSetCache(term, NULL)` in `TBInsertNoProps` when `bank != tmp_bank`; secondary fix: broaden `TBGCMarkTerm` to follow `binding_cache` on all terms, not just applied-free-vars; in `TERMS/cte_termbanks.c`)
+Current open bugs: none
 
 ## Code Architecture
 
