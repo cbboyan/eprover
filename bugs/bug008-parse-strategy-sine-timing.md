@@ -1,10 +1,14 @@
 # Bug: `sine:` set via `--parse-strategy`/`--select-strategy` is never applied — loaded after SInE pruning already ran
 
 **Status:** OPEN — root-caused by reading source (`PROVER/eprover.c`,
-`CONTROL/cco_sine.c`, `HEURISTICS/che_hcb.c`), not yet reported upstream, not
-yet reproduced with a minimized `.p`/`.sh` (no crash to reproduce — the
-symptom is silent, observable only by comparing pruning behavior against
-what the config declares).
+`CONTROL/cco_sine.c`, `HEURISTICS/che_hcb.c`), not yet reported upstream.
+Reproduced with a minimized 4-formula FOF file
+(`bugs/bug008-parse-strategy-sine-timing.p`), a strategy file with a `sine:`
+field (`bugs/bug008-parse-strategy-sine-timing.strategy`), and a comparison
+script (`bugs/bug008-parse-strategy-sine-timing.sh`) — no crash, the symptom
+is silent, so the script contrasts pruning behavior between an equivalent
+direct `--sine=` run and a `--parse-strategy` run instead of reproducing a
+single failure.
 
 **Found while:** running E's own predefined `--print-strategy` configs as
 standalone strategies via `--parse-strategy=<path>`, after noticing
@@ -107,15 +111,30 @@ plain command-line argument instead of through a strategy file — that path
 is parsed early enough and works correctly, independently reproduced on a
 strategy known to rely on aggressive SInE filtering.
 
+Also reproduced on the original real-world instance that surfaced this: a
+698-formula Sledgehammer HOL problem (`bugs/dust/prob_00141_003988.p`, from
+solverpy run log `bugs/dust/prob_00141_003988.p.gz`) run with the exact
+`--sine='GSinE(CountFormulas,hypos,5.0,,3,500,1.0)'` from that log — 197 of
+698 axioms removed by SInE directly on the CLI, 0 removed once the same
+`sine:` field is loaded from an equivalent `--parse-strategy` file. Also
+independently confirmed via `--select-strategy` on a named config from
+`HEURISTICS/schedule.vars` with `sine: "Auto"`.
+
+## Reproducer
+
+- `bugs/bug008-parse-strategy-sine-timing.p` — minimized 4-formula FOF file
+  (one relevant axiom sharing symbols with the goal, two irrelevant axioms
+  that don't).
+- `bugs/bug008-parse-strategy-sine-timing.strategy` — a `--print-strategy`
+  dump with `sine: "GSinE(CountFormulas,hypos,5.0,,3,500,1.0)"` set.
+- `bugs/bug008-parse-strategy-sine-timing.sh` — runs the same `sine:` value
+  once via a direct `--sine=` CLI flag (2 axioms removed) and once via
+  `--parse-strategy=...strategy` (0 axioms removed), demonstrating the
+  discrepancy.
+
 ## Not yet done
 
 - Not reported upstream to the E maintainers yet — planned next.
-- No minimized `.p`/`.sh` reproducer — the fix (call `strategy_io()`, or at
-  least apply `--parse-strategy`/`--select-strategy`'s `sine:` field, before
-  line 646) is obvious enough from the source that a repro may not be
-  necessary, but one could be built by diffing `GSinE`-filtered axiom counts
-  between a `--sine=GSinE(...)` CLI run and an equivalent `--parse-strategy`
-  file on the same instance.
 - Not checked whether any other `h_parms` field has the same
   loaded-too-late problem — SInE was found because it happens to be the
   only pre-clausification step gated by `h_parms`; other fields consumed
