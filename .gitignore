@@ -80,6 +80,9 @@ SIMPLE_APPS/enigmatic-features
 SIMPLE_APPS/enigmatic-tensors
 compile_commands.json
 
+# Working files from past bug investigations - not for commit
+bugs/dust/*
+
 
 
 
