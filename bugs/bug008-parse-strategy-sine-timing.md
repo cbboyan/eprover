@@ -1,14 +1,28 @@
 # Bug: `sine:` set via `--parse-strategy`/`--select-strategy` is never applied — loaded after SInE pruning already ran
 
-**Status:** OPEN — root-caused by reading source (`PROVER/eprover.c`,
-`CONTROL/cco_sine.c`, `HEURISTICS/che_hcb.c`), not yet reported upstream.
-Reproduced with a minimized 4-formula FOF file
+**Status:** FIXED UPSTREAM, independently — root-caused by reading source
+(`PROVER/eprover.c`, `CONTROL/cco_sine.c`, `HEURISTICS/che_hcb.c`) and
+reproduced with a minimized 4-formula FOF file
 (`bugs/bug008-parse-strategy-sine-timing.p`), a strategy file with a `sine:`
 field (`bugs/bug008-parse-strategy-sine-timing.strategy`), and a comparison
 script (`bugs/bug008-parse-strategy-sine-timing.sh`) — no crash, the symptom
 is silent, so the script contrasts pruning behavior between an equivalent
 direct `--sine=` run and a `--parse-strategy` run instead of reproducing a
 single failure.
+
+Fixed upstream by Stephan Schulz, commit `99c6ac02` ("Some cleanup, moved
+strategy_io() earlier so the loaded strategy also determines
+preprocessing...", 2026-09-01) — merged into this fork's `master` via the
+2026-09-14 sync with `eprover/master` (commit `0814cee2`). The fix moves the
+`strategy_io(h_parms, hcb_definitions)` call in `main()`
+(`PROVER/eprover.c`) to run before `ProofStateSinE(proofstate,
+h_parms->sine)`, exactly the ordering fix this doc's root-cause analysis
+proposed. Re-ran `bugs/bug008-parse-strategy-sine-timing.sh` against the
+rebuilt binary: `--parse-strategy` now removes 2/4 axioms, matching the
+direct `--sine=` result (previously 0). Not independently reported upstream
+by us — the upstream commit message doesn't reference this investigation, so
+it looks like Schulz hit the same ordering issue separately, for a related
+reason (making the loaded strategy also govern preprocessing).
 
 **Found while:** running E's own predefined `--print-strategy` configs as
 standalone strategies via `--parse-strategy=<path>`, after noticing
@@ -134,9 +148,9 @@ independently confirmed via `--select-strategy` on a named config from
 
 ## Not yet done
 
-- Not reported upstream to the E maintainers yet — planned next.
-- Not checked whether any other `h_parms` field has the same
-  loaded-too-late problem — SInE was found because it happens to be the
-  only pre-clausification step gated by `h_parms`; other fields consumed
-  later in `main()` (after line 777) would not be affected the same way,
-  but this wasn't exhaustively checked.
+- Fixed upstream already, so no report needed there.
+- Not checked whether any other `h_parms` field had the same
+  loaded-too-late problem before the upstream fix, or whether the fix's
+  reordering introduced a new one — the commit also moved a second
+  `process_options()` re-application earlier (see the commit diff); not
+  independently verified beyond the `sine:` field this doc tracks.

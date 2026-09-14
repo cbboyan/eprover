@@ -80,21 +80,20 @@ Current open bugs:
   mismatch between Skolems, not a curried-arity mismatch on an input
   constant) — not assumed to share a root cause. Not minimized, not
   investigated yet.
-- `bug008-parse-strategy-sine-timing` — silent, not a crash: a `sine:` field
-  set via `--parse-strategy=<path>` or `--select-strategy=<name>` is never
-  applied. `strategy_io()` (`PROVER/eprover.c`), which loads either into
-  `h_parms`, runs after the one-shot SInE relevancy-pruning call already
-  executed with `h_parms->sine` still at its `NULL` default — so the
-  declared filter is loaded too late to ever be read. A plain `--sine=...`
-  CLI flag is unaffected (parsed earlier). Root-caused by reading source;
-  not yet reported upstream, no minimized reproducer needed (nothing
-  crashes).
 
 Working files from past investigations live in `bugs/dust/` (see its
 `README.md`) — one subdirectory per investigation, each with a test corpus,
 runner scripts and the upstream PR text.
 
 Fixed bugs:
+- `bug008-parse-strategy-sine-timing` — silent, not a crash: a `sine:` field
+  set via `--parse-strategy=<path>` or `--select-strategy=<name>` was never
+  applied, because `strategy_io()` (`PROVER/eprover.c`), which loads either
+  into `h_parms`, ran after the one-shot SInE relevancy-pruning call already
+  executed with `h_parms->sine` still at its `NULL` default. Fixed
+  upstream, independently, by Stephan Schulz (commit `99c6ac02`) moving the
+  `strategy_io()` call before `ProofStateSinE()`; pulled in via the
+  2026-09-14 sync with `eprover/master`. See `bugs/bug008-parse-strategy-sine-timing.md`.
 - `bug005-nonbool-toplevel-lambda-segfault` — a non-Boolean term at formula
   position (e.g. `thf(c,axiom, ^ [X: $o] : ( p & X ) ).`, type `$o > $o`, but
   also `f @ a` and `p | (f @ a)` with no lambda at all) was not rejected and
