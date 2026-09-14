@@ -368,7 +368,7 @@ WFormula_p WFormulaTPTPParse(Scanner_p in, TB_p terms)
 
 /*-----------------------------------------------------------------------
 //
-// Function: FormulaTPTPPrint()
+// Function: WFormulaTPTPPrint()
 //
 //   Print a formula in TPTP format.
 //
@@ -386,20 +386,20 @@ void WFormulaTPTPPrint(FILE* out, WFormula_p form, bool fullterms)
    {
    case CPTypeAxiom:
          typename = "axiom";
-    break;
+         break;
    case CPTypeHypothesis:
-    typename = "hypothesis";
-    break;
+         typename = "hypothesis";
+         break;
    case CPTypeConjecture:
    case CPTypeNegConjecture:
-    typename = "conjecture";
-    break;
+         typename = "conjecture";
+         break;
    case CPTypeQuestion:
          typename = "question";
          break;
    default:
-    typename = "unknown";
-    break;
+         typename = "unknown";
+         break;
    }
    fprintf(out, "input_formula(%s,%s,", WFormulaGetId(form), typename);
 
@@ -578,9 +578,6 @@ WFormula_p WFormulaTSTPParse(Scanner_p in, TB_p terms)
 }
 
 
-
-
-
 /*-----------------------------------------------------------------------
 //
 // Function: WFormulaTSTPPrintFlex()
@@ -600,7 +597,6 @@ void WFormulaTSTPPrintFlex(FILE* out, WFormula_p form, bool fullterms,
 {
    char *typename = "plain", *formula_kind = "fof";
    bool is_untyped = TFormulaIsUntyped(form->tformula);
-
    //SigPrint(stdout, form->terms->sig);
 
    if(problemType == PROBLEM_FO)
@@ -636,6 +632,9 @@ void WFormulaTSTPPrintFlex(FILE* out, WFormula_p form, bool fullterms,
          break;
    case CPTypeConjecture:
          typename = "conjecture";
+         break;
+   case CPTypeDefinition:
+         typename = "definition";
          break;
    case CPTypeQuestion:
          typename = "question";
