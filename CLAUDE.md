@@ -61,7 +61,34 @@ Bugs are documented in `bugs/` using a numbered scheme:
 When investigating a new bug: minimize the eprover args in `.sh` (usually just `-H'(...)'`),
 minimize the `.p` to the smallest TPTP problem that triggers it, then write the `.md`.
 
-Current open bugs: none.
+Current open bugs:
+- `bug005-nonbool-toplevel-lambda-segfault` — an ill-typed top-level lambda
+  (`thf(c,axiom, ^ [X: $o] : ( p & X ) ).`, type `$o > $o` where `$o` is
+  required) is not rejected and crashes in `TFormulaNNF` during clausification
+  (`CLAUSES/ccl_tcnf.c`); NULL `form` on recursive entry. Documented only,
+  root cause not yet established.
+- `bug006-sup-partial-app-type-mismatch` — deterministic "Type error" (exit 3,
+  not a crash) on a well-typed Sledgehammer HOL problem: E derives a term
+  during search that supplies a curried partial application where a fully
+  applied relation-of-relations is expected, at the input constant
+  `sup_su270570050_a_o_o` (Isabelle's monomorphized lattice `sup`). Options
+  minimized to 6 flags + a 2-term heuristic; not root-caused yet.
+- `bug007-esk-epred-sort-mismatch` — deterministic "Type error" (exit 3, not
+  a crash) on a different Sledgehammer HOL problem: two Skolem symbols
+  (`esk5_3`, `epred103_0`) end up with mismatched sorts during search.
+  Superficially similar to bug006 but a different message shape (sort
+  mismatch between Skolems, not a curried-arity mismatch on an input
+  constant) — not assumed to share a root cause. Not minimized, not
+  investigated yet.
+- `bug008-parse-strategy-sine-timing` — silent, not a crash: a `sine:` field
+  set via `--parse-strategy=<path>` or `--select-strategy=<name>` is never
+  applied. `strategy_io()` (`PROVER/eprover.c`), which loads either into
+  `h_parms`, runs after the one-shot SInE relevancy-pruning call already
+  executed with `h_parms->sine` still at its `NULL` default — so the
+  declared filter is loaded too late to ever be read. A plain `--sine=...`
+  CLI flag is unaffected (parsed earlier). Root-caused by reading source;
+  not yet reported upstream, no minimized reproducer needed (nothing
+  crashes).
 
 Working files from past investigations live in `bugs/dust/` (see its
 `README.md`) — one subdirectory per investigation, each with a test corpus,
