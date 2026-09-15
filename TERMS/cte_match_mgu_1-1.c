@@ -177,6 +177,26 @@ int PartiallyMatchVar(Term_p var_matcher, Term_p to_match, Sig_p sig,
       return MATCH_FAILED;
    }
 
+   /* Arguments of to_match at indices >= args_to_eat (+1 if to_match's own
+    * head is itself an applied variable) are not absorbed into
+    * var_matcher's binding here -- they become a *separate* leftover
+    * match against var_matcher's own applied arguments, pushed by the
+    * caller (SubstComputeMatchHO). That leftover path assumes each
+    * leftover argument is something a bound-variable placeholder can
+    * meaningfully stand in for -- it isn't, if the argument references a
+    * bound variable from the caller's local scope (not DB-closed).
+    * Silently proceeding drops that content (see bug009). Fail honestly
+    * here instead; SubstMatchComplete falls back to
+    * SubstComputeMatchPattern for terms in the pattern fragment, which
+    * handles this correctly. */
+   for(int i = args_to_eat + (TermIsAppliedAnyVar(to_match) ? 1 : 0); i < to_match->arity; i++)
+   {
+      if(!TermIsDBClosed(to_match->args[i]))
+      {
+         return MATCH_FAILED;
+      }
+   }
+
    for(int i=0; i<args_to_eat + TermIsAppliedAnyVar(to_match) ? 1 : 0; i++)
    {
       if(!TermIsDBClosed(to_match->args[i]) ||
@@ -406,11 +426,18 @@ int SubstComputeMatchHO(Term_p matcher, Term_p to_match, Subst_p subst)
          }
 
 
+         /* A bare (arity 0) occurrence of a polymorphic symbol (e.g. $eq)
+          * has no args[0] to compare -- its own ->type is what pins down
+          * which instance it is. The arity!=0 branch was previously
+          * silently skipping this check for the bare case entirely,
+          * allowing two differently-typed bare occurrences of the same
+          * polymorphic symbol to match/unify unchecked (see bug009's .md,
+          * "Not yet done"). */
          if(matcher->f_code != to_match->f_code ||
             (!TermIsTopLevelDBVar(matcher)
               && SigIsPolymorphic(bank->sig, matcher->f_code)
-              && matcher->arity != 0
-              && matcher->args[0]->type != to_match->args[0]->type))
+              && ((matcher->arity != 0 && matcher->args[0]->type != to_match->args[0]->type) ||
+                  (matcher->arity == 0 && matcher->type != to_match->type))))
          {
             FAIL_AND_BREAK(res, MATCH_FAILED);
          }
@@ -664,11 +691,14 @@ UnificationResult SubstComputeMguHO(Term_p t1, Term_p t2, Subst_p subst)
             FAIL_AND_BREAK(res, UNIF_FAILED);
          }
 
+         /* See the matching analogue of this check in SubstComputeMatchHO
+          * above -- a bare (arity 0) polymorphic symbol has no args[0],
+          * so its own ->type must be compared directly. */
          if(t1->f_code != t2->f_code ||
             (!TermIsTopLevelDBVar(t1)
               && SigIsPolymorphic(bank->sig, t1->f_code)
-              && t1->arity != 0
-              && t1->args[0]->type != t2->args[0]->type))
+              && ((t1->arity != 0 && t1->args[0]->type != t2->args[0]->type) ||
+                  (t1->arity == 0 && t1->type != t2->type))))
          {
             FAIL_AND_BREAK(res, UNIF_FAILED);
          }

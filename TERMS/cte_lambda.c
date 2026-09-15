@@ -419,6 +419,20 @@ Term_p reduce_eta_top_level(TB_p bank, Term_p t)
          long to_drop = min_db == DB_NOT_FOUND ? matrix->args[last_db]->f_code + 1
                                                : MIN(min_db, matrix->args[last_db]->f_code + 1);
 
+         /* Eta-reducing away the last applied argument of a polymorphic
+          * symbol (e.g. $eq/$neq) would leave a bare, unapplied occurrence
+          * whose type can no longer be determined from its arguments --
+          * exactly the shape TypeInferSort() itself rejects for parsed
+          * input ("Equality must have at least one argument"). Keep at
+          * least one argument applied in that case. */
+         long total_applied = matrix->arity - (TermIsPhonyApp(matrix) ? 1 : 0);
+         FunCode head_fc = TermIsPhonyApp(matrix) ? matrix->args[0]->f_code : matrix->f_code;
+         if(to_drop >= total_applied && total_applied > 0 &&
+            head_fc > 0 && SigIsPolymorphic(bank->sig, head_fc))
+         {
+            to_drop = total_applied - 1;
+         }
+
          res = ShiftDB(bank, drop_args(bank, matrix, to_drop), -to_drop);
 
          while(to_drop) // dropping leftmost binders
