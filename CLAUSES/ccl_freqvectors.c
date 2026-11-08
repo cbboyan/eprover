@@ -317,15 +317,15 @@ void FreqVectorPrint(FILE* out, FreqVector_p vec)
    assert(vec);
    if(vec->clause)
    {
-      fprintf(out, COMCHAR" FV for: ");
+      CommentPrint(out, " FV for: ");
       ClausePrint(out, vec->clause, true);
       fprintf(out, "\n");
    }
    else
    {
-      fprintf(out, COMCHAR" FV, no clause given.\n");
+      CommentPrint(out, " FV, no clause given.\n");
    }
-   fprintf(out, COMCHAR" FV(len=%ld):", vec->size);
+   CommentPrint(out, " FV(len=%ld):", vec->size);
    for(i=0; i<vec->size; i++)
 
    {
@@ -677,7 +677,7 @@ FreqVector_p FVCollectFreqVectorCompute(Clause_p clause, FVCollect_p cspec)
    if(!ClauseIsEmpty(clause))
    {
       PStack_p mod_stack = PStackAlloc();
-      long max_fun = clause->literals->bank->sig->f_count;
+      long max_fun = EqnGetBank(clause->literals)->sig->f_count;
       long findex;
 
       if(cspec->use_litcount)

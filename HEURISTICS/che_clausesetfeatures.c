@@ -1696,12 +1696,12 @@ void ProofStatePrintSelective(FILE* out, ProofState_p state, char*
       case 't':
             if(problemType == PROBLEM_HO || !ClauseSetIsUntyped(state->axioms))
             {
-               fprintf(out, COMCHAR" Type declarations:\n");
+               CommentPrint(out, " Type declarations:\n");
                SigPrintTypeDeclsTSTP(out, state->terms->sig);
             }
             break;
       case 'e':
-            fprintf(out, COMCHAR" Processed positive unit clauses:\n");
+            CommentPrint(out, " Processed positive unit clauses:\n");
             ClauseSetPrintPosUnits(out, state->processed_pos_rules,
                                    printinfo);
             ClauseSetPrintPosUnits(out, state->processed_pos_eqns,
@@ -1709,31 +1709,31 @@ void ProofStatePrintSelective(FILE* out, ProofState_p state, char*
             fputc('\n', out);
             break;
       case 'i':
-            fprintf(out, COMCHAR" Processed negative unit clauses:\n");
+            CommentPrint(out, " Processed negative unit clauses:\n");
             ClauseSetPrintNegUnits(out, state->processed_neg_units,
                                    printinfo);
             fputc('\n', out);
             break;
       case 'g':
-            fprintf(out, COMCHAR" Processed non-unit clauses:\n");
+            CommentPrint(out, " Processed non-unit clauses:\n");
             ClauseSetPrintNonUnits(out, state->processed_non_units,
                                    printinfo);
             fputc('\n', out);
             break;
       case 'E':
-            fprintf(out, COMCHAR" Unprocessed positive unit clauses:\n");
+            CommentPrint(out, " Unprocessed positive unit clauses:\n");
             ClauseSetPrintPosUnits(out, state->unprocessed,
                                    printinfo);
             fputc('\n', out);
             break;
       case 'I':
-            fprintf(out, COMCHAR" Unprocessed negative unit clauses:\n");
+            CommentPrint(out, " Unprocessed negative unit clauses:\n");
             ClauseSetPrintNegUnits(out, state->unprocessed,
                                    printinfo);
             fputc('\n', out);
             break;
       case 'G':
-            fprintf(out, COMCHAR" Unprocessed non-unit clauses:\n");
+            CommentPrint(out, " Unprocessed non-unit clauses:\n");
             ClauseSetPrintNonUnits(out, state->unprocessed,
                                    printinfo);
             fputc('\n', out);
@@ -1741,24 +1741,24 @@ void ProofStatePrintSelective(FILE* out, ProofState_p state, char*
       case 'a':
             if(ClauseSetIsEquational(state->axioms))
             {
-               fprintf(out, COMCHAR" Equality axioms:\n");
+               CommentPrint(out, " Equality axioms:\n");
                EqAxiomsPrint(out, state->signature, true);
             }
             else
             {
-               fprintf(out, COMCHAR" No equality axioms required.\n");
+               CommentPrint(out, " No equality axioms required.\n");
             }
 
             break;
       case 'A':
             if(ClauseSetIsEquational(state->axioms))
             {
-               fprintf(out, COMCHAR" Equality axioms:\n");
+               CommentPrint(out, " Equality axioms:\n");
                EqAxiomsPrint(out, state->signature, false);
             }
             else
             {
-               fprintf(out, COMCHAR" No equality axioms required.\n");
+               CommentPrint(out, " No equality axioms required.\n");
             }
             break;
       default:
@@ -1856,18 +1856,18 @@ void ClauseSetComputeHOFeatures(ClauseSet_p set, Sig_p sig,
    for(handle = set->anchor->succ; handle!=set->anchor;
        handle = handle->succ)
    {
-      PTree_p vars = NULL;
+      OrdSet_p vars = NULL;
       ClauseCollectVariables(handle, &vars);
-      PStack_p iter = PTreeTraverseInit(vars);
-      PTree_p node;
-      while((node = PTreeTraverseNext(iter)))
+      OrdSetIter_p iter = OrdSetTraverseInit(vars);
+      OrdSet_p node;
+      while((node = OrdSetTraverseNext(iter)))
       {
          Type_p ty = ((Term_p)node->key)->type;
          ord = MAX(ord, VAR_ORDER(ty));
          var_has_bools = var_has_bools || TypeHasBool(ty);
       }
-      PTreeTraverseExit(iter);
-      PTreeFree(vars);
+      OrdSetTraverseExit(iter);
+      OrdSetFree(vars);
 
       bool has_app_var = false;
       for(Eqn_p eqn = handle->literals; eqn; eqn = eqn->next)
@@ -1952,13 +1952,18 @@ void SpecLimitsPrint(FILE* out, SpecLimits_p limits)
 //
 // Function: ClausifyAndClassifyWTimeout()
 //
-//   Run the defaultclausification and get the corresponding classification
-//   string. If last three arguments are non-NULL, the full classification string
-//   with computed features will be output to stdout.
+//   Run the default clausification in a child process with the
+//   given CPU time limit and compute the classification string of
+//   the result, masked with mask. The child sends the string to the
+//   parent through a pipe, and it is returned in class. If the child
+//   does not deliver a result (e.g. on timeout), class is filled with
+//   '-'.
 //
-// Global Variables: Plenty, most simple flags used read-only
+// Global Variables: problemType (read, via SpecTypeString())
 //
-// Side Effects    : Does everything...
+// Side Effects    : Forks a child process, which clausifies the
+//                   formulas in state (the parent's state is not
+//                   changed).
 //
 /----------------------------------------------------------------------*/
 
@@ -1983,6 +1988,9 @@ void ClausifyAndClassifyWTimeout(ProofState_p state, int timeout,
    SpecFeatureCell features;
    SpecLimits_p limits = CreateDefaultSpecLimits();
 
+   /* Flush pending output, so that the child does not inherit and
+      later repeat it. */
+   fflush(NULL);
    pid_t pid = fork();
    if (pid == -1)
    {
@@ -1996,7 +2004,7 @@ void ClausifyAndClassifyWTimeout(ProofState_p state, int timeout,
       if(SetSoftRlimit(RLIMIT_CPU, timeout) != RLimSuccess)
       {
          fprintf(stderr, "softrlimit call failed.\n");
-         exit(-1);
+         _exit(-1);
       }
       FormulaSetPreprocConjectures(state->f_axioms, state->f_ax_archive, false, false);
       FormulaSetCNF2(state->f_axioms, state->f_ax_archive,
@@ -2004,7 +2012,8 @@ void ClausifyAndClassifyWTimeout(ProofState_p state, int timeout,
                      state->freshvars,
                      DEFAULT_MINISCOPE, DEFAULT_FORMULA_DEF_LIMIT,
                      DEFAULT_LIFT_LAMS, DEFAULT_LAM_TO_FORALL,
-                     DEFAULT_UNFOLD_ONLY_FORM, DEFAULT_UNROLL_FOOL);
+                     DEFAULT_UNFOLD_ONLY_FORM, DEFAULT_UNROLL_FOOL,
+                     state->step_archive);
       SpecFeaturesCompute(&features, state->axioms, state->f_axioms,
                           state->f_ax_archive, state->terms);
       SpecFeaturesAddEval(&features, limits);
@@ -2012,13 +2021,16 @@ void ClausifyAndClassifyWTimeout(ProofState_p state, int timeout,
       {
          perror("could not write");
       }
-      exit(0);
+      /* _exit() does not flush the stdio buffers inherited from the
+         parent, which would print the parent's pending output twice. */
+      _exit(0);
    }
    else
    {
       // parent
       close(fds[1]);
       int nbytes = read(fds[0], class, SPEC_STRING_MEM);
+      close(fds[0]);
       if(nbytes < SPEC_STRING_MEM)
       {
          memset(class, '-', SPEC_STRING_MEM-1);

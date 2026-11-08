@@ -22,6 +22,7 @@ Changes
 -----------------------------------------------------------------------*/
 
 #include "ccl_formula_wrapper.h"
+#include "ccl_derivation.h"
 #include <clb_simple_stuff.h>
 
 
@@ -71,7 +72,7 @@ TFormula_p handle_ho_def(Scanner_p in, TB_p bank)
    Term_p lside_term = TBTermParse(in, bank);
    if(TypeIsBool(lside_term->type))
    {
-      TFormula_p lside = EqnTermsTBTermEncode(bank, lside_term,
+      TFormula_p lside = EqnTermsTBTermEncode(lside_term,
                                               bank->true_term, true, PENormal);
       if(!TestInpTok(in, EqualSign))
       {
@@ -98,7 +99,7 @@ TFormula_p handle_ho_def(Scanner_p in, TB_p bank)
       }
       AcceptInpTok(in, EqualSign|NegEqualSign);
       Term_p rside = TBTermParse(in, bank);
-      TFormula_p res = EqnTermsTBTermEncode(bank, lside_term, rside,
+      TFormula_p res = EqnTermsTBTermEncode(lside_term, rside,
                                             positive, PENormal);
       if(in_parens)
       {
@@ -229,7 +230,8 @@ WFormula_p WFormulaFlatCopy(WFormula_p form)
 //
 // Function: WFormulaGCMarkCells()
 //
-//   If formula is a term formula, mark the terms. Otherwise a noop.
+//   If formula is a term formula, mark the terms (including the
+//   terms recorded in its derivation). Otherwise a noop.
 //
 // Global Variables: -
 //
@@ -239,7 +241,11 @@ WFormula_p WFormulaFlatCopy(WFormula_p form)
 
 void WFormulaGCMarkCells(WFormula_p form)
 {
-      TFormulaGCMarkCells(form->terms, form->tformula);
+   TFormulaGCMarkCells(form->tformula);
+   if(form->derivation)
+   {
+      DerivStackGCMarkTerms(form->terms, form->derivation);
+   }
 }
 
 /*-----------------------------------------------------------------------
@@ -500,16 +506,7 @@ WFormula_p WFormulaTSTPParse(Scanner_p in, TB_p terms)
       line        = AktToken(in)->line;
       column      = AktToken(in)->column;
 
-      if(TestInpId(in, "$distinct"))
-      {
-         tform = TSTPDistinctParse(in, terms);
-         // fprintf(stderr, COMCHAR" $distinct parsed!: ");
-         // TFormulaTPTPPrint(stderr, terms, tform, true, false);
-         // fprintf(stderr, " : ");
-         // TermPrintDbg(stderr, tform, terms->sig, DEREF_NEVER);
-         // fprintf(stderr, ";\n");
-      }
-      else if(is_tcf)
+      if(is_tcf)
       {
          // printf(COMCHAR" Tcf Start!\n");
          tform = TcfTSTPParse(in, terms);
@@ -541,7 +538,7 @@ WFormula_p WFormulaTSTPParse(Scanner_p in, TB_p terms)
             formula printers assume a well-typed formula skeleton. */
          if(nonbool->type)
          {
-            fprintf(stderr, COMCHAR" Subformula has type ");
+            CommentPrint(stderr, " Subformula has type ");
             TypePrintTSTP(stderr, terms->sig->type_bank, nonbool->type);
             fprintf(stderr, ", but a formula must have type $o\n");
          }
@@ -681,17 +678,19 @@ void WFormulaTSTPPrintFlex(FILE* out, WFormula_p form, bool fullterms,
 // Function: WFormulaAppEncode()
 //
 //   Encodes terms in wrapped formula's literals using app encoding.
-//   Initial WFormula is not changed.
+//   Initial WFormula is not changed. Clauses are printed as their
+//   universal closure, so that the result is a closed formula.
 //
 // Global Variables: -
 //
-// Side Effects    : Output
+// Side Effects    : Output, may create the closure in form->terms
 //
 /----------------------------------------------------------------------*/
 
 void WFormulaAppEncode(FILE* out, WFormula_p form)
 {
    char *typename = "plain", *formula_kind = "tff";
+   TFormula_p tform;
 
    switch(FormulaQueryType(form))
    {
@@ -722,8 +721,12 @@ void WFormulaAppEncode(FILE* out, WFormula_p form)
    fprintf(out, "%s(%s, %s", formula_kind, WFormulaGetId(form), typename);
    fprintf(out, ", ");
 
-   assert(!form->is_clause);
-   TFormulaAppEncode(out, form->terms, form->tformula);
+   tform = form->tformula;
+   if(form->is_clause)
+   {  /* Clause variables are implicitly universally quantified */
+      tform = TFormulaClosure(form->terms, tform, true);
+   }
+   TFormulaAppEncode(out, form->terms, tform);
    fprintf(out, ").");
 }
 

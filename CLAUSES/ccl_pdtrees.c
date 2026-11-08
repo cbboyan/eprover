@@ -37,8 +37,6 @@ bool PDTreeUseSizeConstraints = true;
 unsigned long PDTNodeCounter = 0;
 #endif
 
-#define TermPCompare PCmpFun
-
 TraversalState trav_order[] = {TRAVERSING_SYMBOLS, TRAVERSING_VARIABLES, DONE};
 
 /*---------------------------------------------------------------------*/
@@ -63,6 +61,61 @@ void print_t_stack(Sig_p sig, PStack_p stack)
       fprintf(stderr, ", ");
    }
 }
+
+/*-----------------------------------------------------------------------
+//
+// Function: pdt_alt_key_cmp()
+//
+//   Compare two keys of the variable and de Bruijn alternatives of a
+//   node (free variables, applied free variables and de Bruijn
+//   variables) structurally: by kind, f_code, type and, recursively,
+//   arguments. Unlike the term addresses, this does not depend on the
+//   memory layout, so the order in which the alternatives are tried
+//   (and hence the search) is reproducible. It also does not require
+//   the terms to be shared, or shared in the same bank (as for lookups
+//   with normalized copies).
+//
+// Global Variables: -
+//
+// Side Effects    : -
+//
+/----------------------------------------------------------------------*/
+
+static int pdt_alt_key_cmp(const void* key1, const void* key2)
+{
+   const Term_p t1 = (const Term_p)key1;
+   const Term_p t2 = (const Term_p)key2;
+   int res;
+
+   if(t1 == t2)
+   {
+      return 0;
+   }
+   /* de Bruijn indices may coincide with function symbol codes */
+   res = (!!TermIsDBVar(t1)) - (!!TermIsDBVar(t2));
+   if(res)
+   {
+      return res;
+   }
+   res = (t1->f_code > t2->f_code) - (t1->f_code < t2->f_code);
+   if(res)
+   {
+      return res;
+   }
+   res = (t1->arity > t2->arity) - (t1->arity < t2->arity);
+   if(res)
+   {
+      return res;
+   }
+   res = (t1->type->type_uid > t2->type->type_uid) -
+      (t1->type->type_uid < t2->type->type_uid);
+   for(int i=0; !res && i<t1->arity; i++)
+   {
+      res = pdt_alt_key_cmp(t1->args[i], t2->args[i]);
+   }
+   return res;
+}
+
 
 /*-----------------------------------------------------------------------
 //
@@ -108,13 +161,13 @@ static void* pdt_select_alt_ref(PDTree_p tree, PDTNode_p node, Term_p term)
 
    if(TermIsTopLevelFreeVar(term))
    {
-      res = (PObjMapGetRef(&node->v_alternatives, term, TermPCompare, &added_objmap_node));
+      res = (PObjMapGetRef(&node->v_alternatives, term, pdt_alt_key_cmp, &added_objmap_node));
       assert(node->v_alternatives);
    }
    else if(TermIsDBVar(term) || TermIsAppliedDBVar(term) || TermIsLambda(term))
    {
       term = TermIsDBVar(term) ? term : term->args[0];
-      res = (PObjMapGetRef(&node->db_alternatives, term, TermPCompare, &added_objmap_node));
+      res = (PObjMapGetRef(&node->db_alternatives, term, pdt_alt_key_cmp, &added_objmap_node));
       assert(node->db_alternatives);
    }
    else
@@ -149,12 +202,12 @@ static void* pdt_select_next(PDTree_p tree, PDTNode_p node, Term_p term)
 
    if(TermIsTopLevelFreeVar(term))
    {
-      res = PObjMapFind(&node->v_alternatives, term, TermPCompare);
+      res = PObjMapFind(&node->v_alternatives, term, pdt_alt_key_cmp);
    }
    else if(TermIsDBVar(term) || TermIsAppliedDBVar(term) || TermIsLambda(term))
    {
       term = TermIsDBVar(term) ? term : term->args[0];
-      res = PObjMapFind(&node->db_alternatives, term, TermPCompare);
+      res = PObjMapFind(&node->db_alternatives, term, pdt_alt_key_cmp);
    }
    else
    {
@@ -228,20 +281,20 @@ static PStack_p pdt_node_succ_stack_create(PDTNode_p node)
 //
 /----------------------------------------------------------------------*/
 
-static long pos_tree_compute_size_constraint(PTree_p tree)
+static long pos_tree_compute_size_constraint(OrdSet_p tree)
 {
    ClausePos_p entry;
-   PTree_p  trav;
-   PStack_p trav_stack;
+   OrdSet_p  trav;
+   OrdSetIter_p trav_stack;
    long res = LONG_MAX;
 
-   trav_stack = PTreeTraverseInit(tree);
-   while((trav = PTreeTraverseNext(trav_stack)))
+   trav_stack = OrdSetTraverseInit(tree);
+   while((trav = OrdSetTraverseNext(trav_stack)))
    {
       entry = trav->key;
       res = MIN(res, TermStandardWeight(ClausePosGetSide(entry)));
    }
-   PTreeTraverseExit(trav_stack);
+   OrdSetTraverseExit(trav_stack);
    /* This is a leaf node, size is fixed! */
 
    return res;
@@ -349,20 +402,20 @@ long pdt_verify_size_constraint(PDTNode_p node)
 //
 /----------------------------------------------------------------------*/
 
-static SysDate pos_tree_compute_age_constraint(PTree_p tree)
+static SysDate pos_tree_compute_age_constraint(OrdSet_p tree)
 {
    ClausePos_p entry;
-   PTree_p  trav;
-   PStack_p trav_stack;
+   OrdSet_p  trav;
+   OrdSetIter_p trav_stack;
    SysDate res = SysDateCreationTime();
 
-   trav_stack = PTreeTraverseInit(tree);
-   while((trav = PTreeTraverseNext(trav_stack)))
+   trav_stack = OrdSetTraverseInit(tree);
+   while((trav = OrdSetTraverseNext(trav_stack)))
    {
       entry = trav->key;
       res = SysDateMaximum(res, entry->clause->date);
    }
-   PTreeTraverseExit(trav_stack);
+   OrdSetTraverseExit(trav_stack);
    /* This is a leaf node, size is fixed! */
 
    return res;
@@ -474,16 +527,16 @@ SysDate pdt_verify_age_constraint(PDTNode_p node)
 //
 /----------------------------------------------------------------------*/
 
-static long  delete_clause_entries(PTree_p *root, Clause_p clause, Deleter deleter)
+static long  delete_clause_entries(OrdSet_p *root, Clause_p clause, Deleter deleter)
 {
    long        res = 0;
-   PStack_p    trav_stack;
+   OrdSetIter_p    trav_stack;
    PStack_p    store = PStackAlloc();
-   PTree_p     handle;
+   OrdSet_p     handle;
    ClausePos_p pos;
 
-   trav_stack = PTreeTraverseInit(*root);
-   while((handle = PTreeTraverseNext(trav_stack)))
+   trav_stack = OrdSetTraverseInit(*root);
+   while((handle = OrdSetTraverseNext(trav_stack)))
    {
       pos = handle->key;
       if(pos->clause == clause)
@@ -491,12 +544,12 @@ static long  delete_clause_entries(PTree_p *root, Clause_p clause, Deleter delet
          PStackPushP(store, pos);
       }
    }
-   PTreeTraverseExit(trav_stack);
+   OrdSetTraverseExit(trav_stack);
 
    while(!PStackEmpty(store))
    {
       pos = PStackPopP(store);
-      PTreeDeleteEntry(root, pos);
+      OrdSetDeleteEntry(root, pos);
       ClausePosCellFreeWDeleter(pos, deleter);
       res++;
    }
@@ -590,7 +643,7 @@ static void pdtree_forward(PDTree_p tree, Subst_p subst)
             if(TermIsDBVar(query) || TermIsLambda(query))
             {
                next = PObjMapFind(&handle->db_alternatives,
-                                  TermIsDBVar(query) ? query : query->args[0], TermPCompare);
+                                  TermIsDBVar(query) ? query : query->args[0], pdt_alt_key_cmp);
             }
             else
             {
@@ -747,22 +800,22 @@ void pdt_node_print(FILE* out, PDTNode_p node, Sig_p sig, int level)
 {
    if(node->entries)
    {
-      PStack_p trav_stack;
-      PTree_p trav;
+      OrdSetIter_p trav_stack;
+      OrdSet_p trav;
       ClausePos_p entry;
 
       fprintf(out, "%sleaf size=%ld age=%lu leaf?=%d\n", IndentStr(2*level),
               node->size_constr, node->age_constr, node->leaf);
-      trav_stack = PTreeTraverseInit(node->entries);
+      trav_stack = OrdSetTraverseInit(node->entries);
 
-      while((trav = PTreeTraverseNext(trav_stack)))
+      while((trav = OrdSetTraverseNext(trav_stack)))
       {
          fprintf(out, "%s: ",IndentStr(2*level));
          entry = trav->key;
          ClausePrint(out, entry->clause, true);
          fprintf(out, "\n");
       }
-      PTreeTraverseExit(trav_stack);
+      OrdSetTraverseExit(trav_stack);
    }
    else if(!node->leaf)
    {
@@ -968,7 +1021,7 @@ void PDTNodeFree(PDTNode_p tree, Deleter deleter)
    PObjMapFree(tree->db_alternatives);
    while(tree->entries)
    {
-      tmp = PTreeExtractRootKey(&tree->entries);
+      tmp = OrdSetExtractFirst(&tree->entries);
       ClausePosCellFreeWDeleter(tmp, deleter);
    }
    PStackFree(objmap_iter);
@@ -1113,11 +1166,11 @@ bool PDTreeInsertTerm(PDTree_p tree, Term_p term, ClausePos_p demod_side,
 
    if(TermIsNonFOPattern(term))
    {
-      term = LambdaEtaExpandDB(tree->bank, term);
+      term = LambdaEtaExpandDB(term);
    }
    else
    {
-      term = LambdaEtaReduceDB(tree->bank, term);
+      term = LambdaEtaReduceDB(term);
    }
 
    TermLRTraverseInit(tree->term_stack, term);
@@ -1173,7 +1226,7 @@ bool PDTreeInsertTerm(PDTree_p tree, Term_p term, ClausePos_p demod_side,
    assert(node);
    if (store_data)
    {
-      res = PTreeStore(&(node->entries), demod_side);
+      res = OrdSetStore(&(node->entries), demod_side);
       UNUSED(res); assert(res);
    }
    tree->clause_count++;
@@ -1261,11 +1314,11 @@ long PDTreeDelete(PDTree_p tree, Term_p term, Clause_p clause)
 
    if(TermIsNonFOPattern(term))
    {
-      term = LambdaEtaExpandDB(tree->bank, term);
+      term = LambdaEtaExpandDB(term);
    }
    else
    {
-      term = LambdaEtaReduceDB(tree->bank, term);
+      term = LambdaEtaReduceDB(term);
    }
 
    PStack_p  del_stack = PStackAlloc();
@@ -1318,7 +1371,7 @@ long PDTreeDelete(PDTree_p tree, Term_p term, Clause_p clause)
                   PObjMapExtract(to_del,
                                  (TermIsLambda(del_term) || TermIsAppliedDBVar(del_term))
                                     ? del_term->args[0] : del_term,
-                                 TermPCompare);
+                                 pdt_alt_key_cmp);
                UNUSED(deleted); assert(deleted);
                tree->arr_storage_est -= SizeOfPObjNode();
             }
@@ -1331,7 +1384,7 @@ long PDTreeDelete(PDTree_p tree, Term_p term, Clause_p clause)
             }
             pdtree_default_cell_free(node);
          }
-         else if(node->ref_count == PTreeNodes(node->entries))
+         else if(node->ref_count == OrdSetCardinality(node->entries))
          {
             node->leaf = true;
          }
@@ -1381,11 +1434,11 @@ void PDTreeSearchInit(PDTree_p tree, Term_p term, SysDate age_constr,
 
    if(TermIsNonFOPattern(term))
    {
-      term = LambdaEtaExpandDB(tree->bank, term);
+      term = LambdaEtaExpandDB(term);
    }
    else
    {
-      term = LambdaEtaReduceDB(tree->bank, term);
+      term = LambdaEtaReduceDB(term);
    }
 
    TermLRTraverseInit(tree->term_stack, term);
@@ -1430,7 +1483,7 @@ void PDTreeSearchExit(PDTree_p tree)
 
    if(tree->store_stack)
    {
-      PTreeTraverseExit(tree->store_stack);
+      OrdSetTraverseExit(tree->store_stack);
       tree->store_stack = NULL;
    }
    tree->term = NULL;
@@ -1496,20 +1549,20 @@ PDTNode_p PDTreeFindNextIndexedLeaf(PDTree_p tree, Subst_p subst)
 
 ClausePos_p PDTreeFindNextDemodulator(PDTree_p tree, Subst_p subst)
 {
-   PTree_p res_cell = NULL;
+   OrdSet_p res_cell = NULL;
 
    while(tree->tree_pos)
    {
       if(tree->store_stack)
       {
-         res_cell = PTreeTraverseNext(tree->store_stack);
+         res_cell = OrdSetTraverseNext(tree->store_stack);
          if(res_cell)
          {
             return res_cell->key;
          }
          else
          {
-            PTreeTraverseExit(tree->store_stack);
+            OrdSetTraverseExit(tree->store_stack);
             tree->store_stack = NULL;
          }
       }
@@ -1517,7 +1570,7 @@ ClausePos_p PDTreeFindNextDemodulator(PDTree_p tree, Subst_p subst)
       if(tree->tree_pos)
       {
          tree->store_stack =
-            PTreeTraverseInit(tree->tree_pos->entries);
+            OrdSetTraverseInit(tree->tree_pos->entries);
       }
    }
 

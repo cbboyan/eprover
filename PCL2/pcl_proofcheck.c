@@ -60,7 +60,7 @@ static bool pcl_run_prover(char* command, char*success)
 
    if(OutputLevel>1)
    {
-      fprintf(GlobalOut, COMCHAR" Running %s\n", command);
+      CommentPrint(GlobalOut, " Running %s\n", command);
    }
    ppipe=popen(command, "r");
    if(!ppipe)
@@ -76,7 +76,7 @@ static bool pcl_run_prover(char* command, char*success)
       }
       if(OutputLevel >= 3)
       {
-         fprintf(GlobalOut, COMCHAR"> %s", line);
+         CommentPrint(GlobalOut, "> %s", line);
       }
    }
    pclose(ppipe);
@@ -125,9 +125,9 @@ static bool pcl_verify_eprover(ClauseSet_p problem,char *executable,
 
    if(!res)
    {
-      fprintf(GlobalOut, COMCHAR" ------------Problem begin--------------\n");
+      CommentPrint(GlobalOut, " ------------Problem begin--------------\n");
       FilePrint(GlobalOut, name);
-      fprintf(GlobalOut, COMCHAR" ------------Problem end----------------\n");
+      CommentPrint(GlobalOut, " ------------Problem end----------------\n");
    }
 
    TempFileRemove(name);
@@ -167,9 +167,9 @@ static void eqn_print_otter(FILE* out, Eqn_p eqn)
    }
    else
    {
-      if(eqn->lterm==eqn->bank->true_term)
+      if(eqn->lterm==EqnGetBank(eqn)->true_term)
       {
-         assert(eqn->rterm==eqn->bank->true_term);
+         assert(eqn->rterm==EqnGetBank(eqn)->true_term);
          /* Special case, one more hack */;
          if(EqnIsPositive(eqn))
          {
@@ -191,7 +191,7 @@ static void eqn_print_otter(FILE* out, Eqn_p eqn)
          {
             fputc(' ', out);
          }
-         TBPrintTerm(out, eqn->bank, eqn->lterm, true);
+         TBPrintTerm(out, EqnGetBank(eqn), eqn->lterm, true);
       }
    }
 }
@@ -310,9 +310,9 @@ static bool pcl_verify_otter(ClauseSet_p problem,char *executable,
 
    if(!res)
    {
-      fprintf(GlobalOut, COMCHAR" ------------Problem begin--------------\n");
+      CommentPrint(GlobalOut, " ------------Problem begin--------------\n");
       FilePrint(GlobalOut, name);
-      fprintf(GlobalOut, COMCHAR" ------------Problem end----------------\n");
+      CommentPrint(GlobalOut, " ------------Problem end----------------\n");
    }
 
    TempFileRemove(name);
@@ -391,9 +391,9 @@ static void eqn_print_dfg(FILE* out, Eqn_p eqn)
    {
       fputs("not(", out);
    }
-   if(eqn->lterm==eqn->bank->true_term)
+   if(eqn->lterm==EqnGetBank(eqn)->true_term)
    {
-      assert(eqn->rterm==eqn->bank->true_term);
+      assert(eqn->rterm==EqnGetBank(eqn)->true_term);
       /* Special case, one more hack */;
       fputs("equal(spass_hack,spass_hack)", out);
    }
@@ -423,8 +423,8 @@ static void eqn_print_dfg(FILE* out, Eqn_p eqn)
 static void clause_print_dfg(FILE* out, Clause_p clause)
 {
    Eqn_p    handle;
-   PTree_p  variables = NULL, cell;
-   PStack_p stack;
+   OrdSet_p  variables = NULL, cell;
+   OrdSetIter_p stack;
    Term_p   var;
    long     var_no;
 
@@ -433,22 +433,22 @@ static void clause_print_dfg(FILE* out, Clause_p clause)
    if(var_no)
    {
       fprintf(out, "forall([");
-      stack=PTreeTraverseInit(variables);
-      cell = PTreeTraverseNext(stack);
+      stack=OrdSetTraverseInit(variables);
+      cell = OrdSetTraverseNext(stack);
       if(cell)
       {
          assert(clause->literals);
          var = cell->key;
-         TBPrintTerm(out, clause->literals->bank, var, true);
-         while((cell=PTreeTraverseNext(stack)))
+         TBPrintTerm(out, EqnGetBank(clause->literals), var, true);
+         while((cell=OrdSetTraverseNext(stack)))
          {
             fputc(',', out);
             var = cell->key;
-            TBPrintTerm(out, clause->literals->bank, var, true);
+            TBPrintTerm(out, EqnGetBank(clause->literals), var, true);
          }
       }
-      PTreeTraverseExit(stack);
-      PTreeFree(variables);
+      OrdSetTraverseExit(stack);
+      OrdSetFree(variables);
       fprintf(out, "],");
    }
    fprintf(out, "or(");
@@ -544,9 +544,9 @@ static bool pcl_verify_spass(ClauseSet_p problem,char *executable,
    res = pcl_run_prover(DStrView(command), "Proof found.");
    if(!res)
    {
-      fprintf(GlobalOut, COMCHAR" ------------Problem begin--------------\n");
+      CommentPrint(GlobalOut, " ------------Problem begin--------------\n");
       FilePrint(GlobalOut, name);
-      fprintf(GlobalOut, COMCHAR" ------------Problem end----------------\n");
+      CommentPrint(GlobalOut, " ------------Problem end----------------\n");
    }
 
    TempFileRemove(name);
@@ -576,7 +576,7 @@ static bool pcl_verify_spass(ClauseSet_p problem,char *executable,
 long PCLCollectPreconds(PCLProt_p prot, PCLStep_p step, ClauseSet_p
                         set)
 {
-   PTree_p   tree = NULL;
+   OrdSet_p   tree = NULL;
    PCLStep_p handle;
    Clause_p  clause;
    long      res = 0;
@@ -586,7 +586,7 @@ long PCLCollectPreconds(PCLProt_p prot, PCLStep_p step, ClauseSet_p
    PCLExprCollectPreconds(prot, step->just, &tree);
    while(tree)
    {
-      handle = PTreeExtractRootKey(&tree);
+      handle = OrdSetExtractFirst(&tree);
       if(PCLStepIsClausal(handle))
       {
          clause = ClauseCopy(handle->logic.clause, prot->terms);
@@ -775,7 +775,7 @@ long PCLProtCheck(PCLProt_p prot, ProverType prover, char* executable,
       step = PStackElementP(stack,i);
       if(OutputLevel)
       {
-         fprintf(GlobalOut, COMCHAR" Checking ");
+         CommentPrint(GlobalOut, " Checking ");
          PCLStepPrint(GlobalOut, step);
          fputc('\n', GlobalOut);
       }

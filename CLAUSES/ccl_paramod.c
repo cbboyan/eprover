@@ -206,7 +206,7 @@ ParamodulationType ParamodType(char *pm_str)
 
 void ParamodInfoPrint(FILE* out, ParamodInfo_p info)
 {
-   fprintf(out, COMCHAR" From: %6ld |%6ld\n"COMCHAR" ", info->from->ident, info->from_cpos);
+   CommentPrint(out, " From: %6ld |%6ld\n"COMCHAR" ", info->from->ident, info->from_cpos);
    ClausePrint(out, info->from, true);
    fprintf(out, "\n"COMCHAR"Into: %6ld |%6ld\n"COMCHAR"", info->into->ident, info->into_cpos);
    ClausePrint(out, info->into, true);
@@ -533,10 +533,11 @@ Clause_p ClauseParamodConstruct(ParamodInfo_p ol_desc,
 //
 /----------------------------------------------------------------------*/
 
-Term_p ComputeOverlap(TB_p bank, OCB_p ocb, ClausePos_p from, Term_p
+Term_p ComputeOverlap(OCB_p ocb, ClausePos_p from, Term_p
             into, TermPos_p pos,  Subst_p subst, VarBank_p
             freshvars)
 {
+   TB_p bank = ClauseGetBank(from->clause);
    Term_p        new_rside = NULL, sub_into, max_side, rep_side;
    PStackPointer oldstate;
    UnificationResult  unify_res;
@@ -612,7 +613,7 @@ Eqn_p  EqnOrderedParamod(TB_p bank, OCB_p ocb, ClausePos_p from,
    rside = ClausePosGetOtherSide(into);
    oldstate = PStackGetSP(subst);
 
-   new_lside = ComputeOverlap(bank, ocb, from, lside, into->pos,
+   new_lside = ComputeOverlap(ocb, from, lside, into->pos,
                subst, freshvars);
    if(new_lside)
    {

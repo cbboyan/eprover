@@ -50,11 +50,9 @@ long ClauseIdentCounter = 0; /* Used to generate new clause idents on
                                 the fly. */
 
 
-#ifdef CLAUSE_PERM_IDENT
 static long clause_perm_ident_counter = 0; /* Used to generate new
                                               permanent idents on
                                               the fly. */
-#endif
 
 /*---------------------------------------------------------------------*/
 /*                      Forward Declarations                           */
@@ -146,8 +144,8 @@ Clause_p clause_copy_meta(Clause_p clause)
 /----------------------------------------------------------------------*/
 
 static void clause_collect_posneg_vars(Clause_p clause,
-                                PTree_p *pos_vars,
-                                PTree_p *neg_vars)
+                                OrdSet_p *pos_vars,
+                                OrdSet_p *neg_vars)
 {
    Eqn_p handle;
 
@@ -282,9 +280,7 @@ Clause_p ClauseCellAlloc(void)
 {
    Clause_p handle = ClauseCellAllocRaw();
 
-#ifdef CLAUSE_PERM_IDENT
    handle->perm_ident = clause_perm_ident_counter++;
-#endif
 
 
    return handle;
@@ -826,7 +822,7 @@ bool ClauseIsSemEmpty(Clause_p clause)
 
 bool ClauseIsRangeRestricted(Clause_p clause)
 {
-   PTree_p pos_vars = NULL, neg_vars = NULL;
+   OrdSet_p pos_vars = NULL, neg_vars = NULL;
    bool    res;
 
    //printf("RR: "); ClausePrintAxiom(stdout, clause, true);
@@ -842,10 +838,10 @@ bool ClauseIsRangeRestricted(Clause_p clause)
    }
    clause_collect_posneg_vars(clause, &pos_vars, &neg_vars);
 
-   res = PTreeIsSubset(neg_vars, &pos_vars);
+   res = OrdSetIsSubset(neg_vars, &pos_vars);
 
-   PTreeFree(pos_vars);
-   PTreeFree(neg_vars);
+   OrdSetFree(pos_vars);
+   OrdSetFree(neg_vars);
 
    //printf("=> %s\n", res?"true":"false");
    return res;
@@ -868,7 +864,7 @@ bool ClauseIsRangeRestricted(Clause_p clause)
 
 bool ClauseIsAntiRangeRestricted(Clause_p clause)
 {
-   PTree_p pos_vars = NULL, neg_vars = NULL;
+   OrdSet_p pos_vars = NULL, neg_vars = NULL;
    bool    res;
 
    if(ClauseIsNegative(clause) || ClauseIsGround(clause))
@@ -881,10 +877,10 @@ bool ClauseIsAntiRangeRestricted(Clause_p clause)
    }
 
    clause_collect_posneg_vars(clause, &pos_vars, &neg_vars);
-   res = PTreeIsSubset(pos_vars, &neg_vars);
+   res = OrdSetIsSubset(pos_vars, &neg_vars);
 
-   PTreeFree(pos_vars);
-   PTreeFree(neg_vars);
+   OrdSetFree(pos_vars);
+   OrdSetFree(neg_vars);
 
    return res;
 }
@@ -905,7 +901,7 @@ bool ClauseIsAntiRangeRestricted(Clause_p clause)
 
 bool ClauseIsStronglyRangeRestricted(Clause_p clause)
 {
-   PTree_p pos_vars = NULL, neg_vars = NULL;
+   OrdSet_p pos_vars = NULL, neg_vars = NULL;
    bool res;
 
    //printf("StrongRR: "); ClausePrintAxiom(stdout, clause, true);
@@ -927,10 +923,10 @@ bool ClauseIsStronglyRangeRestricted(Clause_p clause)
    assert(clause->literals);
 
    clause_collect_posneg_vars(clause, &pos_vars, &neg_vars);
-   res = PTreeEquiv(pos_vars, neg_vars);
+   res = OrdSetEquiv(pos_vars, neg_vars);
 
-   PTreeFree(pos_vars);
-   PTreeFree(neg_vars);
+   OrdSetFree(pos_vars);
+   OrdSetFree(neg_vars);
    //printf("=> %s\n", res?"true":"false");
    return res;
 }
@@ -986,11 +982,11 @@ void ClauseExtractHODefinition(Clause_p clause, EqnSide def_side, Term_p *lside,
       PStackPushP(vars, def_term->args[i]);
    }
    Term_p other_term = def_side == LeftSide ? lit->rterm : lit->lterm;
-   Term_p abstracted_term = AbstractVars(lit->bank, other_term, vars);
+   Term_p abstracted_term = AbstractVars(EqnGetBank(lit), other_term, vars);
    Term_p symbol = TermTopAlloc(def_term->f_code, 0);
    symbol->type = abstracted_term->type;
-   assert(symbol->type == SigGetType(lit->bank->sig, symbol->f_code));
-   symbol = TBTermTopInsert(lit->bank, symbol);
+   assert(symbol->type == SigGetType(EqnGetBank(lit)->sig, symbol->f_code));
+   symbol = TBTermTopInsert(EqnGetBank(lit), symbol);
    PStackFree(vars);
 
    *lside = symbol;
@@ -1584,10 +1580,10 @@ void ClauseTSTPPrint(FILE* out, Clause_p clause, bool fullterms, bool complete)
    {
       // Print as universally quantified formula
       assert(clause->literals);
-      form = TFormulaClauseEncode(clause->literals->bank, clause);
-      form = TFormulaClosure(clause->literals->bank, form, true);
+      form = TFormulaClauseEncode(EqnGetBank(clause->literals), clause);
+      form = TFormulaClosure(EqnGetBank(clause->literals), form, true);
 
-      TFormulaTPTPPrint(out, clause->literals->bank, form, fullterms, false);
+      TFormulaTPTPPrint(out, EqnGetBank(clause->literals), form, fullterms, false);
       // TermPrintDbg(out, form, clause->literals->bank->sig, DEREF_NEVER);
       // handled by GC, no need to free
    }
@@ -1837,6 +1833,15 @@ Clause_p ClauseParse(Scanner_p in, TB_p bank)
          }
          EqnListNegateEqns(precond);
          EqnListAppend(&concl, precond);
+      }
+   }
+   for(Eqn_p lit = concl; lit; lit = lit->next)
+   {
+      /* $distinct is only expanded in formulas */
+      if(TermHasFCode(lit->lterm, bank->sig->distinct_code) ||
+         TermHasFCode(lit->rterm, bank->sig->distinct_code))
+      {
+         AktTokenError(in, "$distinct is not supported in clauses", false);
       }
    }
    AcceptInpTok(in, Fullstop);
@@ -2376,7 +2381,6 @@ int ClauseCmpById(const void* clause1, const void* clause2)
 }
 
 
-#ifdef CLAUSE_PERM_IDENT
 /*-----------------------------------------------------------------------
 //
 // Function: ClauseCmpByPermId()
@@ -2432,7 +2436,6 @@ int ClauseCmpByPermIdR(const void* clause1, const void* clause2)
    }
    return 0;
 }
-#endif
 
 
 
@@ -2504,7 +2507,7 @@ Clause_p ClauseNormalizeVars(Clause_p clause, VarBank_p fresh_vars)
 
       if(!SubstIsEmpty(subst))
       {
-         tmplist = EqnListCopy(clause->literals, clause->literals->bank);
+         tmplist = EqnListCopy(clause->literals, EqnGetBank(clause->literals));
          EqnListFree(clause->literals);
          clause->literals = tmplist;
       }
@@ -2577,7 +2580,7 @@ long ClauseReturnFCodes(Clause_p clause, PStack_p f_codes)
       return res;
    }
    assert(clause->literals);
-   sig = clause->literals->bank->sig;
+   sig = EqnGetBank(clause->literals)->sig;
    assert(sig);
 
    stack = PStackAlloc();
@@ -2692,11 +2695,11 @@ bool ClauseRecognizeChoice(IntMap_p choice_symbols_map, Clause_p cl)
    FAIL_ON(EqnIsEquLit(pos_lit));
    FAIL_ON(EqnIsEquLit(neg_lit));
 
-   TB_p bank = pos_lit->bank;
+   TB_p bank = EqnGetBank(pos_lit);
    Term_p neg_term =
-      BetaNormalizeDB(bank, LambdaEtaReduceDB(bank, neg_lit->lterm));
+      BetaNormalizeDB(LambdaEtaReduceDB(neg_lit->lterm));
    Term_p pos_term =
-      BetaNormalizeDB(bank, LambdaEtaReduceDB(bank, pos_lit->lterm));
+      BetaNormalizeDB(LambdaEtaReduceDB(pos_lit->lterm));
 
    FAIL_ON(!TermIsAppliedFreeVar(neg_term));
    FAIL_ON(!TermIsAppliedFreeVar(pos_term));
@@ -2743,7 +2746,7 @@ bool ClauseRecognizeChoice(IntMap_p choice_symbols_map, Clause_p cl)
 //
 /----------------------------------------------------------------------*/
 
-long ClauseCollectGroundTerms(Clause_p clause, PTree_p *res,
+long ClauseCollectGroundTerms(Clause_p clause, OrdSet_p *res,
                               bool pos_lits, bool neg_lits,
                               bool all_subterms)
 {

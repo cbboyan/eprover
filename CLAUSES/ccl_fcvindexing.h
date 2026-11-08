@@ -28,8 +28,13 @@ Changes
 
 #define CCL_FCVINDEXING
 
+#if USE_INTMAPOLD
+   #include <clb_intmap_old.h>
+#else
+   #include <clb_intmap.h>
+#endif
+
 #include <ccl_freqvectors.h>
-#include <clb_intmap.h>
 
 /*---------------------------------------------------------------------*/
 /*                    Data type declarations                           */
@@ -57,7 +62,7 @@ typedef struct fv_index_cell
    union
    {
       IntMap_p successors;
-      PTree_p  clauses;
+      OrdSet_p  clauses;
    }u1;
 }FVIndexCell, *FVIndex_p;
 

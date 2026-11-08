@@ -34,11 +34,12 @@
 /*---------------------------------------------------------------------*/
 
 static PStack_p get_subterm_generalizing_vars(
-   Term_p term, VarBank_p vars, NumTree_p* term_vars, long* fresh_var_code)
+   Term_p term, VarBank_p vars, NumTree_p* term_vars, PDArray_p fresh_counts)
 {
    PStack_p gen_vars;
    NumTree_p entry;
    Term_p fresh_var;
+   long n;
 
    entry = NumTreeFind(term_vars, term->entry_no);
    if (!entry) 
@@ -50,8 +51,10 @@ static PStack_p get_subterm_generalizing_vars(
    }
 
    gen_vars = entry->val1.p_val;
-   fresh_var = VarBankVarAssertAlloc(vars, *fresh_var_code, vars->sort_table->i_type);
-   (*fresh_var_code) -= 2;
+   /* A fresh variable of the type of the generalized subterm */
+   n = PDArrayElementInt(fresh_counts, term->type->type_uid);
+   fresh_var = VarBankGetNumberedVar(vars, term->type, n);
+   PDArrayAssignInt(fresh_counts, term->type->type_uid, n+1);
    PStackPushP(gen_vars, fresh_var);
 
    return gen_vars;
@@ -62,7 +65,7 @@ static PStack_p compute_subterms_generalizations(
    VarBank_p vars,
    PStack_p all,
    NumTree_p* term_vars, // Term_p.entry_no -> PStack_p
-   long* fresh_var_code)
+   PDArray_p fresh_counts) // type_uid -> fresh variables used
 {
    int i;
    int is_max;
@@ -76,8 +79,15 @@ static PStack_p compute_subterms_generalizations(
 
    gens = PStackAlloc();
 
+   if (TermIsDBVar(term))
+   {
+      /* Bound variables (e.g. the binder of a lambda) are kept */
+      PStackPushP(gens, term);
+      return gens;
+   }
+
    gen_vars = get_subterm_generalizing_vars(
-      term,vars,term_vars,fresh_var_code);
+      term,vars,term_vars,fresh_counts);
    PStackPushStack(gens, gen_vars);
 
    if (TermIsAnyVar(term)) 
@@ -88,7 +98,6 @@ static PStack_p compute_subterms_generalizations(
    if (TermIsConst(term)) 
    {
       copy = TermTopAlloc(term->f_code,0);
-      TermSetBank(copy, TermGetBank(term));
       PStackPushP(gens,copy);
       PStackPushP(all,copy);
       copy->properties = term->properties;
@@ -105,7 +114,7 @@ static PStack_p compute_subterms_generalizations(
    for (i=0; i<term->arity; i++)
    {
       sgen = compute_subterms_generalizations(
-         term->args[i],vars,all,term_vars,fresh_var_code);
+         term->args[i],vars,all,term_vars,fresh_counts);
       assert(sgen->current >= 1);
       max->array[i] = sgen->current - 1;
       PDArrayAssignP(sgens,i,sgen);
@@ -119,7 +128,6 @@ static PStack_p compute_subterms_generalizations(
          break;
       }
       copy = TermTopAlloc(term->f_code,term->arity);
-      TermSetBank(copy, TermGetBank(term));
       for (i=0; i<term->arity; i++)
       {
          sgen = PDArrayElementP(sgens,i);
@@ -163,7 +171,7 @@ static PStack_p compute_subterms_generalizations(
 
 PStack_p ComputeSubtermsGeneralizations(Term_p term, VarBank_p vars)
 {
-   long fresh_var_code;
+   PDArray_p fresh_counts;
    NumTree_p term_vars;
    NumTree_p item;
    PStack_p all;
@@ -173,10 +181,11 @@ PStack_p ComputeSubtermsGeneralizations(Term_p term, VarBank_p vars)
    all = PStackAlloc();
 
    term_vars = NULL;
-   fresh_var_code = -2;
+   fresh_counts = PDArrayAlloc(4, 4);
 
    gens = compute_subterms_generalizations(
-      term,vars,all,&term_vars,&fresh_var_code);
+      term,vars,all,&term_vars,fresh_counts);
+   PDArrayFree(fresh_counts);
 
    PStackFree(gens);
    stack = NumTreeTraverseInit(term_vars);
@@ -210,6 +219,11 @@ PStack_p ComputeTopGeneralizations(Term_p term, VarBank_p vars, Sig_p sig)
    FixedDArray_p occurs;
    PStack_p stack, topgens;
    Term_p subterm, topgen;
+   PDArray_p fresh_counts; /* type_uid -> fresh variables used */
+   Type_p ftype, atype;
+   bool typed;
+   int arity;
+   long n;
 
    occurs = FixedDArrayAlloc(sig->f_count+1);
    for (code=1; code<=sig->f_count; code++)
@@ -239,21 +253,38 @@ PStack_p ComputeTopGeneralizations(Term_p term, VarBank_p vars, Sig_p sig)
    topgens = PStackAlloc();
    for (code=1; code<=sig->f_count; code++)
    {
-      if (!occurs->array[code]) 
+      if (!occurs->array[code] ||
+          /* No sensible top generalizations of HO application and
+             lambda abstraction */
+          code == SIG_PHONY_APP_CODE ||
+          code == SIG_NAMED_LAMBDA_CODE ||
+          code == SIG_DB_LAMBDA_CODE)
       {
          continue;
       }
       
-      topgen = TermTopAlloc(code, sig->f_info[code].arity);
-      TermSetBank(topgen, TermGetBank(term));
-      for (i=0; i<sig->f_info[code].arity; i++)
+      arity = sig->f_info[code].arity;
+      ftype = SigGetType(sig, code);
+      typed = ftype && (arity == 0 || (TypeIsArrow(ftype) && ftype->arity == arity+1));
+      topgen = TermTopAlloc(code, arity);
+      fresh_counts = PDArrayAlloc(4, 4);
+      for (i=0; i<arity; i++)
       {
-         topgen->args[i] = VarBankVarAssertAlloc(vars, -2*(i+1), vars->sort_table->i_type); 
+         /* A fresh variable of the argument type (untyped: $i) */
+         atype = typed ? ftype->args[i] : vars->sort_table->i_type;
+         n = PDArrayElementInt(fresh_counts, atype->type_uid);
+         topgen->args[i] = VarBankGetNumberedVar(vars, atype, n);
+         PDArrayAssignInt(fresh_counts, atype->type_uid, n+1);
       }
+      PDArrayFree(fresh_counts);
       if (SigIsPredicate(sig,code)) 
       {
          TermCellSetProp(topgen, TPPredPos);
          topgen->type = vars->sort_table->bool_type;
+      }
+      else if (typed)
+      {
+         topgen->type = arity ? ftype->args[arity] : ftype;
       }
       else
       {
@@ -382,7 +413,10 @@ void TuplePrint(FixedDArray_p t)
 // Function: TBIncSubtermsFreqs()
 //
 //   Increase the frequency of all subterms of `term` in `freqs` where
-//   `freqs` is a map from Term_p.entry_no to the frequency.
+//   `freqs` is a map from Term_p.entry_no to the frequency. Variables
+//   are not counted. This includes DB variables, whose entry_no is
+//   their de Bruijn index and would clash with the number of a term
+//   in the bank.
 //
 // Global Variables: -
 //
@@ -403,11 +437,11 @@ void TBIncSubtermsFreqs(Term_p term, NumTree_p* freqs)
    while (!PStackEmpty(stack))
    {
       subterm = PStackPopP(stack);
-      if (TermIsFreeVar(subterm))
+      if (TermIsAnyVar(subterm))
       {
          continue;
       }
-         
+
       //subterm->freq++;
       cell = NumTreeFind(freqs, subterm->entry_no);
       if (cell)
@@ -434,9 +468,12 @@ void TBIncSubtermsFreqs(Term_p term, NumTree_p* freqs)
 //
 // Function: TBCountTermFreqs()
 //
-//   Iterates over a term bank and set the number of occurences 
+//   Iterates over a term bank and set the number of occurences
 //   (frequencies) for each term. Only top positions are processed
 //   but other terms are also visited as all subterms are considered.
+//   All cells of the term store are visited, and those with TPTopPos
+//   are counted (a cell with TPTopPos can be below one without it in
+//   the store's trees, whose shape depends on cell addresses).
 //
 // Global Variables: -
 //
@@ -452,26 +489,53 @@ NumTree_p TBCountTermFreqs(TB_p bank)
    NumTree_p freqs = NULL;
 
    for(i=0; i<TERM_STORE_HASH_SIZE; i++)
-   {      
+   {
       PStackPushP(stack, bank->term_store.store[i]);
       while(!PStackEmpty(stack))
       {
          term = PStackPopP(stack);
-         if ((!term) || (!TermCellQueryProp(term,TPTopPos)))
+         if (!term)
          {
             continue;
          }
-         TBIncSubtermsFreqs(term, &freqs);
-         if(term)
+         if (TermCellQueryProp(term,TPTopPos))
          {
-            PStackPushP(stack, term->lson);
-            PStackPushP(stack, term->rson);
+            TBIncSubtermsFreqs(term, &freqs);
          }
+         PStackPushP(stack, term->lson);
+         PStackPushP(stack, term->rson);
       }
    }
    PStackFree(stack);
 
    return freqs;
+}
+
+/*-----------------------------------------------------------------------
+//
+// Function: TermFreqsFind()
+//
+//   Return the frequency of term in freqs (a map from Term_p.entry_no
+//   to the frequency, as built by TBCountTermFreqs()), or 0 if it has
+//   none. Variables, including DB variables, have no frequency.
+//
+// Global Variables: -
+//
+// Side Effects    : -
+//
+/----------------------------------------------------------------------*/
+
+long TermFreqsFind(NumTree_p* freqs, Term_p term)
+{
+   NumTree_p cell;
+
+   if (TermIsAnyVar(term))
+   {
+      return 0;
+   }
+   cell = NumTreeFind(freqs, term->entry_no);
+
+   return cell ? cell->val1.i_val : 0;
 }
 
 /*---------------------------------------------------------------------*/

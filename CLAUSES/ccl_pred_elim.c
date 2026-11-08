@@ -31,7 +31,7 @@
 typedef struct
 {
    long card; // querying size in O(1)
-   PTree_p set; // querying membership in O(log(card))
+   OrdSet_p set; // querying membership in O(log(card))
 } CheapClauseSet;
 typedef CheapClauseSet* CCS_p;
 
@@ -71,7 +71,7 @@ typedef Clause_p (*ResolverFun_p)(Clause_p, Clause_p, FunCode);
 #define CAN_SCHEDULE(t) (!(t)->offending_cls->card || (t)->g_status == IS_GATE)
 #define IN_HEAP(t) ((t)->heap_idx != -1)
 
-#define CCSFree(junk) PTreeFree(junk->set); SizeFree(junk, sizeof(CheapClauseSet))
+#define CCSFree(junk) OrdSetFree(junk->set); SizeFree(junk, sizeof(CheapClauseSet))
 #define TASK_BLOCKED (-1)
 
 // lifted lambda that simply gives DEREF NEVER to TBInsertOpt
@@ -132,18 +132,18 @@ void dbg_print(FILE* out, Sig_p sig, PETask_p t)
 {
    fprintf(out, "%s(%ld):\n", SigFindName(sig, t->sym), t->size);
 
-   DBG_PRINT(out, "+singular:\n >", PTreeVisitInOrder(t->positive_singular->set,
+   DBG_PRINT(out, "+singular:\n >", OrdSetVisit(t->positive_singular->set,
                                                       print_node, out), ".\n");
-   DBG_PRINT(out, "-singular:\n >", PTreeVisitInOrder(t->negative_singular->set,
+   DBG_PRINT(out, "-singular:\n >", OrdSetVisit(t->negative_singular->set,
                                                       print_node, out), ".\n");
    if(t->g_status == IS_GATE)
    {
-      DBG_PRINT(out, "+gate:\n >", PTreeVisitInOrder(t->neg_gates->set,
+      DBG_PRINT(out, "+gate:\n >", OrdSetVisit(t->neg_gates->set,
                                                      print_node, out), ".\n");
-      DBG_PRINT(out, "-gate:\n >", PTreeVisitInOrder(t->pos_gates->set,
+      DBG_PRINT(out, "-gate:\n >", OrdSetVisit(t->pos_gates->set,
                                                      print_node, out), ".\n");
    }
-   DBG_PRINT(out, "offending:\n >", PTreeVisitInOrder(t->offending_cls->set,
+   DBG_PRINT(out, "offending:\n >", OrdSetVisit(t->offending_cls->set,
                                                       print_node, out), ".\n");
 }
 
@@ -207,7 +207,7 @@ static inline CCS_p mk_ccs()
 
 static inline bool CCSStoreCl(CCS_p set, Clause_p cl)
 {
-   bool inserted = PTreeStore(&(set->set), cl);
+   bool inserted = OrdSetStore(&(set->set), cl);
    if(inserted)
    {
       set->card++;
@@ -229,11 +229,9 @@ static inline bool CCSStoreCl(CCS_p set, Clause_p cl)
 
 static inline bool CCSRemoveCl(CCS_p set, Clause_p cl)
 {
-   PTree_p removed = PTreeExtractEntry(&(set->set), cl);
-   if(removed)
+   if(OrdSetDeleteEntry(&(set->set), cl))
    {
       set->card--;
-      PTreeCellFree(removed);
       return true;
    }
    else
@@ -337,7 +335,7 @@ static inline Eqn_p find_fcode_except(Eqn_p cl, Eqn_p exc, FunCode fc)
 // Side Effects    : -
 //
 /----------------------------------------------------------------------*/
-bool term_vars_from_set(Term_p t, PTree_p* vars)
+bool term_vars_from_set(Term_p t, OrdSet_p* vars)
 {
    PStack_p subterms = PStackAlloc();
    bool res = true;
@@ -346,7 +344,7 @@ bool term_vars_from_set(Term_p t, PTree_p* vars)
    while(res && !PStackEmpty(subterms))
    {
       t = PStackPopP(subterms);
-      res = !TermIsFreeVar(t) || PTreeFind(vars, t);
+      res = !TermIsFreeVar(t) || OrdSetFind(vars, t);
       for(int i=0; res && i<t->arity; i++)
       {
          PStackPushP(subterms, t->args[i]);
@@ -370,12 +368,12 @@ bool term_vars_from_set(Term_p t, PTree_p* vars)
 //
 /----------------------------------------------------------------------*/
 
-bool unique_distinct_vars(Term_p t, PTree_p* varset)
+bool unique_distinct_vars(Term_p t, OrdSet_p* varset)
 {
    bool res =  true;
    for(int i=0; res && i < t->arity; i++)
    {
-      res = TermIsFreeVar(t->args[i]) && PTreeStore(varset, t->args[i]);
+      res = TermIsFreeVar(t->args[i]) && OrdSetStore(varset, t->args[i]);
    }
    return res;
 }
@@ -395,7 +393,7 @@ bool unique_distinct_vars(Term_p t, PTree_p* varset)
 
 bool potential_gate(Clause_p cl, Eqn_p lit)
 {
-   PTree_p vars = NULL;
+   OrdSet_p vars = NULL;
    Term_p pred = lit->lterm;
    bool unique_vars = unique_distinct_vars(pred, &vars);
 
@@ -406,7 +404,7 @@ bool potential_gate(Clause_p cl, Eqn_p lit)
                      term_vars_from_set(iter->rterm, &vars));
    }
 
-   PTreeFree(vars);
+   OrdSetFree(vars);
    return unique_vars;
 }
 
@@ -430,10 +428,10 @@ void update_statistics(long* num_lit, long* set_size, double* mu,
    *num_lit += ClauseLiteralNumber(cl)*multiplier;
    *set_size += 1*multiplier;
 
-   PTree_p vars = NULL;
+   OrdSet_p vars = NULL;
    ClauseCollectVariables(cl, &vars);
-   long num_vars = PTreeNodes(vars);
-   PTreeFree(vars);
+   long num_vars = OrdSetCardinality(vars);
+   OrdSetFree(vars);
    *mu += num_vars*num_vars*multiplier;
 }
 
@@ -603,11 +601,11 @@ int cmp_tasks(IntOrP* ip_a, IntOrP* ip_b)
 void declare_not_gate(PETask_p task)
 {
    task->pos_gates->card = 0;
-   PTreeFree(task->pos_gates->set);
+   OrdSetFree(task->pos_gates->set);
    task->pos_gates->set = NULL;
 
    task->neg_gates->card = 0;
-   PTreeFree(task->neg_gates->set);
+   OrdSetFree(task->neg_gates->set);
    task->neg_gates->set = NULL;
 
    task->g_status = NOT_GATE;
@@ -690,7 +688,7 @@ Clause_p build_neq_resolvent(Clause_p p_cl, Clause_p n_cl, FunCode f)
    Eqn_p p_lit = find_lit_w_head(p_cpy->literals, f, &p_rest, ONLY_POS);
    assert(p_lit);
 
-   Clause_p n_cpy = ClauseCopy(n_cl, p_lit->bank);
+   Clause_p n_cpy = ClauseCopy(n_cl, EqnGetBank(p_lit));
    Eqn_p n_rest = NULL;
    Eqn_p n_lit = find_lit_w_head(n_cpy->literals, f, &n_rest, ONLY_NEG);
    assert(n_lit);
@@ -700,8 +698,8 @@ Clause_p build_neq_resolvent(Clause_p p_cl, Clause_p n_cl, FunCode f)
 
    if(SubstComputeMgu(n_lit->lterm, p_lit->lterm, subst))
    {
-      EqnListMapTerms(p_rest, (TermMapper_p)inst_term, p_lit->bank);
-      EqnListMapTerms(n_rest, (TermMapper_p)inst_term, n_lit->bank);
+      EqnListMapTerms(p_rest, (TermMapper_p)inst_term, EqnGetBank(p_lit));
+      EqnListMapTerms(n_rest, (TermMapper_p)inst_term, EqnGetBank(n_lit));
       EqnListAppend(&p_rest, n_rest);
       p_cpy->literals = NULL;
       n_cpy->literals = NULL;
@@ -751,13 +749,13 @@ Clause_p build_eq_resolvent(Clause_p p_cl, Clause_p n_cl, FunCode f)
    Eqn_p p_lit = find_lit_w_head(p_disjoint, f, &p_rest, ONLY_POS);
    assert(p_lit);
 
-   Eqn_p n_copy = EqnListCopy(n_cl->literals, p_lit->bank);
+   Eqn_p n_copy = EqnListCopy(n_cl->literals, EqnGetBank(p_lit));
    Eqn_p n_rest = NULL;
    Eqn_p n_lit = find_lit_w_head(n_copy, f, &n_rest, ONLY_NEG);
    assert(n_lit);
 
-   PTree_p p_vars = NULL;
-   PTree_p n_vars = NULL;
+   OrdSet_p p_vars = NULL;
+   OrdSet_p n_vars = NULL;
    Eqn_p res_lits = NULL;
 
    // if we have unique distinct vars (cheap to check)
@@ -772,8 +770,8 @@ Clause_p build_eq_resolvent(Clause_p p_cl, Clause_p n_cl, FunCode f)
       SubstComputeMgu(p_lit->lterm, n_lit->lterm, subst);
       assert(unif);
 
-      EqnListMapTerms(p_rest, (TermMapper_p)inst_term, p_lit->bank);
-      EqnListMapTerms(n_rest, (TermMapper_p)inst_term, n_lit->bank);
+      EqnListMapTerms(p_rest, (TermMapper_p)inst_term, EqnGetBank(p_lit));
+      EqnListMapTerms(n_rest, (TermMapper_p)inst_term, EqnGetBank(n_lit));
       EqnListAppend(&res_lits, p_rest);
       EqnListAppend(&res_lits, n_rest);
       SubstDelete(subst);
@@ -783,7 +781,7 @@ Clause_p build_eq_resolvent(Clause_p p_cl, Clause_p n_cl, FunCode f)
       for(int i=0; i<p_lit->lterm->arity; i++)
       {
          Eqn_p neq = EqnAlloc(p_lit->lterm->args[i], n_lit->lterm->args[i],
-                              p_lit->bank, false);
+                              EqnGetBank(p_lit), false);
          neq->next = res_lits;
          res_lits = neq;
       }
@@ -882,14 +880,14 @@ void check_tautologies(PETask_p task, PStack_p unsat_core, TB_p tmp_terms)
 void check_unsat_and_tauto(PETask_p task, TB_p tmp_terms)
 {
    PStack_p all_gates = PStackAlloc();
-   PTreeToPStack(all_gates, task->pos_gates->set);
-   PTreeToPStack(all_gates, task->neg_gates->set);
+   OrdSetToPStack(all_gates, task->pos_gates->set);
+   OrdSetToPStack(all_gates, task->neg_gates->set);
 
    Clause_p pivot = PStackPopP(all_gates);
    Clause_p pivot_fresh = ClauseCopyDisjoint(pivot);
    Eqn_p rest_fresh = NULL;
    Eqn_p fresh_lit = find_lit_w_head(pivot_fresh->literals, task->sym,  &rest_fresh, ANY_SIGN);
-   TB_p bank = fresh_lit->bank;
+   TB_p bank = EqnGetBank(fresh_lit);
    pivot_fresh->literals = rest_fresh;
    ClauseRecomputeLitCounts(pivot_fresh);
 
@@ -1060,14 +1058,14 @@ void build_task_queue(ClauseSet_p passive, const HeuristicParms_p parms,
 //
 /----------------------------------------------------------------------*/
 
-void do_singular_elimination(PTree_p pos_cls_tree, PTree_p neg_cls_tree,
+void do_singular_elimination(OrdSet_p pos_cls_tree, OrdSet_p neg_cls_tree,
                              FunCode sym, ResolverFun_p resolver,
                              PStack_p cls, TB_p tmp_terms)
 {
    PStack_p pos_cls = PStackAlloc();
    PStack_p neg_cls = PStackAlloc();
-   PTreeToPStack(pos_cls, pos_cls_tree);
-   PTreeToPStack(neg_cls, neg_cls_tree);
+   OrdSetToPStack(pos_cls, pos_cls_tree);
+   OrdSetToPStack(neg_cls, neg_cls_tree);
 
    for(PStackPointer i=0; i<PStackGetSP(pos_cls); i++)
    {
@@ -1111,9 +1109,9 @@ void do_gates_against_offending(PETask_p task, PStack_p cls,
    PStack_p pos_cls = PStackAlloc();
    PStack_p neg_cls = PStackAlloc();
    PStack_p worklist = PStackAlloc();
-   PTreeToPStack(pos_cls, task->pos_gates->set);
-   PTreeToPStack(neg_cls, task->neg_gates->set);
-   PTreeToPStack(worklist, task->offending_cls->set);
+   OrdSetToPStack(pos_cls, task->pos_gates->set);
+   OrdSetToPStack(neg_cls, task->neg_gates->set);
+   OrdSetToPStack(worklist, task->offending_cls->set);
 
    while(!PStackEmpty(worklist))
    {
@@ -1138,7 +1136,7 @@ void do_gates_against_offending(PETask_p task, PStack_p cls,
             if(!ClauseIsTautology(tmp_terms, res))
             {
                ClauseNormalizeVars(res, freshvars);
-               EqnListMapTerms(res->literals, reassign_vars, sym_occ->bank);
+               EqnListMapTerms(res->literals, reassign_vars, EqnGetBank(sym_occ));
                PStackPushP(worklist, res);
             }
             else
@@ -1146,7 +1144,7 @@ void do_gates_against_offending(PETask_p task, PStack_p cls,
                ClauseFree(res);
             }
          }
-         if(!PTreeFind(&(task->offending_cls->set), offending))
+         if(!OrdSetFind(&(task->offending_cls->set), offending))
          {
             // this was intermediary clause
             ClauseSetInsert(archive, offending);
@@ -1267,8 +1265,8 @@ void react_clause_removed(Clause_p cl, IntMap_p sym_map, MinHeap_p h)
             else
             {
                assert(task->g_status == IS_GATE);
-               PTreeMerge(&(task->positive_singular->set), task->pos_gates->set);
-               PTreeMerge(&(task->negative_singular->set), task->neg_gates->set);
+               OrdSetMerge(&(task->positive_singular->set), task->pos_gates->set);
+               OrdSetMerge(&(task->negative_singular->set), task->neg_gates->set);
                task->neg_gates->set = task->pos_gates->set = NULL;
                declare_not_gate(task);
                if(IN_HEAP(task) && !CAN_SCHEDULE(task))
@@ -1303,11 +1301,11 @@ void remove_clauses_from_state(PETask_p task, IntMap_p sym_map,
 {
    task->size = TASK_BLOCKED; // blocking the symbol!
    PStack_p all_cls = PStackAlloc();
-   PTreeToPStack(all_cls, task->pos_gates->set);
-   PTreeToPStack(all_cls, task->neg_gates->set);
-   PTreeToPStack(all_cls, task->positive_singular->set);
-   PTreeToPStack(all_cls, task->negative_singular->set);
-   PTreeToPStack(all_cls, task->offending_cls->set);
+   OrdSetToPStack(all_cls, task->pos_gates->set);
+   OrdSetToPStack(all_cls, task->neg_gates->set);
+   OrdSetToPStack(all_cls, task->positive_singular->set);
+   OrdSetToPStack(all_cls, task->negative_singular->set);
+   OrdSetToPStack(all_cls, task->offending_cls->set);
 
    while( !PStackEmpty(all_cls) )
    {
@@ -1429,15 +1427,16 @@ void eliminate_predicates(ClauseSet_p passive, ClauseSet_p archive,
 //
 // Function: idx_setter()
 //
+//   Index callback for the task queue: record the current position
+//   of task in the heap (-1 if it is not in the heap).
 //
+// Global Variables: -
 //
-// Global Variables:
-//
-// Side Effects    :
+// Side Effects    : Changes task
 //
 /----------------------------------------------------------------------*/
 
-void idx_setter(void* task, int idx)
+static void idx_setter(void* task, long idx)
 {
    ((PETask_p)task)->heap_idx = idx;
 }

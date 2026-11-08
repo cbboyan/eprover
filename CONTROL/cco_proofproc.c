@@ -96,7 +96,7 @@ static void check_ac_status(ProofState_p state, ProofControl_p
          if(OutputLevel)
          {
             SigPrintACStatus(GlobalOut, state->signature);
-            fprintf(GlobalOut, COMCHAR" AC handling enabled dynamically\n");
+            CommentPrint(GlobalOut, " AC handling enabled dynamically\n");
          }
       }
    }
@@ -223,11 +223,6 @@ eliminate_backward_rewritten_clauses(ProofState_p
          (state->tmp_store->literals-old_lit_count);
       state->backward_rewritten_count+=
          (state->tmp_store->members-old_clause_count);
-
-      if(control->heuristic_parms.detsort_bw_rw)
-      {
-         ClauseSetSort(state->tmp_store, ClauseCmpByStructWeight);
-      }
    }
    PERF_CTR_EXIT(BWRWTimer);
    /*printf(COMCHAR" Removed %ld clauses\n",
@@ -424,8 +419,8 @@ void check_watchlist(GlobalIndices_p indices, ClauseSet_p watchlist,
             ClauseSetProp(clause, CPSubsumesWatch);
             if(OutputLevel == 1)
             {
-               fprintf(GlobalOut,COMCHAR" Watchlist reduced by %ld clause%s\n",
-                       removed,removed==1?"":"s");
+               CommentPrint(GlobalOut," Watchlist reduced by %ld clause%s\n",
+                            removed,removed==1?"":"s");
             }
             // ClausePrint(GlobalOut, clause, true); printf("\n");
             DocClauseQuote(GlobalOut, OutputLevel, 6, clause,
@@ -495,15 +490,17 @@ void simplify_watchlist(ProofState_p state, ProofControl_p control,
                                    state->demods,
                                    control->heuristic_parms.forward_demod,
                                    control->heuristic_parms.prefer_general,
-                                   control->heuristic_parms.lambda_demod);
-      removed_lits = ClauseRemoveSuperfluousLiterals(handle);
+                                   control->heuristic_parms.lambda_demod,
+                                   state->step_archive, state->step_sides);
+      removed_lits = ClauseRemoveSuperfluousLiterals(handle,
+                                                     state->step_archive);
       if(removed_lits)
       {
          DocClauseModificationDefault(handle, inf_minimize, NULL);
       }
       if(control->ac_handling_active)
       {
-         ClauseRemoveACResolved(handle);
+         ClauseRemoveACResolved(handle, state->step_archive);
       }
       handle->weight = ClauseStandardWeight(handle);
       ClauseMarkMaximalTerms(control->ocb, handle);
@@ -537,15 +534,15 @@ static void generate_new_clauses(ProofState_p state, ProofControl_p
    if(control->heuristic_parms.enable_eq_factoring)
    {
       state->factor_count+=
-         ComputeAllEqualityFactors(state->terms, control->ocb, clause,
+         ComputeAllEqualityFactors(control->ocb, clause,
                                    state->tmp_store, state->freshvars);
    }
    state->resolv_count+=
-      ComputeAllEqnResolvents(state->terms, clause, state->tmp_store,
+      ComputeAllEqnResolvents(clause, state->tmp_store,
                               state->freshvars);
 
    state->disequ_deco_count+=
-      ComputeDisEqDecompositions(state->terms, clause, state->tmp_store,
+      ComputeDisEqDecompositions(clause, state->tmp_store,
                                  control->heuristic_parms.diseq_decomposition,
                                  control->heuristic_parms.diseq_decomp_maxarity);
 
@@ -559,8 +556,7 @@ static void generate_new_clauses(ProofState_p state, ProofControl_p
       if(state->gindices.pm_into_index)
       {
          state->paramod_count+=
-            ComputeAllParamodulantsIndexed(state->terms,
-                                           control->ocb,
+            ComputeAllParamodulantsIndexed(control->ocb,
                                            state->freshvars,
                                            tmp_copy,
                                            clause,
@@ -573,13 +569,13 @@ static void generate_new_clauses(ProofState_p state, ProofControl_p
       else
       {
          state->paramod_count+=
-            ComputeAllParamodulants(state->terms, control->ocb,
+            ComputeAllParamodulants(control->ocb,
                                     tmp_copy, clause,
                                     state->processed_pos_rules,
                                     state->tmp_store, state->freshvars,
                                     control->heuristic_parms.pm_type);
          state->paramod_count+=
-            ComputeAllParamodulants(state->terms, control->ocb,
+            ComputeAllParamodulants(control->ocb,
                                     tmp_copy, clause,
                                     state->processed_pos_eqns,
                                     state->tmp_store, state->freshvars,
@@ -588,14 +584,14 @@ static void generate_new_clauses(ProofState_p state, ProofControl_p
          if(control->heuristic_parms.enable_neg_unit_paramod && !ClauseIsNegative(clause))
          { /* We never need to try to overlap purely negative clauses! */
             state->paramod_count+=
-               ComputeAllParamodulants(state->terms, control->ocb,
+               ComputeAllParamodulants(control->ocb,
                                        tmp_copy, clause,
                                        state->processed_neg_units,
                                        state->tmp_store, state->freshvars,
                                        control->heuristic_parms.pm_type);
          }
          state->paramod_count+=
-            ComputeAllParamodulants(state->terms, control->ocb,
+            ComputeAllParamodulants(control->ocb,
                                     tmp_copy, clause,
                                     state->processed_non_units,
                                     state->tmp_store, state->freshvars,
@@ -669,6 +665,7 @@ static Clause_p insert_new_clauses(ProofState_p state, ProofControl_p control)
                              (control->heuristic_parms.backward_context_sr&&
                               ClauseQueryProp(handle,CPIsProcessed)),
                              control->heuristic_parms.condensing_aggressive,
+                             control->heuristic_parms.ac_res_aggressive,
                              FullRewrite);
          ClauseDelProp(handle,CPIsIRVictim);
       }
@@ -677,6 +674,7 @@ static Clause_p insert_new_clauses(ProofState_p state, ProofControl_p control)
                           (control->heuristic_parms.backward_context_sr&&
                            ClauseQueryProp(handle,CPIsProcessed)),
                           control->heuristic_parms.condensing_aggressive,
+                          control->heuristic_parms.ac_res_aggressive,
                           control->heuristic_parms.forward_demod);
 
 
@@ -721,11 +719,11 @@ static Clause_p insert_new_clauses(ProofState_p state, ProofControl_p control)
       if(control->heuristic_parms.er_aggressive &&
          control->heuristic_parms.er_varlit_destructive &&
          (clause_count =
-          ClauseERNormalizeVar(state->terms,
-                               handle,
+          ClauseERNormalizeVar(handle,
                                state->tmp_store,
                                state->freshvars,
-                               control->heuristic_parms.er_strong_destructive)))
+                               control->heuristic_parms.er_strong_destructive,
+                               state->step_archive)))
       {
          state->other_redundant_count += clause_count;
          state->resolv_count += clause_count;
@@ -738,7 +736,8 @@ static Clause_p insert_new_clauses(ProofState_p state, ProofControl_p control)
                                                state->tmp_store,
                                                control->heuristic_parms.split_clauses,
                                                control->heuristic_parms.split_method,
-                                               control->heuristic_parms.split_fresh_defs)))
+                                               control->heuristic_parms.split_fresh_defs,
+                                               state->step_archive)))
       {
          state->generated_count += clause_count;
          continue;
@@ -798,18 +797,18 @@ Clause_p replacing_inferences(ProofState_p state, ProofControl_p
    long     clause_count;
    Clause_p res = pclause->clause;
 
-   if(problemType == PROBLEM_HO && ImmediateClausification(res, state->tmp_store, state->archive, state->freshvars, control->heuristic_parms.fool_unroll))
+   if(problemType == PROBLEM_HO && ImmediateClausification(res, state->tmp_store, state->archive, state->freshvars, control->heuristic_parms.fool_unroll, state->step_archive))
    {
       pclause->clause = NULL;
    }
    else
    if(control->heuristic_parms.er_varlit_destructive &&
       (clause_count =
-       ClauseERNormalizeVar(state->terms,
-                            pclause->clause,
+       ClauseERNormalizeVar(pclause->clause,
                             state->tmp_store,
                             state->freshvars,
-                            control->heuristic_parms.er_strong_destructive)))
+                            control->heuristic_parms.er_strong_destructive,
+                            state->step_archive)))
    {
       state->other_redundant_count += clause_count;
       state->resolv_count += clause_count;
@@ -819,7 +818,8 @@ Clause_p replacing_inferences(ProofState_p state, ProofControl_p
                                  pclause->clause, state->tmp_store,
                                  control->heuristic_parms.split_clauses,
                                  control->heuristic_parms.split_method,
-                                 control->heuristic_parms.split_fresh_defs))
+                                 control->heuristic_parms.split_fresh_defs,
+                                 state->step_archive))
    {
       pclause->clause = NULL;
    }
@@ -873,9 +873,9 @@ static Clause_p cleanup_unprocessed_clauses(ProofState_p state,
       tmp = ClauseSetDeleteOrphans(state->unprocessed);
       if(OutputLevel)
       {
-         fprintf(GlobalOut,
-                 COMCHAR" Deleted %ld orphaned clauses (remaining: %ld)\n",
-                 tmp, state->unprocessed->members);
+         CommentPrint(GlobalOut,
+                      " Deleted %ld orphaned clauses (remaining: %ld)\n",
+                      tmp, state->unprocessed->members);
       }
       state->other_redundant_count += tmp;
       state->filter_orphans_base = back_simplified;
@@ -896,11 +896,11 @@ static Clause_p cleanup_unprocessed_clauses(ProofState_p state,
       }
       if(OutputLevel)
       {
-         fprintf(GlobalOut,
-                 COMCHAR" Special forward-contraction deletes %ld clauses"
-                 "(remaining: %ld) \n",
-                 tmp - state->unprocessed->members,
-                 state->unprocessed->members);
+         CommentPrint(GlobalOut,
+                      " Special forward-contraction deletes %ld clauses"
+                      "(remaining: %ld) \n",
+                      tmp - state->unprocessed->members,
+                      state->unprocessed->members);
       }
 
       if(unsatisfiable)
@@ -923,10 +923,10 @@ static Clause_p cleanup_unprocessed_clauses(ProofState_p state,
       state->non_redundant_deleted += tmp;
       if(OutputLevel)
       {
-         fprintf(GlobalOut,
-                 COMCHAR" Deleted %ld orphaned clauses and %ld bad "
-                 "clauses (prover may be incomplete now)\n",
-                 tmp, tmp2);
+         CommentPrint(GlobalOut,
+                      " Deleted %ld orphaned clauses and %ld bad "
+                      "clauses (prover may be incomplete now)\n",
+                      tmp, tmp2);
       }
       if(tmp2)
       {
@@ -1047,14 +1047,14 @@ static void print_sharing_factor(ProofState_p state)
 
    fprintf(GlobalOut, "\n"COMCHAR"        GClauses   NClauses    NShared  "
            "NUnshared    TShared  TUnshared TSharinF   \n");
-   fprintf(GlobalOut, COMCHAR" grep %10ld %10ld %10ld %10ld %10ld %10ld %10.3f\n",
-           state->generated_count - state->backward_rewritten_count,
-           state->tmp_store->members,
-           ClauseSetGetSharedTermNodes(state->tmp_store),
-           ClauseSetGetTermNodes(state->tmp_store),
-           shared,
-           unshared,
-           (float)unshared/shared);
+   CommentPrint(GlobalOut, " grep %10ld %10ld %10ld %10ld %10ld %10ld %10.3f\n",
+                state->generated_count - state->backward_rewritten_count,
+                state->tmp_store->members,
+                ClauseSetGetSharedTermNodes(state->tmp_store),
+                ClauseSetGetTermNodes(state->tmp_store),
+                shared,
+                unshared,
+                (float)unshared/shared);
 }
 #endif
 
@@ -1519,7 +1519,7 @@ void ProofStateInit(ProofState_p state, ProofControl_p control)
    {
       if(OutputLevel)
       {
-         fprintf(GlobalOut, COMCHAR" Scanning for AC axioms\n");
+         CommentPrint(GlobalOut, " Scanning for AC axioms\n");
       }
       control->ac_handling_active = ClauseSetScanAC(state->signature,
                                                     state->unprocessed);
@@ -1528,7 +1528,7 @@ void ProofStateInit(ProofState_p state, ProofControl_p control)
          SigPrintACStatus(GlobalOut, state->signature);
          if(control->ac_handling_active)
          {
-            fprintf(GlobalOut, COMCHAR" AC handling enabled\n");
+            CommentPrint(GlobalOut, " AC handling enabled\n");
          }
       }
    }
@@ -1614,7 +1614,7 @@ Clause_p ProcessClause(ProofState_p state, ProofControl_p control,
          state->answer_count>=answer_limit)
       {
          clause = FVUnpackClause(pclause);
-         ClauseEvaluateAnswerLits(clause);
+         ClauseEvaluateAnswerLits(clause, state->step_archive);
          return clause;
       }
    }
@@ -1708,10 +1708,6 @@ Clause_p ProcessClause(ProofState_p state, ProofControl_p control,
 #ifdef PRINT_RW_STATE
    print_rw_state(state);
 #endif
-   if(control->heuristic_parms.detsort_tmpset)
-   {
-      ClauseSetSort(state->tmp_store, ClauseCmpByStructWeight);
-   }
    if((empty = insert_new_clauses(state, control)))
    {
       PStackPushP(state->extract_roots, empty);

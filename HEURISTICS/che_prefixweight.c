@@ -48,6 +48,7 @@
 -----------------------------------------------------------------------*/
 
 #include "che_prefixweight.h"
+#include <cte_lambda.h>
 
 
 /*---------------------------------------------------------------------*/
@@ -68,11 +69,15 @@ static void prfx_insert_term(
    VarBank_p vars, 
    VarNormStyle var_norm)
 {
-   Term_p norm;
+   Term_p norm, shared;
 
    norm = TermCopyNormalizeVars(vars,term,var_norm);
-   PDTreeInsertTerm(tree,norm,NULL,false);
+   /* The index keeps pointers to (applied) variables of the term, so
+      insert a shared copy that lives as long as the index. The index
+      requires beta-normal terms. */
+   shared = BetaNormalizeDB(TBInsert(tree->bank,norm,DEREF_NEVER));
    TermFree(norm);
+   PDTreeInsertTerm(tree,shared,NULL,false);
 }
 
 static void prfx_insert_subterms(
@@ -153,8 +158,8 @@ static void prfx_init(PrefixWeightParam_p data)
       return;
    }
 
-   data->terms = PDTreeAlloc(data->proofstate->terms);
-   data->vars = VarBankAlloc(data->proofstate->signature->type_bank);
+   data->bank = TBAlloc(data->proofstate->signature);
+   data->terms = PDTreeAlloc(data->bank);
 
    // for each axiom ...
    anchor = data->proofstate->axioms->anchor;
@@ -172,31 +177,31 @@ static void prfx_init(PrefixWeightParam_p data)
          {
          case RTSConjectureTerms:
             prfx_insert_term(data->terms,lit->lterm,
-               data->vars,data->var_norm);
+               data->bank->vars,data->var_norm);
             prfx_insert_term(data->terms,lit->rterm,
-               data->vars,data->var_norm);
+               data->bank->vars,data->var_norm);
             break;
          case RTSConjectureSubterms:
             prfx_insert_subterms(data->terms,lit->lterm,
-               data->vars,data->var_norm);
+               data->bank->vars,data->var_norm);
             prfx_insert_subterms(data->terms,lit->rterm,
-               data->vars,data->var_norm);
+               data->bank->vars,data->var_norm);
             break;
          case RTSConjectureSubtermsTopGens:
             prfx_insert_subterms(data->terms,lit->lterm,
-               data->vars,data->var_norm);
+               data->bank->vars,data->var_norm);
             prfx_insert_subterms(data->terms,lit->rterm,
-               data->vars,data->var_norm);
+               data->bank->vars,data->var_norm);
             prfx_insert_topgens(data->terms,lit->lterm,
-               data->vars,data->ocb->sig,data->var_norm);
+               data->bank->vars,data->ocb->sig,data->var_norm);
             prfx_insert_topgens(data->terms,lit->rterm,
-               data->vars,data->ocb->sig,data->var_norm);
+               data->bank->vars,data->ocb->sig,data->var_norm);
             break;
          case RTSConjectureSubtermsAllGens:
             prfx_insert_subgens(data->terms,lit->lterm,
-               data->vars,data->var_norm);
+               data->bank->vars,data->var_norm);
             prfx_insert_subgens(data->terms,lit->rterm,
-               data->vars,data->var_norm);
+               data->bank->vars,data->var_norm);
             break;
          default:
             Error("ConjectureTermPrefixWeight parameters usage error (unsupported RelatedTermSet %d)", USAGE_ERROR, data->rel_terms);
@@ -210,11 +215,16 @@ static double prfx_term_weight(Term_p term, PrefixWeightParam_p data)
 {
    long matches, misses;
    double res;
+   Term_p norm;
 
    matches = 0;
    misses = 0;
-   
-   PDTreeMatchPrefix(data->terms,term,&matches,&misses);
+
+   /* The indexed terms are normalized, so normalize the query the same
+      way (as for ConjectureTermTfIdfWeight). */
+   norm = TermCopyNormalizeVars(data->bank->vars,term,data->var_norm);
+   PDTreeMatchPrefix(data->terms,norm,&matches,&misses);
+   TermFree(norm);
 
    res = (matches*data->match_weight)+(misses*data->miss_weight);
    
@@ -242,7 +252,7 @@ PrefixWeightParam_p PrefixWeightParamAlloc(void)
    PrefixWeightParam_p res = PrefixWeightParamCellAlloc();
 
    res->terms = NULL;
-   res->vars = NULL;
+   res->bank = NULL;
 
    return res;
 }
@@ -266,10 +276,12 @@ void PrefixWeightParamFree(PrefixWeightParam_p junk)
       PDTreeFree(junk->terms);
       junk->terms = NULL;
    }
-   if (junk->vars) 
+   if (junk->bank)
    {
-      VarBankFree(junk->vars);
-      junk->vars = NULL;
+      // hack to avoid assertion in TBFree: sig is freed later
+      junk->bank->sig = NULL;
+      TBFree(junk->bank);
+      junk->bank = NULL;
    }
    PrefixWeightParamCellFree(junk);
 }

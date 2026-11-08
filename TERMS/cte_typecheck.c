@@ -258,6 +258,27 @@ void TypeInferSort(Sig_p sig, Term_p term, Scanner_p in)
          type = TypeBankInsertTypeShared(sig->type_bank,
                                          AllocArrowTypeCopyArgs(3, eq_type_args));
       }
+      else if(term->f_code == sig->distinct_code)
+      {
+         /* $distinct(t1,...,tn) is a formula, all ti must have the
+            same type */
+         type = sig->type_bank->bool_type;
+         if(term->arity)
+         {
+            args = TypeArgArrayAlloc(term->arity+1);
+            for(i=0; i < term->arity; i++)
+            {
+               if(term->args[i]->type != term->args[0]->type)
+               {
+                  TI_ERROR("All $distinct arguments have to be of the same type");
+               }
+               args[i] = term->args[i]->type;
+            }
+            args[term->arity] = sig->type_bank->bool_type;
+            type = TypeBankInsertTypeShared(sig->type_bank,
+                                            AllocArrowType(term->arity+1, args));
+         }
+      }
       else if(term->f_code == sig->qex_code || term->f_code == sig->qall_code)
       {
          if(term->arity == 0)
@@ -313,7 +334,7 @@ void TypeInferSort(Sig_p sig, Term_p term, Scanner_p in)
                {
                   if(term->args[i]->type != type->args[i])
                   {
-                     fprintf(stderr, COMCHAR" Type mismatch in argument #%d of ", i+1);
+                     CommentPrint(stderr, " Type mismatch in argument #%d of ", i+1);
 #ifdef ENABLE_LFHO
                      TermPrintDbg(stderr, term, sig, DEREF_NEVER);
 #else
@@ -337,7 +358,7 @@ void TypeInferSort(Sig_p sig, Term_p term, Scanner_p in)
 
                   if(term->args[i]->type != type->args[i-1])
                   {
-                     fprintf(stderr, COMCHAR" Type mismatch in argument #%d of ", i+1);
+                     CommentPrint(stderr, " Type mismatch in argument #%d of ", i+1);
                      TermPrint(stderr, term, sig, DEREF_NEVER);
                      fprintf(stderr, ": expected ");
                      TypePrintTSTP(stderr, sig->type_bank, type->args[i-1]);
@@ -351,8 +372,8 @@ void TypeInferSort(Sig_p sig, Term_p term, Scanner_p in)
             term->type = term_determine_type(term, type, sig->type_bank);
             if(term->type==NULL)
             {
-               fprintf(stderr, COMCHAR" too many arguments supplied for %s\n",
-                       SigFindName(sig, term->f_code));
+               CommentPrint(stderr, " too many arguments supplied for %s\n",
+                            SigFindName(sig, term->f_code));
                TI_ERROR("Type error");
             }
          }
@@ -360,7 +381,7 @@ void TypeInferSort(Sig_p sig, Term_p term, Scanner_p in)
          {
             if(term->arity != 0)
             {
-               fprintf(stderr, COMCHAR" Type mismatch for ");
+               CommentPrint(stderr, " Type mismatch for ");
                TermPrint(stderr, term, sig, DEREF_NEVER);
                fprintf(stderr, " and type ");
                TypePrintTSTP(stderr, sig->type_bank, type);

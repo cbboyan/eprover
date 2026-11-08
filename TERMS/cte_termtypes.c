@@ -79,6 +79,8 @@ static __inline__ void register_new_cache(Term_p app_var, Term_p bound_to)
 
 Term_p insert_deref(Term_p deref_cache, TB_p bank)
 {
+   assert(bank);
+
    for(int i=0; i<deref_cache->arity; i++)
    {
       if(!TermIsFreeVar(deref_cache->args[i]) && !TermIsShared(deref_cache->args[i]))
@@ -180,7 +182,13 @@ __inline__ Term_p applied_var_deref(Term_p orig)
             }
          }
 
-         register_new_cache(orig, (res = insert_deref(res, TermGetBank(orig))));
+         res = insert_deref(res, TermFindBank(orig));
+         if(TermIsShared(orig))
+         {
+            /* Only shared terms keep the cache. The GC marks it along
+               with them, so it cannot dangle. */
+            register_new_cache(orig, res);
+         }
       }
       else
       {
@@ -239,7 +247,7 @@ void DBGTermCheckUnownedSubtermReal(FILE* out, Term_p t, char* location)
 {
    if(TermFindUnownedSubterm(t))
    {
-      fprintf(out, COMCHAR" UnknownSubterm(%s): ", location);
+      CommentPrint(out, " UnknownSubterm(%s): ", location);
       TermPrint(stdout, t, t->owner_bank->sig, DEREF_NEVER);
       fprintf(stdout, "\n");
    }
@@ -289,7 +297,7 @@ void TermFree(Term_p junk)
    assert(junk);
    if(!TermIsAnyVar(junk))
    {
-      assert(!TermCellQueryProp(junk, TPIsShared));
+      assert(!TermIsShared(junk));
       if(junk->arity)
       {
          int i;
@@ -302,6 +310,33 @@ void TermFree(Term_p junk)
 
       TermTopFree(junk);
    }
+}
+
+
+/*-----------------------------------------------------------------------
+//
+// Function: TermFindBankRec()
+//
+//   Return the bank of the first shared subterm of term (in
+//   left-to-right preorder), or NULL if there is none. Used via
+//   TermFindBank() for unshared terms, whose cells have no owner
+//   bank.
+//
+// Global Variables: -
+//
+// Side Effects    : -
+//
+/----------------------------------------------------------------------*/
+
+struct tbcell* TermFindBankRec(Term_p term)
+{
+   struct tbcell* res = TermGetBank(term);
+
+   for(int i=0; !res && i<term->arity; i++)
+   {
+      res = TermFindBankRec(term->args[i]);
+   }
+   return res;
 }
 
 
@@ -887,14 +922,11 @@ __inline__ Term_p MakeRewrittenTerm(Term_p orig, Term_p new,
          new_term->args[j + new->arity] = orig->args[i];
       }
 
-      TermSetBank(new_term, bank);
-
-      return LambdaNormalizeDB(bank, new_term);
+      return LambdaNormalizeDB(new_term);
    }
    else
    {
-      TermSetBank(new, bank);
-      return LambdaNormalizeDB(bank, new); // If no args are remaining -- the situation is the same as in FO case
+      return LambdaNormalizeDB(new); // If no args are remaining -- the situation is the same as in FO case
    }
 }
 #endif

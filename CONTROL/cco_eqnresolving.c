@@ -60,9 +60,10 @@ Changes
 //
 /----------------------------------------------------------------------*/
 
-long ComputeAllEqnResolvents(TB_p bank, Clause_p clause, ClauseSet_p
+long ComputeAllEqnResolvents(Clause_p clause, ClauseSet_p
               store, VarBank_p freshvars)
 {
+   TB_p bank = ClauseGetBank(clause);
    Clause_p    resolvent;
    Eqn_p       test;
    ClausePos_p pos;
@@ -109,7 +110,8 @@ long ComputeAllEqnResolvents(TB_p bank, Clause_p clause, ClauseSet_p
 //   Perform destructive equality resolution inferences on negative
 //   pure variable literals (or, if strong, on negative literals with
 //   at least one variable side), insert the final result into
-//   store. Return the number of inferences.
+//   store. Return the number of inferences. A full proof object keeps
+//   the clause before each inference in step_archive.
 //
 // Global Variables: -
 //
@@ -117,9 +119,11 @@ long ComputeAllEqnResolvents(TB_p bank, Clause_p clause, ClauseSet_p
 //
 /----------------------------------------------------------------------*/
 
-long ClauseERNormalizeVar(TB_p bank, Clause_p clause, ClauseSet_p
-           store, VarBank_p freshvars, bool strong)
+long ClauseERNormalizeVar(Clause_p clause, ClauseSet_p
+           store, VarBank_p freshvars, bool strong,
+           ClauseSet_p step_archive)
 {
+   TB_p bank = ClauseGetBank(clause);
    long count = 0;
 
    if(clause->neg_lit_no && !ClauseQueryProp(clause,CPNoGeneration))
@@ -145,6 +149,7 @@ long ClauseERNormalizeVar(TB_p bank, Clause_p clause, ClauseSet_p
                {
                   found = true;
                   count++;
+                  ClauseArchiveStep(step_archive, clause);
                   clause->proof_depth++;
                   clause->proof_size++;
                   EqnListFree(clause->literals);

@@ -66,7 +66,7 @@ void answer_lit_print(FILE* out, Eqn_p lit)
    fprintf(out, "[");
    if(EqnQueryProp(lit, EPPseudoLit)
       &&
-      SigIsSimpleAnswerPred(lit->bank->sig, lit->lterm->f_code)
+      SigIsSimpleAnswerPred(EqnGetBank(lit)->sig, lit->lterm->f_code)
       &&
       lit->lterm->args[0]->f_code > 0)
    {
@@ -75,7 +75,7 @@ void answer_lit_print(FILE* out, Eqn_p lit)
       for(i=0; i<answer_term->arity; i++)
       {
          fprintf(out, "%s", sep);
-         TBPrintTermFull(out, lit->bank, answer_term->args[i]);
+         TBPrintTermFull(out, EqnGetBank(lit), answer_term->args[i]);
          sep = ", ";
       }
    }
@@ -117,7 +117,7 @@ void ClausePrintAnswer(FILE* out, Clause_p clause, ProofState_p state)
          TSTPOUT(GlobalOut, "Theorem");
          state->status_reported = true;
       }
-      fprintf(out, COMCHAR" SZS answers Tuple [");
+      CommentPrint(out, " SZS answers Tuple [");
       fprintf(out, "%s", ClauseLiteralNumber(clause)>1?"(":"");
       handle = clause->literals;
       if(handle)
@@ -143,7 +143,8 @@ void ClausePrintAnswer(FILE* out, Clause_p clause, ProofState_p state)
 //
 //   "Evaluate" the answer literals, i.e. remove all single-answer
 //   lits if the clause is otherwise empty. Return number of removed
-//   literals.
+//   literals. A full proof object keeps the clause before the step in
+//   step_archive.
 //
 // Global Variables: -
 //
@@ -151,7 +152,7 @@ void ClausePrintAnswer(FILE* out, Clause_p clause, ProofState_p state)
 //
 /----------------------------------------------------------------------*/
 
-int ClauseEvaluateAnswerLits(Clause_p clause)
+int ClauseEvaluateAnswerLits(Clause_p clause, ClauseSet_p step_archive)
 {
    Eqn_p handle;
    int res = 0;
@@ -160,7 +161,9 @@ int ClauseEvaluateAnswerLits(Clause_p clause)
 
    if(ClauseIsSemFalse(clause))
    {
+      Clause_p before = ClauseArchiveStepBegin(step_archive, clause);
       res = EqnListRemoveSimpleAnswers(&(clause->literals));
+      ClauseArchiveStepEnd(step_archive, clause, before, res);
 
       if(res)
       {

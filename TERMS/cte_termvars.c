@@ -485,7 +485,6 @@ Term_p var_bank_var_alloc(VarBank_p bank, FunCode f_code, Type_p type)
    assert(!PDArrayElementP(bank->variables, -f_code));
 
    var = TermDefaultCellAlloc();
-   TermCellSetProp(var, TPIsShared);
    if(TypeIsArrow(type))
    {
       TermCellSetProp(var, TPHasEtaExpandableSubterm);
@@ -587,6 +586,36 @@ Term_p  VarBankGetFreshVar(VarBank_p bank, Type_p t)
 
 /*-----------------------------------------------------------------------
 //
+// Function: VarBankGetNumberedVar()
+//
+//   Return the n-th (counting from 0, in order of creation) variable
+//   of the given sort in the bank, creating new variables with so far
+//   unused (even) f_codes as needed. The same (sort, n) always yields
+//   the same variable, so this can be used to normalize variables
+//   in a type-correct way. If the bank has only been populated by
+//   this function, the variables of a single sort are -2, -4, ...
+//
+// Global Variables: -
+//
+// Side Effects    : May change variable bank
+//
+/----------------------------------------------------------------------*/
+
+Term_p VarBankGetNumberedVar(VarBank_p bank, Type_p sort, long n)
+{
+   VarBankStack_p stack = VarBankGetStack(bank, sort->type_uid);
+
+   assert(n >= 0);
+   while(PStackGetSP(stack) <= n)
+   {
+      VarBankVarAssertAlloc(bank, -((bank->max_var/2)*2+2), sort);
+   }
+   return PStackElementP(stack, n);
+}
+
+
+/*-----------------------------------------------------------------------
+//
 // Function: VarBankExtNameAssertAlloc()
 //
 //   Return a pointer to the variable with the given external name in
@@ -647,7 +676,7 @@ Term_p VarBankExtNameAssertAllocSort(VarBank_p bank, char* name, Type_p type)
 
    if(Verbose>=5)
    {
-      fprintf(stderr, COMCHAR" Alloc variable %s with sort ", name);
+      CommentPrint(stderr, " Alloc variable %s with sort ", name);
       TypePrintTSTP(stderr, bank->sort_table, type);
       fputc('\n', stderr);
    }

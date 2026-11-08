@@ -24,6 +24,7 @@
 #define CTE_TERMFUNC
 
 #include <clb_numtrees.h>
+#include <clb_objmaps.h>
 #include <cte_termvars.h>
 #include <cte_dbvars.h>
 
@@ -152,12 +153,12 @@ void    TermAddSymbolFeatures(Term_p term, PStack_p mod_stack,
                               long depth, long *feature_array, long offset);
 
 void    TermComputeFunctionRanks(Term_p term, long *rank_array, long *count);
-long    TermCollectPropVariables(Term_p term, PTree_p *tree,
+long    TermCollectPropVariables(Term_p term, OrdSet_p *tree,
                                  TermProperties prop);
-long    TermCollectVariables(Term_p term, PTree_p *tree);
+long    TermCollectVariables(Term_p term, OrdSet_p *tree);
 long    TermCollectFCodes(Term_p term, NumTree_p *tree);
 
-long    TermCollectGroundTerms(Term_p term, PTree_p *result, bool all_subtems);
+long    TermCollectGroundTerms(Term_p term, OrdSet_p *result, bool all_subtems);
 long    TermAddFunOcc(Term_p term, PDArray_p f_occur, PStack_p res_stack);
 
 long    TermLinearize(PStack_p stack, Term_p term);
@@ -179,7 +180,7 @@ Term_p TermTrimImplications(Sig_p sig, Term_p f);
 #define PRINT_HO_PAREN(out, ch) ((problemType == PROBLEM_HO) ? \
                                     (fputc((ch), (out))) : 0)
 Term_p TermCopyUnifyVars(VarBank_p vars, Term_p term);
-Term_p TermCopyRenameVars(NumTree_p* renaming, Term_p term);
+Term_p TermCopyRenameVars(PObjMap_p* renaming, Term_p term);
 Term_p TermCopyNormalizeVarsAlpha(VarBank_p vars, Term_p term);
 Term_p TermCopyNormalizeVars(VarBank_p vars, Term_p term,
                              VarNormStyle var_norm);
@@ -271,7 +272,7 @@ static inline Term_p TermEquivCellAlloc(Term_p source, VarBank_p vars)
    if(TermIsFreeVar(source))
    {
       Term_p res = VarBankVarAssertAlloc(vars, source->f_code, source->type);
-      //TermSetBank(res, TermGetBank(source));
+      //TermSetBank(res, TermFindBank(source));
       return res;
    }
    else

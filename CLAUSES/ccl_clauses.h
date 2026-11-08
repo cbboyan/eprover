@@ -136,10 +136,8 @@ typedef struct clause_cell
    long                  ident;       /* Hopefully unique ident for
                                          all clauses created during
                                          proof run */
-#ifdef CLAUSE_PERM_IDENT
    long                  perm_ident;  /* Running number, given on
                                          alloc, never modified */
-#endif
    SysDate               date;        /* ...at which this clause
                                          became a demodulator */
    Eqn_p                 literals;    /* List of literals */
@@ -173,6 +171,13 @@ typedef struct clause_cell
 /*---------------------------------------------------------------------*/
 /*                Exported Functions and Variables                     */
 /*---------------------------------------------------------------------*/
+
+/* A clause is in the bank of its literals (NULL if it is empty) */
+static inline TB_p ClauseGetBank(Clause_p clause)
+{
+   return clause->literals ? EqnGetBank(clause->literals) : NULL;
+}
+
 
 extern bool ClausesHaveLocalVariables;
 extern bool ClausesHaveDisjointVariables;
@@ -381,10 +386,8 @@ bool     ClauseNotGreaterEqual(OCB_p ocb,
 
 int      ClauseCompareFun(const void *c1, const void* c2);
 int      ClauseCmpById(const void* clause1, const void* clause2);
-#ifdef CLAUSE_PERM_IDENT
 int      ClauseCmpByPermId(const void* clause1, const void* clause2);
 int      ClauseCmpByPermIdR(const void* clause1, const void* clause2);
-#endif
 int      ClauseCmpByStructWeight(const void* clause1, const void* clause2);
 
 int      ClauseCmpByPtr(const void* clause1, const void* clause2);
@@ -426,7 +429,7 @@ bool    ClauseIsUntyped(Clause_p clause);
 
 bool    ClauseQueryLiteral(Clause_p clause, bool (*query_fun)(Eqn_p));
 bool    ClauseRecognizeChoice(IntMap_p choice_symbols_map, Clause_p cl);
-long    ClauseCollectGroundTerms(Clause_p clause, PTree_p *res, bool pos_lits,
+long    ClauseCollectGroundTerms(Clause_p clause, OrdSet_p *res, bool pos_lits,
                                  bool neg_lits, bool all_subterms);
 
 

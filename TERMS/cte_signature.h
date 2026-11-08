@@ -86,7 +86,6 @@ struct termcell;
 typedef Type_p (*PolyTypeCheckFun)(struct sigcell *sig, struct termcell *t);
 
 Type_p TypeCheckEq(struct sigcell *sig, struct termcell *t);
-Type_p TypeCheckDistinct(struct sigcell *sig, struct termcell *t);
 Type_p TypeCheckArithBinop(struct sigcell *sig, struct termcell *t);
 Type_p TypeCheckArithConv(struct sigcell *sig, struct termcell *t);
 
@@ -331,7 +330,7 @@ void    SigPrintTypeDeclsTSTP(FILE* out, Sig_p sig);
 void    SigParseTFFTypeDeclaration(Scanner_p in, Sig_p sig);
 void    SigPrintTypeDeclsTSTPSelective(FILE* out, Sig_p sig, NumTree_p *symbols);
 bool    SigHasUnimplementedInterpretedSymbols(Sig_p sig);
-long    SigFCodesCollectTypes(Sig_p sig, NumTree_p fcodes, PTree_p *types);
+long    SigFCodesCollectTypes(Sig_p sig, NumTree_p fcodes, OrdSet_p *types);
 void    SigUpdateFeatureOffset(Sig_p sig, FunCode f);
 void    SigEnterLetScope(Sig_p sig, PStack_p type_decls);
 void    SigExitLetScope(Sig_p sig);

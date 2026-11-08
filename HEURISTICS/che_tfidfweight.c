@@ -50,6 +50,7 @@
 -----------------------------------------------------------------------*/
 
 #include "che_tfidfweight.h"
+#include <cte_lambda.h>
 
 
 /*---------------------------------------------------------------------*/
@@ -74,19 +75,22 @@ static void tfidf_documents_add_term(
    VarBank_p vars)
 {
    ClausePos_p pos;
-   Term_p copy;
+   Term_p copy, shared;
 
    copy = TermCopyNormalizeVars(vars,term,var_norm);
+   /* The index keeps pointers to (applied) variables of the term, so
+      insert a shared copy that lives as long as the index. The index
+      requires beta-normal terms. */
+   shared = BetaNormalizeDB(TBInsert(documents->bank,copy,DEREF_NEVER));
+   TermFree(copy);
 
    pos          = ClausePosCellAlloc();
    pos->clause  = clause;
    pos->literal = lit;
    pos->side    = side;
    pos->pos     = NULL;
-   PDTreeInsertTerm(documents,copy,pos,false);
+   PDTreeInsertTerm(documents,shared,pos,false);
    ClausePosCellFree(pos);
-
-   TermFree(copy);
 }
 
 static void tfidf_documents_add_subterms(
@@ -158,14 +162,18 @@ static void tfidf_init(TfIdfWeightParam_p data)
          TBInsertClauseTermsNormalized(
             data->eval_bank,clause,data->var_norm,data->rel_terms);
       }
-      else 
-      {
+   }
+   /* Count the conjecture term frequencies before the document terms
+      are added to the same bank. */
+   data->eval_freqs = TBCountTermFreqs(data->eval_bank);
+
+   for (clause=anchor->succ; clause!=anchor; clause=clause->succ)
+   {
+      if(ClauseQueryTPTPType(clause)!=CPTypeNegConjecture) {
          tfidf_documents_add_clause(data->documents,clause,
             data->var_norm,data->eval_bank->vars);
       }
    }
-   
-   data->eval_freqs = TBCountTermFreqs(data->eval_bank);
 }
 
 static double tfidf_term_weight(Term_p term, TfIdfWeightParam_p data)
@@ -175,12 +183,10 @@ static double tfidf_term_weight(Term_p term, TfIdfWeightParam_p data)
    double idf, tfidf;
    Term_p norm, repr;
    PDTNode_p node;
-   NumTree_p cell;
 
    norm = TermCopyNormalizeVars(data->eval_bank->vars,term,data->var_norm);
    repr = TBFindRepr(data->eval_bank,norm);
-   cell = repr ? NumTreeFind(&data->eval_freqs, repr->entry_no) : NULL;
-   tf = cell ? (cell->val1.i_val) : 0;
+   tf = repr ? TermFreqsFind(&data->eval_freqs, repr) : 0;
    tf = (data->tf_fact*(tf-1))+1; // make tf=1 when tf_fact=0 ("disable tf")
 
    node = PDTreeMatchPrefix(data->documents,norm,&matched,&remains);

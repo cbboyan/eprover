@@ -77,6 +77,50 @@ static Term_p make_head(Sig_p sig, const char* f_name)
 
 /*-----------------------------------------------------------------------
 //
+// Function: parse_ho_distinct()
+//
+//   Parse $distinct(t1,...,tn). Even in HO syntax, $distinct is
+//   always written with a parenthesized argument list.
+//
+// Global Variables: -
+//
+// Side Effects    : Input, memory operations
+//
+/----------------------------------------------------------------------*/
+
+static Term_p parse_ho_distinct(Scanner_p in, TB_p bank)
+{
+   PStack_p args = PStackAlloc();
+   Term_p   res;
+
+   AcceptInpId(in, "$distinct");
+   AcceptInpTok(in, OpenBracket);
+   if(!TestInpTok(in, CloseBracket))
+   {
+      PStackPushP(args, TFormulaTSTPParse(in, bank));
+      while(TestInpTok(in, Comma))
+      {
+         NextToken(in);
+         PStackPushP(args, TFormulaTSTPParse(in, bank));
+      }
+   }
+   AcceptInpTok(in, CloseBracket);
+
+   res = TermDefaultCellArityAlloc(PStackGetSP(args));
+   res->f_code = bank->sig->distinct_code;
+   for(PStackPointer i=0; i<PStackGetSP(args); i++)
+   {
+      res->args[i] = PStackElementP(args, i);
+   }
+   PStackFree(args);
+   TypeInferSort(bank->sig, res, in);
+
+   return TBTermTopInsert(bank, res);
+}
+
+
+/*-----------------------------------------------------------------------
+//
 // Function: parse_ho_atom()
 //
 //    Parses one HO symbol.
@@ -98,12 +142,23 @@ static Term_p __inline__ parse_ho_atom(Scanner_p in, TB_p bank)
 
    if(TestInpTok(in, IteToken))
    {
+      if(!TestTok(LookToken(in, 1), OpenBracket))
+      {
+         /* $ite in application syntax that does not start an
+            application (e.g. an argument), see parse_ho_ite() */
+         AktTokenError(in, "$ite must be applied to exactly three "
+                       "arguments", false);
+      }
       head = ParseIte(in, bank);
    }
    else if(TestInpTok(in, LetToken))
    {
       head = ParseLet(in, bank);
       assert(head->type);
+   }
+   else if(TestInpId(in, "$distinct"))
+   {
+      head = parse_ho_distinct(in, bank);
    }
    else if((id_type=TermParseOperator(in, id))==FSIdentVar)
    {
@@ -138,6 +193,44 @@ static Term_p __inline__ parse_ho_atom(Scanner_p in, TB_p bank)
    assert(TermIsShared(head));
    assert(head->type);
    return head;
+}
+
+/*-----------------------------------------------------------------------
+//
+// Function: parse_ho_ite()
+//
+//   Parse $ite in HO application syntax, $ite @ cond @ if_true @
+//   if_false, and return the ite term. Only full applications are
+//   supported (E represents ite as a special term with three
+//   arguments), so exactly three arguments are parsed. Any further
+//   arguments (for function-typed branches) are parsed by the caller
+//   as for any other head.
+//
+// Global Variables: -
+//
+// Side Effects    : Input, memory operations
+//
+/----------------------------------------------------------------------*/
+
+static Term_p parse_ho_ite(Scanner_p in, TB_p bank)
+{
+   Term_p args[3];
+   int    i;
+
+   assert(problemType == PROBLEM_HO);
+
+   AcceptInpTok(in, IteToken);
+   for(i=0; i<3; i++)
+   {
+      if(!TestInpTok(in, Application))
+      {
+         AktTokenError(in, "$ite must be applied to exactly three "
+                       "arguments", false);
+      }
+      AcceptInpTok(in, Application);
+      args[i] = literal_tform_tstp_parse(in, bank);
+   }
+   return TBIteTermAlloc(bank, args[0], args[1], args[2]);
 }
 
 /*-----------------------------------------------------------------------
@@ -406,7 +499,7 @@ static TFormula_p parse_atom(Scanner_p in, TB_p terms)
    }
    else
    {
-      res = EqnTermsTBTermEncode(terms, lhs, rhs, positive, PENormal);
+      res = EqnTermsTBTermEncode(lhs, rhs, positive, PENormal);
    }
    return res;
 }
@@ -868,7 +961,7 @@ static TFormula_p literal_tform_tstp_parse(Scanner_p in, TB_p terms)
 //
 /----------------------------------------------------------------------*/
 
-static void tformula_collect_freevars(TB_p bank, TFormula_p form, PTree_p *vars)
+static void tformula_collect_freevars(TB_p bank, TFormula_p form, OrdSet_p *vars)
 {
    TermProperties old_prop;
 
@@ -891,7 +984,7 @@ static void tformula_collect_freevars(TB_p bank, TFormula_p form, PTree_p *vars)
    {
       if(TermCellQueryProp(form, TPIsFreeVar))
       {
-         PTreeStore(vars, form);
+         OrdSetStore(vars, form);
       }
    }
    else
@@ -901,7 +994,7 @@ static void tformula_collect_freevars(TB_p bank, TFormula_p form, PTree_p *vars)
          if(TermIsFreeVar(form->args[i]) &&
             TermCellQueryProp(form->args[i], TPIsFreeVar))
          {
-            PTreeStore(vars, form->args[i]);
+            OrdSetStore(vars, form->args[i]);
          }
          else
          {
@@ -954,8 +1047,8 @@ static Term_p lambda_eq_to_forall(TB_p terms, Term_p t)
             PStackPushP(fresh_vars, fvar);
             PStackPushP(encoded_vars, EncodePredicateAsEqn(terms, fvar));
          }
-         Term_p lhs = BetaNormalizeDB(terms, ApplyTerms(terms, t->args[0], encoded_vars));
-         Term_p rhs = BetaNormalizeDB(terms, ApplyTerms(terms, t->args[1], encoded_vars));
+         Term_p lhs = BetaNormalizeDB(ApplyTerms(terms, t->args[0], encoded_vars));
+         Term_p rhs = BetaNormalizeDB(ApplyTerms(terms, t->args[1], encoded_vars));
          if(lhs->type == sig->type_bank->bool_type)
          {
 
@@ -1031,8 +1124,7 @@ WFormula_p find_generalization(PDTree_p liftings, Term_p query, TermRef name)
          TBInsertInstantiated(liftings->bank, matcher_derefed);
 
       Term_p candidate =
-         LambdaEtaReduceDB(liftings->bank,
-            BetaNormalizeDB(liftings->bank, matcher_derefed));
+         LambdaEtaReduceDB(BetaNormalizeDB(matcher_derefed));
       if(!TermHasLambdaSubterm(candidate))
       {
          *name = candidate;
@@ -1169,11 +1261,11 @@ Term_p lift_lambda(TB_p terms, PStack_p bound_vars, Term_p body,
    assert(!TermHasLambdaSubterm(body)); // LiftLambda recursively called before
 
    // storing all free variables of body in free_var_stack
-   PTree_p free_vars = NULL;
+   OrdSet_p free_vars = NULL;
    TFormulaCollectFreeVars(terms, body, &free_vars);
    PStack_p free_var_stack = PStackAlloc();
-   PTreeToPStack(free_var_stack, free_vars);
-   PTreeFree(free_vars);
+   OrdSetToPStack(free_var_stack, free_vars);
+   OrdSetFree(free_vars);
 
    // creating a stack of fresh variables that correspond to the
    // the lambda prefix of the term
@@ -1201,7 +1293,7 @@ Term_p lift_lambda(TB_p terms, PStack_p bound_vars, Term_p body,
    for(long i=PStackGetSP(bound_vars)-1; i>=0; i--)
    {
       closed =
-         CloseWithDBVar(terms, ((Term_p)PStackElementP(bound_vars, i))->type,
+         CloseWithDBVar(((Term_p)PStackElementP(bound_vars, i))->type,
                         closed);
    }
 
@@ -1256,7 +1348,7 @@ Term_p lift_lambda(TB_p terms, PStack_p bound_vars, Term_p body,
       //printf("### closed: ");
       //TermPrintDbg(stdout, closed, terms->sig, DEREF_NEVER);
       //printf("\n");
-      Term_p repl_rhs = WHNF_step(terms, ApplyTerms(terms, closed, bound_to_fresh));
+      Term_p repl_rhs = WHNF_step(ApplyTerms(terms, closed, bound_to_fresh));
 
       //printf("### repl_rhs: ");
       //TermPrintDbg(stdout, repl_rhs, terms->sig, DEREF_NEVER);
@@ -1360,7 +1452,7 @@ Term_p EncodePredicateAsEqn(TB_p bank, TFormula_p f)
       rside = bank->true_term;
 
       // making sure we encode $false as $true!=$true
-      f = EqnTermsTBTermEncode(bank, lside, rside, positive, PENormal);
+      f = EqnTermsTBTermEncode(lside, rside, positive, PENormal);
       //printf("xxx %ld - %ld: ", f->f_code, bank->sig->eqn_code);
       //TermPrint(stdout, f, bank->sig, DEREF_NEVER);
       //printf("\n");
@@ -1457,19 +1549,19 @@ TFormula_p TFormulaFCodeAlloc(TB_p bank, FunCode op, TFormula_p arg1, TFormula_p
 TFormula_p TFormulaLitAlloc(Eqn_p literal)
 {
    TFormula_p res;
-   TB_p bank = literal->bank;
+   TB_p bank = EqnGetBank(literal);
 
    assert(literal);
 
    if(problemType == PROBLEM_FO)
    {
-      res = EqnTermsTBTermEncode(literal->bank, literal->lterm,
+      res = EqnTermsTBTermEncode(literal->lterm,
                                  literal->rterm, EqnIsPositive(literal),
                                  PENormal);
    }
    else if(literal->rterm == bank->true_term)
    {
-      res = DecodeFormulasForCNF(bank, literal->lterm);
+      res = DecodeFormulasForCNF(literal->lterm);
       if(EqnIsNegative(literal))
       {
          res = TFormulaFCodeAlloc(bank, bank->sig->not_code, res, NULL);
@@ -1477,8 +1569,8 @@ TFormula_p TFormulaLitAlloc(Eqn_p literal)
    }
    else if(EqnIsClausifiable(literal))
    {
-      Term_p lterm = DecodeFormulasForCNF(bank, literal->lterm);
-      Term_p rterm = DecodeFormulasForCNF(bank, literal->rterm);
+      Term_p lterm = DecodeFormulasForCNF(literal->lterm);
+      Term_p rterm = DecodeFormulasForCNF(literal->rterm);
       res =
          TFormulaFCodeAlloc(bank,
             EqnIsPositive(literal) ? bank->sig->equiv_code : bank->sig->xor_code,
@@ -1486,10 +1578,10 @@ TFormula_p TFormulaLitAlloc(Eqn_p literal)
    }
    else
    {
-      Term_p lterm = DecodeFormulasForCNF(bank, literal->lterm);
-      Term_p rterm = DecodeFormulasForCNF(bank, literal->rterm);
+      Term_p lterm = DecodeFormulasForCNF(literal->lterm);
+      Term_p rterm = DecodeFormulasForCNF(literal->rterm);
       res =
-         EqnTermsTBTermEncode(bank, lterm, rterm, EqnIsPositive(literal), PENormal);
+         EqnTermsTBTermEncode(lterm, rterm, EqnIsPositive(literal), PENormal);
    }
 
    return res;
@@ -1694,10 +1786,6 @@ void TFormulaTPTPPrint(FILE* out, TB_p bank, TFormula_p form, bool fullterms, bo
    else if(form->arity == 0)
    {
       fprintf(out, "%s", SigFindName(bank->sig, form->f_code));
-   }
-   else if(form->f_code == bank->sig->distinct_code)
-   {
-      TBPrintTerm(out, bank, form, fullterms);
    }
    else
    {
@@ -1987,7 +2075,16 @@ TFormula_p TFormulaTSTPParse(Scanner_p in, TB_p terms)
    FunCode op;
    Sig_p   sig = terms->sig;
 
-   f1 = literal_tform_tstp_parse(in, terms);
+   if(problemType == PROBLEM_HO && TestInpTok(in, IteToken) &&
+      TestTok(LookToken(in, 1), Application))
+   {
+      /* $ite @ c @ t @ e starts an application */
+      f1 = parse_ho_ite(in, terms);
+   }
+   else
+   {
+      f1 = literal_tform_tstp_parse(in, terms);
+   }
    if(TestInpTok(in, FOFAssocOp))
    {
       res = assoc_tform_tstp_parse(in, terms, f1);
@@ -2066,122 +2163,6 @@ TFormula_p TcfTSTPParse(Scanner_p in, TB_p terms)
    }
    return res;
 }
-
-
-/*-----------------------------------------------------------------------
-//
-// Function: parse_constant_term()
-//
-//   Parse a constant term (only constants allowed).
-//
-// Global Variables: -
-//
-// Side Effects    : -
-//
-/----------------------------------------------------------------------*/
-
-Term_p parse_constant_term(Scanner_p in, TB_p terms)
-{
-   Term_p       handle;
-   DStr_p       id = DStrAlloc();
-   DStr_p       source_name = DStrGetRef(AktToken(in)->source);
-   StreamType   type_stream = AktToken(in)->stream_type;
-   long
-      line   = AktToken(in)->line,
-      column = AktToken(in)->column;
-
-   FuncSymbType id_type = FuncSymbParse(in, id);
-   FunCode      f_code = TermSigInsert(terms->sig,
-                                       DStrView(id),
-                                       0,
-                                       false, id_type);
-   if(!f_code)
-   {
-      Error("%s: constant expected but %s registered with arity %d",
-            SYNTAX_ERROR,
-            PosRep(type_stream, source_name, line, column),
-            DStrView(id),
-            (terms->sig)->
-            f_info[SigFindFCode(terms->sig, DStrView(id))].arity);
-   }
-   DStrReleaseRef(source_name);
-
-   handle = TermDefaultCellAlloc();
-   handle->arity = 0;
-   handle->f_code = f_code;
-   handle = TBTermTopInsert(terms, handle);
-   DStrFree(id);
-   return handle;
-}
-
-
-
-
-/*-----------------------------------------------------------------------
-//
-// Function: TSTPDistinctParse()
-//
-//   Parse a $distinct()-pseudo-term.
-//
-// Global Variables: -
-//
-// Side Effects    : I/O, memory operation
-//
-/----------------------------------------------------------------------*/
-
-TFormula_p TSTPDistinctParse(Scanner_p in, TB_p terms)
-{
-   Term_p        handle, arg;
-   DStr_p        id = DStrAlloc();
-   PStack_p      args = PStackAlloc();
-   int           arity, i;
-   Type_p        type;
-
-   AcceptInpId(in, "$distinct");
-   AcceptInpTok(in, OpenBracket);
-
-   arg = parse_constant_term(in, terms);
-   type = arg->type;
-   PStackPushP(args, arg);
-
-   DStrReset(id);
-   while(TestInpTok(in, Comma))
-   {
-      NextToken(in);
-
-      DStr_p       source_name = DStrGetRef(AktToken(in)->source);
-      StreamType   type_stream = AktToken(in)->stream_type;
-      long
-         line   = AktToken(in)->line,
-         column = AktToken(in)->column;
-
-      arg = parse_constant_term(in, terms);
-      if(arg->type!=type)
-      {
-         Error("%s All $distinct arguments have to be constants of the same type",
-               TYPE_ERROR,
-               PosRep(type_stream, source_name, line, column));
-      }
-      PStackPushP(args, arg);
-      DStrReleaseRef(source_name);
-      DStrReset(id);
-   }
-   AcceptInpTok(in, CloseBracket);
-   arity = PStackGetSP(args);
-   handle = TermDefaultCellArityAlloc(arity);
-   handle->f_code = terms->sig->distinct_code;
-
-   for(i=0;i<arity;i++)
-   {
-      handle->args[i] = PStackElementP(args,i);
-   }
-   handle = TBTermTopInsert(terms, handle);
-
-   PStackFree(args);
-   DStrFree(id);
-   return handle;
-}
-
 
 
 /*-----------------------------------------------------------------------
@@ -2278,7 +2259,7 @@ bool TFormulaVarIsFree(TB_p bank, TFormula_p form, Term_p var)
 //
 /----------------------------------------------------------------------*/
 
-void TFormulaCollectFreeVars(TB_p bank, TFormula_p form, PTree_p *vars)
+void TFormulaCollectFreeVars(TB_p bank, TFormula_p form, OrdSet_p *vars)
 {
    VarBankVarsSetProp(bank->vars, TPIsFreeVar);
    tformula_collect_freevars(bank, form, vars);
@@ -2298,10 +2279,10 @@ void TFormulaCollectFreeVars(TB_p bank, TFormula_p form, PTree_p *vars)
 
 bool TFormulaIsClosed(TB_p bank, TFormula_p form)
 {
-   PTree_p vars = NULL;
+   OrdSet_p vars = NULL;
    TFormulaCollectFreeVars(bank, form, &vars);
    bool ans  = vars == NULL;
-   PTreeFree(vars);
+   OrdSetFree(vars);
    return ans;
 }
 
@@ -2322,14 +2303,14 @@ bool TFormulaIsClosed(TB_p bank, TFormula_p form)
 TFormula_p TFormulaHasFreeVars(TB_p bank, TFormula_p form)
 {
    TFormula_p res = NULL;
-   PTree_p dummy = NULL;
+   OrdSet_p dummy = NULL;
 
    TFormulaCollectFreeVars(bank, form, &dummy);
    if (dummy!=NULL)
    {
-      res = dummy->key;
+      res = OrdSetFirst(dummy)->key;
    }
-   PTreeFree(dummy);
+   OrdSetFree(dummy);
    return res;
 }
 
@@ -2470,14 +2451,15 @@ TFormula_p TFormulaAddQuantor(TB_p bank, TFormula_p form, bool universal, Term_p
 /----------------------------------------------------------------------*/
 
 TFormula_p TFormulaAddQuantors(TB_p bank, TFormula_p form, bool universal,
-                               PTree_p vars)
+                               OrdSet_p vars)
 {
    PStack_p var_stack = PStackAlloc();
    PStackPointer i;
    Term_p var;
 
-   PTreeToPStack(var_stack,vars);
-   for(i=0; i<PStackGetSP(var_stack); i++)
+   OrdSetToPStack(var_stack,vars);
+   /* Innermost quantor first, so that X1 ends up outermost */
+   for(i=PStackGetSP(var_stack)-1; i>=0; i--)
    {
       var = PStackElementP(var_stack, i);
       form = TFormulaAddQuantor(bank, form, universal, var);
@@ -2501,12 +2483,12 @@ TFormula_p TFormulaAddQuantors(TB_p bank, TFormula_p form, bool universal,
 
 TFormula_p TFormulaClosure(TB_p bank, TFormula_p form, bool universal)
 {
-   PTree_p vars = NULL;
+   OrdSet_p vars = NULL;
 
    VarBankVarsSetProp(bank->vars, TPIsFreeVar);
    TFormulaCollectFreeVars(bank, form, &vars);
    form = TFormulaAddQuantors(bank, form, universal, vars);
-   PTreeFree(vars);
+   OrdSetFree(vars);
 
    return form;
 }
@@ -2528,7 +2510,7 @@ TFormula_p TFormulaClosure(TB_p bank, TFormula_p form, bool universal)
 TFormula_p TFormulaCreateDef(TB_p bank, TFormula_p def_atom, TFormula_p defined,
                              int polarity)
 {
-   PTree_p vars=NULL;
+   OrdSet_p vars=NULL;
    TFormula_p res = NULL;
 
    switch(polarity)
@@ -2552,7 +2534,7 @@ TFormula_p TFormulaCreateDef(TB_p bank, TFormula_p def_atom, TFormula_p defined,
    TermCollectVariables(def_atom, &vars);
    //TFormulaCollectFreeVars(bank, def_atom, &vars);
    res = TFormulaAddQuantors(bank, res, true, vars);
-   PTreeFree(vars);
+   OrdSetFree(vars);
 
    return res;
 }
@@ -2822,7 +2804,7 @@ Clause_p TFormulaCollectClause(TFormula_p form, TB_p terms,
       {
          if(TFormulaIsLiteral(terms->sig, form))
          {
-            lit = EqnTBTermDecode(terms, form);
+            lit = EqnTBTermDecode(form);
             PStackPushP(lit_stack, lit);
          }
          else if(TermIsTrueTerm(form))
@@ -2985,6 +2967,67 @@ TFormula_p TFormulaExpandDistinct(TB_p bank, TFormula_p distinct)
 }
 
 
+/*-----------------------------------------------------------------------
+//
+// Function: expand_distinct_mapper()
+//
+//   TermMapper for TFormulaExpandAllDistinct(). Replace $distinct
+//   atoms (encoded as $distinct(...)=$true or $distinct(...)!=$true)
+//   and $distinct terms by the corresponding conjunction of
+//   disequations.
+//
+// Global Variables: -
+//
+// Side Effects    : Memory operations
+//
+/----------------------------------------------------------------------*/
+
+static Term_p expand_distinct_mapper(TB_p bank, Term_p t)
+{
+   Sig_p      sig = bank->sig;
+   TFormula_p res;
+
+   if((t->f_code == sig->eqn_code || t->f_code == sig->neqn_code) &&
+      t->arity == 2 &&
+      t->args[1] == bank->true_term &&
+      !TermIsAnyVar(t->args[0]) &&
+      t->args[0]->f_code == sig->distinct_code)
+   {
+      res = EncodePredicateAsEqn(bank,
+                                 TFormulaExpandDistinct(bank, t->args[0]));
+      if(t->f_code == sig->neqn_code)
+      {
+         res = TFormulaFCodeAlloc(bank, sig->not_code, res, NULL);
+      }
+      return res;
+   }
+   if(!TermIsAnyVar(t) && t->f_code == sig->distinct_code)
+   {
+      return TFormulaExpandDistinct(bank, t);
+   }
+   return t;
+}
+
+
+/*-----------------------------------------------------------------------
+//
+// Function: TFormulaExpandAllDistinct()
+//
+//   Return form with all occurrences of $distinct replaced by the
+//   corresponding conjunctions of disequations.
+//
+// Global Variables: -
+//
+// Side Effects    : Memory operations
+//
+/----------------------------------------------------------------------*/
+
+TFormula_p TFormulaExpandAllDistinct(TB_p bank, TFormula_p form)
+{
+   return TermMap(bank, form, expand_distinct_mapper);
+}
+
+
 
 /*-----------------------------------------------------------------------
 //
@@ -3006,7 +3049,7 @@ TFormula_p LiftLambdas(TB_p terms, TFormula_p t, PStack_p definitions, PDTree_p 
    //printf("### LiftLambdas: ");
    //TermPrintDbg(stdout, t, terms->sig, DEREF_NEVER);
 
-   t = BetaNormalizeDB(terms, t);
+   t = BetaNormalizeDB(t);
 
    //fprintf(stdout, " => ");
    //TermPrintDbg(stdout, t, terms->sig, DEREF_NEVER);

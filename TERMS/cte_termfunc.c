@@ -145,7 +145,7 @@ static Term_p parse_cons_list(Scanner_p in, Sig_p sig, VarBank_p vars)
 //
 /----------------------------------------------------------------------*/
 
-static Term_p term_check_consistency_rek(Term_p term, PTree_p *branch,
+static Term_p term_check_consistency_rek(Term_p term, OrdSet_p *branch,
                                          DerefType deref)
 {
    int      i;
@@ -155,7 +155,7 @@ static Term_p term_check_consistency_rek(Term_p term, PTree_p *branch,
    term = TermDeref(term, &deref);
    putc('.', stdout);
 
-   if(!PTreeStore(branch, term))
+   if(!OrdSetStore(branch, term))
    {
       return term;
    }
@@ -167,7 +167,7 @@ static Term_p term_check_consistency_rek(Term_p term, PTree_p *branch,
          break;
       }
    }
-   PTreeDeleteEntry(branch, term);
+   OrdSetDeleteEntry(branch, term);
    return res;
 }
 
@@ -194,25 +194,30 @@ Term_p discard_last(Term_p term)
 //
 // Function: create_var_renaming_de_bruin()
 //
-// Traverse a term and create alpha-normalizing variable renaming.
+// Traverse a term and create alpha-normalizing variable renaming: the
+// n-th distinct variable of a type (in left-to-right order) is mapped
+// to the n-th variable of that type in vars. The renaming is keyed by
+// the variable cells, so variables of different banks with the same
+// f_code are kept apart.
 //
 // Global Variables: -
 //
-// Side Effects    : Memory operations
+// Side Effects    : Memory operations, may create variables in vars
 //
 /----------------------------------------------------------------------*/
 
-NumTree_p create_var_renaming_de_bruin(VarBank_p vars, Term_p term)
+static PObjMap_p create_var_renaming_de_bruin(VarBank_p vars, Term_p term)
 {
    int i;
-   NumTree_p node;
-   NumTree_p root;
+   PObjMap_p root = NULL;
    PStack_p open;
-   long fresh_var_code;
+   PDArray_p counts; /* type_uid -> number of variables renamed so far */
+   void** ref;
+   bool added;
+   long n;
 
    open = PStackAlloc();
-   fresh_var_code = -2;
-   root = NULL;
+   counts = PDArrayAlloc(4, 4);
 
    PStackPushP(open, term);
    while(!PStackEmpty(open))
@@ -220,14 +225,12 @@ NumTree_p create_var_renaming_de_bruin(VarBank_p vars, Term_p term)
       term = PStackPopP(open);
       if(TermIsFreeVar(term))
       {
-         if (!NumTreeFind(&root, term->f_code)) {
-            node = NumTreeCellAllocEmpty();
-            node->key = term->f_code;
-            node->val1.p_val = VarBankVarAssertAlloc(vars, fresh_var_code, term->type);
-            //node->val1.p_val = VarBankVarAssertAlloc(vars, fresh_var_code, STIndividuals);
-            fresh_var_code -= 2;
-
-            NumTreeInsert(&root, node);
+         ref = PObjMapGetRef(&root, term, PCmpFun, &added);
+         if(added)
+         {
+            n = PDArrayElementInt(counts, term->type->type_uid);
+            *ref = VarBankGetNumberedVar(vars, term->type, n);
+            PDArrayAssignInt(counts, term->type->type_uid, n+1);
          }
       }
       else
@@ -238,6 +241,7 @@ NumTree_p create_var_renaming_de_bruin(VarBank_p vars, Term_p term)
          }
       }
    }
+   PDArrayFree(counts);
    PStackFree(open);
 
    return root;
@@ -388,6 +392,21 @@ void do_ho_print(FILE* out, TFormula_p term, Sig_p sig, DerefType deref, int dep
       do_ho_print(out, term->args[1], sig, deref, depth);
       fprintf(out, ", ");
       do_ho_print(out, term->args[2], sig, deref, depth);
+      fprintf(out, ")");
+      return;
+   }
+   if(term->f_code == sig->distinct_code)
+   {
+      /* Always printed in FO syntax */
+      fprintf(out, "$distinct(");
+      for(int i=0; i < term->arity; i++)
+      {
+         if(i)
+         {
+            fprintf(out, ", ");
+         }
+         do_ho_print(out, term->args[i], sig, deref, depth);
+      }
       fprintf(out, ")");
       return;
    }
@@ -1083,12 +1102,6 @@ void TermPrettyPrintSimple(FILE* out, Term_p term, Sig_p sig, int level)
 
 FuncSymbType TermParseOperator(Scanner_p in, DStr_p id)
 {
-   if(TestInpId(in, "$distinct"))
-   {
-      AktTokenError(in,
-                    "$distinct is only allowed as the sole predicate symbol of an atomic formula",
-                    false);
-   }
    FuncSymbType res = FuncSymbParse(in, id);
 
 #ifndef STRICT_TPTP
@@ -1358,8 +1371,6 @@ Term_p TermCopy(Term_p source, VarBank_p vars, DBVarBank_p dbvars, DerefType der
                                     CONVERT_DEREF(i, limit, deref));
       }
    }
-
-   TermSetBank(handle, TermGetBank(source));
    return handle;
 }
 
@@ -1503,7 +1514,9 @@ bool TermStructEqualDeref(Term_p t1, Term_p t2, DerefType deref_1, DerefType der
    int limit_1 = DEREF_LIMIT(t1, deref_1);
    int limit_2 = DEREF_LIMIT(t2, deref_2);
 
-   TB_p bank = TermGetBank(t1) ? TermGetBank(t1) : TermGetBank(t2);
+   /* Only needed for lambda handling */
+   TB_p bank = problemType == PROBLEM_HO ?
+      (TermFindBank(t1) ? TermFindBank(t1) : TermFindBank(t2)) : NULL;
 
    if(problemType == PROBLEM_HO)
    {
@@ -1516,7 +1529,7 @@ bool TermStructEqualDeref(Term_p t1, Term_p t2, DerefType deref_1, DerefType der
          t1 =
             deref_1 == DEREF_ONCE ?
                (TermIsFreeVar(t1) ? t1->binding : TBInsertInstantiatedDeref(bank, t1, deref_1)) : t1;
-         t1 = BetaNormalizeDB(bank, t1);
+         t1 = BetaNormalizeDB(t1);
          limit_1 = INT_MAX;
          deref_1 = DEREF_NEVER;
       }
@@ -1537,7 +1550,7 @@ bool TermStructEqualDeref(Term_p t1, Term_p t2, DerefType deref_1, DerefType der
          t2 =
             deref_2 == DEREF_ONCE ?
                (TermIsFreeVar(t2) ? t2->binding : TBInsertInstantiatedDeref(bank, t2, deref_2)) : t2;
-         t2 = BetaNormalizeDB(bank, t2);
+         t2 = BetaNormalizeDB(t2);
          limit_2 = INT_MAX;
          deref_2 = DEREF_NEVER;
       }
@@ -1876,7 +1889,7 @@ long TermWeightCompute(Term_p term, long vweight, long fweight)
    long res = 0;
 
    if(TermIsFreeVar(term) ||
-     (TermIsAppliedFreeVar(term) && NormalizePatternAppVar(TermGetBank(term), term)))
+     (TermIsAppliedFreeVar(term) && NormalizePatternAppVar(term)))
    {
       // if variable is of the form X xn where xn are bound variables -->
       // then it is counted as a simple variable
@@ -2365,7 +2378,7 @@ FunCode VarBankCheckBindings(FILE* out, VarBank_p bank, Sig_p sig)
    long      res = 0;
    int       i;
 
-   fprintf(out, COMCHAR"  VarBankCheckBindings() started...\n");
+   CommentPrint(out, "  VarBankCheckBindings() started...\n");
    for(i=1; i<PDArraySize(bank->variables); i++)
    {
       term = PDArrayElementP(bank->variables, i);
@@ -2377,7 +2390,7 @@ FunCode VarBankCheckBindings(FILE* out, VarBank_p bank, Sig_p sig)
             res++;
             if(sig)
             {
-               fprintf(out, COMCHAR" %ld: ", term->f_code);
+               CommentPrint(out, " %ld: ", term->f_code);
                TermPrint(out, term, sig, DEREF_NEVER);
                fprintf(out, " <--- ");
                TermPrint(out, term, sig, DEREF_ONCE);
@@ -2385,14 +2398,14 @@ FunCode VarBankCheckBindings(FILE* out, VarBank_p bank, Sig_p sig)
             }
             else
             {
-               fprintf(out, COMCHAR" Var%ld <---- %p\n",
-                       term->f_code,
-                       (void*)term->binding);
+               CommentPrint(out, " Var%ld <---- %p\n",
+                            term->f_code,
+                            (void*)term->binding);
             }
          }
       }
    }
-   fprintf(out, COMCHAR"  ...VarBankCheckBindings() completed\n");
+   CommentPrint(out, "  ...VarBankCheckBindings() completed\n");
    return res;
 }
 
@@ -2665,7 +2678,7 @@ void TermComputeFunctionRanks(Term_p term, long *rank_array, long *count)
 //
 /----------------------------------------------------------------------*/
 
-long TermCollectPropVariables(Term_p term, PTree_p *tree,
+long TermCollectPropVariables(Term_p term, OrdSet_p *tree,
                               TermProperties prop)
 {
    long res = 0;
@@ -2680,7 +2693,7 @@ long TermCollectPropVariables(Term_p term, PTree_p *tree,
       if(TermIsFreeVar(term) &&
          TermCellQueryProp(term,prop))
       {
-         if(PTreeStore(tree, term))
+         if(OrdSetStore(tree, term))
          {
             res++;
          }
@@ -2711,7 +2724,7 @@ long TermCollectPropVariables(Term_p term, PTree_p *tree,
 //
 /----------------------------------------------------------------------*/
 
-long TermCollectVariables(Term_p term, PTree_p *tree)
+long TermCollectVariables(Term_p term, OrdSet_p *tree)
 {
    long res = 0;
    PStack_p stack = PStackAlloc();
@@ -2724,7 +2737,7 @@ long TermCollectVariables(Term_p term, PTree_p *tree)
       term = PStackPopP(stack);
       if(TermIsFreeVar(term))
       {
-         if(PTreeStore(tree, term))
+         if(OrdSetStore(tree, term))
          {
             res++;
          }
@@ -2806,7 +2819,7 @@ long TermCollectFCodes(Term_p term, NumTree_p *tree)
 //
 /----------------------------------------------------------------------*/
 
-long TermCollectGroundTerms(Term_p term, PTree_p *result, bool all_subterms)
+long TermCollectGroundTerms(Term_p term, OrdSet_p *result, bool all_subterms)
 {
    PStack_p stack = PStackAlloc();
    long count = 0;
@@ -2824,7 +2837,7 @@ long TermCollectGroundTerms(Term_p term, PTree_p *result, bool all_subterms)
             // TypeIsBool(term), TermCellQueryProp(term, TPPredPos));
             if(!TermIsConst(term) &&
                !TermCellQueryProp(term, TPPredPos) &&
-               PTreeStore(result, term))
+               OrdSetStore(result, term))
             {
                count++;
             }
@@ -2969,7 +2982,7 @@ long TermLinearize(PStack_p stack, Term_p term)
 Term_p TermCheckConsistency(Term_p term, DerefType deref)
 {
    Term_p   res;
-   PTree_p  branch = NULL;
+   OrdSet_p  branch = NULL;
 
    printf("TermCheckConsistency...\n");
    res = term_check_consistency_rek(term, &branch, deref);
@@ -2996,7 +3009,7 @@ void TermAssertSameSort(Sig_p sig, Term_p t1, Term_p t2)
 {
    if(t1->type != t2->type)
    {
-      fprintf(stderr, COMCHAR" Error: terms ");
+      CommentPrint(stderr, " Error: terms ");
       TermPrintDbg(stderr, t1, sig, DEREF_NEVER);
       fprintf(stderr, ": ");
       TypePrintTSTP(stderr, sig->type_bank, t1->type);
@@ -3172,17 +3185,15 @@ void TermFOOLPrint(FILE* out, Sig_p sig, TFormula_p form)
 //
 /*----------------------------------------------------------------------*/
 
-Term_p TermCopyRenameVars(NumTree_p* renaming, Term_p term)
+Term_p TermCopyRenameVars(PObjMap_p* renaming, Term_p term)
 {
     int i;
     Term_p copy;
-    NumTree_p entry;
 
     if (TermIsFreeVar(term))
     {
-        entry = NumTreeFind(renaming, term->f_code);
-        assert(entry);
-        copy = (Term_p)(entry->val1.p_val);
+        copy = PObjMapFind(renaming, term, PCmpFun);
+        assert(copy);
     }
     else if (TermIsDBVar(term))
     {
@@ -3192,7 +3203,6 @@ Term_p TermCopyRenameVars(NumTree_p* renaming, Term_p term)
     {
         copy = TermTopCopy(term);
         copy->type = term->type;
-        TermSetBank(copy, TermGetBank(term));
         for (i=0; i<term->arity; i++)
         {
             copy->args[i] = TermCopyRenameVars(renaming, term->args[i]);
@@ -3218,11 +3228,11 @@ Term_p TermCopyRenameVars(NumTree_p* renaming, Term_p term)
 Term_p TermCopyNormalizeVarsAlpha(VarBank_p vars, Term_p term)
 {
     Term_p copy;
-    NumTree_p renaming;
+    PObjMap_p renaming;
 
     renaming = create_var_renaming_de_bruin(vars, term);
     copy = TermCopyRenameVars(&renaming, term);
-    NumTreeFree(renaming);
+    PObjMapFree(renaming);
 
     return copy;
 }
@@ -3231,7 +3241,8 @@ Term_p TermCopyNormalizeVarsAlpha(VarBank_p vars, Term_p term)
 //
 // Function: TermCopyUnifyVars()
 //
-//   Create a term copy with all the variables unified (to X0).
+//   Create a term copy with all the variables of a type unified (to
+//   the first variable of that type in vars).
 //
 // Global Variables: -
 //
@@ -3245,7 +3256,7 @@ Term_p TermCopyUnifyVars(VarBank_p vars, Term_p term)
 
     if (TermIsFreeVar(term))
     {
-        return VarBankVarAssertAlloc(vars, -2, vars->sort_table->i_type);
+        return VarBankGetNumberedVar(vars, term->type, 0);
     }
     else if (TermIsDBVar(term))
     {
@@ -3253,7 +3264,6 @@ Term_p TermCopyUnifyVars(VarBank_p vars, Term_p term)
     }
 
     Term_p new = TermTopCopy(term);
-    TermSetBank(new, TermGetBank(term));
     for (i=0; i<term->arity; i++)
     {
         new->args[i] = TermCopyUnifyVars(vars, term->args[i]);
@@ -3472,10 +3482,10 @@ void visitor(void* sig, void* tp)
 
 void TermPrintDbgVarBinds(Sig_p sig, Term_p t)
 {
-   PTree_p vars = NULL;
+   OrdSet_p vars = NULL;
    TermCollectVariables(t, &vars);
-   PTreeVisitInOrder(vars, visitor, sig);
-   PTreeFree(vars);
+   OrdSetVisit(vars, visitor, sig);
+   OrdSetFree(vars);
 }
 
 /*-----------------------------------------------------------------------

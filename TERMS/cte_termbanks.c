@@ -139,7 +139,8 @@ static Term_p tb_termtop_insert(TB_p bank, Term_p t)
           (t->arity == 2 && TermIsFreeVar(t->args[0])));
    assert(t->f_code != SIG_DB_LAMBDA_CODE ||
           (t->arity == 2 && TermIsDBVar(t->args[0])));
-   assert(!TermIsPhonyApp(t) || TermIsAnyVar(t->args[0]) || TermIsLambda(t->args[0]));
+   /* Applied ite and let terms are phony applications, too */
+   assert(!TermIsPhonyApp(t) || TermIsPhonyAppTarget(t->args[0]));
    assert(!TermIsPhonyApp(t) || t->arity > 1);
 
 #ifndef NDEBUG
@@ -164,7 +165,6 @@ static Term_p tb_termtop_insert(TB_p bank, Term_p t)
       assert(!TermIsShared(t));
       new->properties = (new->properties | t->properties)/*& bank->prop_mask*/;
       TermTopFree(t);
-      TermSetBank(t, bank);
       t = new;
    }
    else
@@ -172,7 +172,6 @@ static Term_p tb_termtop_insert(TB_p bank, Term_p t)
       t->entry_no     = ++(bank->in_count);
       TermSetBank(t, bank);
       TermCellAssignProp(t,TPGarbageFlag, bank->garbage_state);
-      TermCellSetProp(t, TPIsShared); /* Groundness may change below */
       if(TermIsDBVar(t))
       {
          TermCellSetProp(t, TPHasDBSubterm);
@@ -240,7 +239,7 @@ static Term_p tb_termtop_insert(TB_p bank, Term_p t)
       {
          TermCellSetProp(t, TPHasAppVar);
          // counting applied pattern free var as a single var.
-         if(NormalizePatternAppVar(bank, t))
+         if(NormalizePatternAppVar(t))
          {
             t->f_count = 0;
             t->v_count = 1;
@@ -449,7 +448,7 @@ static Term_p parse_let_sym_def(Scanner_p in, TB_p bank, PStack_p type_decls)
       lhs = TBTermTopInsert(bank, lhs);
 
       DStrFree(name);
-      return EqnTermsTBTermEncode(bank, lhs, rhs, true, PENormal);
+      return EqnTermsTBTermEncode(lhs, rhs, true, PENormal);
    }
    else
    {
@@ -933,7 +932,7 @@ Term_p TBInsertInstantiatedDeref(TB_p bank, Term_p term, DerefType deref)
       for(i=0; i<t->arity; i++)
       {
          t->args[i] =
-            TBInsertInstantiatedDeref(bank ? bank : TermGetBank(term),
+            TBInsertInstantiatedDeref(bank ? bank : TermFindBank(term),
                                       term->args[i], CONVERT_DEREF(i, limit, deref));
       }
       t = tb_termtop_insert(bank, t);
@@ -1006,26 +1005,14 @@ Term_p TBInsertNoProps(TB_p bank, Term_p term, DerefType deref)
 {
    int    i;
    Term_p t;
-   TB_p tmp_bank = TermGetBank(term);
 
    assert(term);
 
-   TermSetBank(term, bank); //Cheat because WHNF_deref() needs it, God
-                            //knows for what!
+   /* WHNF_deref() reduces term in its own bank (TermFindBank()), the
+      result is copied into bank below. */
    const int limit = DEREF_LIMIT(term, deref);
    t = problemType == PROBLEM_HO && deref == DEREF_ALWAYS ?
       WHNF_deref(term) : TermDeref(term, &deref);
-   TermSetBank(term, tmp_bank);
-#ifdef ENABLE_LFHO
-   // Clear WHNF cache if WHNF_deref set it using the temporary bank (cross-bank
-   // pollution). The term lives in tmp_bank but the cached result is allocated in
-   // bank. If bank is GC-swept independently (e.g. tmp_terms sweep), the cache
-   // pointer becomes dangling and causes a use-after-free.
-   if(bank != tmp_bank)
-   {
-      TermSetCache(term, NULL);
-   }
-#endif
    term = t;
 
    if(TermIsFreeVar(term))
@@ -1294,11 +1281,9 @@ Term_p TBInsertInstantiatedHO(TB_p bank, Term_p term, bool follow_bind)
       return term;
    }
 
-   if(TermIsFreeVar(term) && term->binding)
+   if(TermIsFreeVar(term) && term->binding && follow_bind)
    {
-      t = follow_bind ? TBInsert(bank, term->binding, DEREF_NEVER) : term;
-      TermSetBank(t, bank);
-      return t;
+      return TBInsert(bank, term->binding, DEREF_NEVER);
    }
    else if (TermIsDBVar(term))
    {
@@ -1747,6 +1732,15 @@ Term_p TBTermParseReal(Scanner_p in, TB_p bank, bool check_symb_prop)
       {
          handle = ParseIte(in, bank);
       }
+      else if(TestInpId(in, "$distinct"))
+      {
+         AcceptInpId(in, "$distinct");
+         CheckInpTok(in, OpenBracket);
+         handle = tb_term_parse_arglist(in, bank, check_symb_prop, NULL);
+         handle->f_code = bank->sig->distinct_code;
+         TypeInferSort(bank->sig, handle, in);
+         handle = tb_termtop_insert(bank, handle);
+      }
       else if((id_type=TermParseOperator(in, id))==FSIdentVar)
       {
          /* A variable may be annotated with a sort */
@@ -2098,13 +2092,18 @@ long TBTermSetPropCount(Term_p term, TermProperties prop)
 //
 /----------------------------------------------------------------------*/
 
-void TBGCMarkTerm(TB_p bank, Term_p term)
+void TBGCMarkTerm(Term_p term)
 {
-   PStack_p stack = PStackAlloc();
+   TB_p bank = TermGetBank(term);
+   PStack_p stack;
    int i;
 
-   assert(bank);
    assert(term);
+   if(!bank)
+   {
+      return; /* Variable of a bank-less variable bank, not in any store */
+   }
+   stack = PStackAlloc();
 
    PStackPushP(stack, term);
    while(!PStackEmpty(stack))
@@ -2153,8 +2152,8 @@ long TBGCSweep(TB_p bank)
 
    assert(bank);
    assert(!TermIsRewritten(bank->true_term));
-   TBGCMarkTerm(bank, bank->true_term);
-   TBGCMarkTerm(bank, bank->false_term);
+   TBGCMarkTerm(bank->true_term);
+   TBGCMarkTerm(bank->false_term);
 
    for(i=0; i< bank->min_terms->size; i++)
    {
@@ -2162,7 +2161,7 @@ long TBGCSweep(TB_p bank)
 
       if(t)
       {
-         TBGCMarkTerm(bank, t);
+         TBGCMarkTerm(t);
       }
    }
    VERBOUT("Garbage collection started.\n");
@@ -2173,9 +2172,9 @@ long TBGCSweep(TB_p bank)
 #ifdef NEVER_DEFINED
    if(OutputLevel)
    {
-      fprintf(GlobalOut,
-              COMCHAR" Garbage collection reclaimed %ld unused term cells.\n",
-              recovered);
+      CommentPrint(GlobalOut,
+                   " Garbage collection reclaimed %ld unused term cells.\n",
+                   recovered);
    }
 #endif
    bank->garbage_state =
@@ -2540,6 +2539,26 @@ Term_p ParseIte(Scanner_p in, TB_p bank)
    Term_p if_false = TFormulaTSTPParse(in, bank);
    AcceptInpTok(in, CloseBracket);
 
+   return TBIteTermAlloc(bank, cond, if_true, if_false);
+}
+
+/*-----------------------------------------------------------------------
+//
+// Function: TBIteTermAlloc()
+//
+//   Return the shared ite term $ite(cond, if_true, if_false). cond
+//   must be Boolean, and if_true and if_false must have the same
+//   type, which is the type of the result.
+//
+// Global Variables: -
+//
+// Side Effects    : Memory operations, exits on type errors
+//
+/----------------------------------------------------------------------*/
+
+Term_p TBIteTermAlloc(TB_p bank, Term_p cond, Term_p if_true,
+                      Term_p if_false)
+{
    Term_p res = TermTopAlloc(SIG_ITE_CODE, 3);
    res->args[0] = cond;
    res->args[1] = if_true;
@@ -2565,7 +2584,7 @@ Term_p ParseIte(Scanner_p in, TB_p bank)
 //
 /----------------------------------------------------------------------*/
 
-Term_p NormalizePatternAppVar(TB_p bank, Term_p s)
+Term_p NormalizePatternAppVar(Term_p s)
 {
    if(TermIsFreeVar(s))
    {
@@ -2573,9 +2592,8 @@ Term_p NormalizePatternAppVar(TB_p bank, Term_p s)
    }
 
    assert(TermIsAppliedFreeVar(s));
-   assert(bank);
 
-   s = LambdaEtaReduceDB(bank, s);
+   s = LambdaEtaReduceDB(s);
    bool all_dbs = true;
    for(long i=1; i<s->arity && all_dbs; i++)
    {

@@ -79,21 +79,21 @@ int sat_translate_literal(Eqn_p eqn, SatClauseSet_p set)
 
    if(EqnIsEquLit(eqn))
    {
-      lterm = TBInsertInstantiated(eqn->bank, eqn->lterm);
-      rterm = TBInsertInstantiated(eqn->bank, eqn->rterm);
+      lterm = TBInsertInstantiated(EqnGetBank(eqn), eqn->lterm);
+      rterm = TBInsertInstantiated(EqnGetBank(eqn), eqn->rterm);
       // We normalize literals to avoid spurious failures
       if(PGreater(lterm, rterm))
       {
-         lit_term = EqnTermsTBTermEncode(eqn->bank, lterm, rterm, true, PENormal);
+         lit_term = EqnTermsTBTermEncode(lterm, rterm, true, PENormal);
       }
       else
       {
-         lit_term = EqnTermsTBTermEncode(eqn->bank, lterm, rterm, true, PEReverse);
+         lit_term = EqnTermsTBTermEncode(lterm, rterm, true, PEReverse);
       }
    }
    else
    {
-      lit_term = TBInsertInstantiated(eqn->bank, eqn->lterm);
+      lit_term = TBInsertInstantiated(EqnGetBank(eqn), eqn->lterm);
    }
    lit_code = lit_term->entry_no;
 
@@ -1066,7 +1066,7 @@ ProverResult SatClauseSetCheckUnsat(SatClauseSet_p satset, Clause_p *empty,
    if(res == PRUnsatisfiable)
    {
       PStack_p unsat_core = PStackAlloc();
-      fprintf(GlobalOut, COMCHAR" SatCheck found unsatisfiable ground set\n");
+      CommentPrint(GlobalOut, " SatCheck found unsatisfiable ground set\n");
       *empty = EmptyClauseAlloc();
       sat_extract_core(satset, unsat_core, solver);
       satset->core_size = PStackGetSP(unsat_core);

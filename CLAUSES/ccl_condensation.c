@@ -62,7 +62,7 @@ static bool try_condensation(Clause_p clause, Eqn_p l1, Eqn_p l2, bool swap)
 
    if(LiteralUnifyOneWay(l1, l2, subst, false))
    {
-      newlits = EqnListCopyExcept(clause->literals,l2, l1->bank);
+      newlits = EqnListCopyExcept(clause->literals,l2, EqnGetBank(l1));
       SubstBacktrack(subst);
       EqnListRemoveDuplicates(newlits);
       EqnListRemoveResolved(&newlits);
@@ -145,7 +145,8 @@ bool CondenseOnce(Clause_p clause)
 // Function: Condense()
 //
 //   Condense a clause as much as possible. Return true if the clause
-//   was changed, false otherwise.
+//   was changed, false otherwise. A full proof object keeps the clause
+//   before the step in step_archive.
 //
 // Global Variables:
 //
@@ -153,7 +154,7 @@ bool CondenseOnce(Clause_p clause)
 //
 /----------------------------------------------------------------------*/
 
-bool Condense(Clause_p clause)
+bool Condense(Clause_p clause, ClauseSet_p step_archive)
 {
    bool res = false;
 
@@ -161,12 +162,14 @@ bool Condense(Clause_p clause)
 
    if((clause->pos_lit_no > 1) || (clause->neg_lit_no >1))
    {
+      Clause_p before = ClauseArchiveStepBegin(step_archive, clause);
       clause->weight = ClauseStandardWeight(clause);
       ClauseSubsumeOrderSortLits(clause);
       while(CondenseOnce(clause))
       {
          res = true;
       }
+      ClauseArchiveStepEnd(step_archive, clause, before, res);
       if(res)
       {
          CondensationSuccesses++;

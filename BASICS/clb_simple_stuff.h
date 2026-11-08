@@ -103,6 +103,9 @@ long   ComputeGCD(long a, long b);
 
 void   SetProblemType(ProblemType t);
 
+int    CommentPrint(FILE* out, const char* format, ...)
+   __attribute__((format(printf, 2, 3)));
+
 #define DBG_PRINT(out, prefix, main, suffix) \
    fprintf(out, "%s", prefix);\
    main;\
@@ -110,7 +113,7 @@ void   SetProblemType(ProblemType t);
 
 #define DBG_TPRINT(out, prefix, term, suffix) \
    fprintf(out, "%s", prefix);\
-   TermPrintDbg(out, term, TermGetBank(term)->sig, DEREF_NEVER);\
+   TermPrintDbg(out, term, TermFindBank(term)->sig, DEREF_NEVER);\
    fprintf(out, "%s", suffix)
 
 
